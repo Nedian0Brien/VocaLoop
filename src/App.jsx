@@ -4,8 +4,7 @@ import {
     getAuth,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    signInWithCustomToken
+    onAuthStateChanged
 } from "firebase/auth";
 import {
     getFirestore,
@@ -19,53 +18,16 @@ import {
     deleteDoc
 } from "firebase/firestore";
 
-// --- Inline Icon Components ---
-const Icons = {
-    Camera: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
-    ),
-    BookOpen: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
-    ),
-    Brain: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" /><path d="M17.599 6.5a3 3 0 0 0 .399-1.375" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" /><path d="M3.477 12.578c.076-.232.15-.461.22-.686.433-1.391.277-2.926-.436-4.196" /><path d="M20.52 12.578c-.076-.232-.15-.461-.22-.686-.433-1.391-.277-2.926.436-4.196" /><path d="M9 18c-4.528 0-8 0-8-5 0-2.02.78-3.9 2.08-5.27" /><path d="M15 18c4.528 0 8 0 8-5 0-2.02-.78-3.9-2.08-5.27" /></svg>
-    ),
-    Check: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-    ),
-    Plus: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-    ),
-    Loader2: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-    ),
-    Search: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-    ),
-    Volume2: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
-    ),
-    RotateCw: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>
-    ),
-    Trash2: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-    ),
-    Infinity: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z" /></svg>
-    ),
-    FileText: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" /></svg>
-    ),
-    Quote: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" /><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" /></svg>
-    ),
-    ArrowRightLeft: (props) => (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4" /><path d="M20 7H4" /><path d="m8 21-4-4 4-4" /><path d="M4 17h16" /></svg>
-    )
-};
+// Components
+import Header from './components/Header';
+import SetupScreen from './components/SetupScreen';
+import WordCard from './components/WordCard';
+import EmptyState from './components/EmptyState';
+import { Loader2, Plus, Search, Brain, Check, RotateCw } from './components/Icons';
 
-const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft } = Icons;
+// Hooks & Services
+import useWindowSize from './hooks/useWindowSize';
+import { generateWordData } from './services/geminiService';
 
 // --- System Constants ---
 const loadConfig = (envKey, localKey) => {
@@ -83,83 +45,13 @@ const firebaseConfigRaw = loadConfig('VITE_FIREBASE_CONFIG', '__firebase_config'
 let firebaseConfig = null;
 try {
     firebaseConfig = firebaseConfigRaw ? JSON.parse(firebaseConfigRaw) : null;
-} catch (e) { console.error("Bad Firebase Config", e); }
+} catch (e) {
+    console.error("Bad Firebase Config", e);
+}
 
-
-// --- Setup Component (For Local Environment) ---
-const SetupScreen = () => {
-    const [localApiKey, setLocalApiKey] = useState('');
-    const [localFbConfig, setLocalFbConfig] = useState('');
-
-    const handleSave = () => {
-        try {
-            if (!localApiKey.trim()) return alert("API Key is required");
-            const fbJson = JSON.parse(localFbConfig);
-
-            localStorage.setItem('__api_key', localApiKey);
-            localStorage.setItem('__firebase_config', JSON.stringify(fbJson));
-            localStorage.setItem('__app_id', 'vocaloop-local');
-
-            alert("Configuration saved! Reloading...");
-            window.location.reload();
-        } catch (e) {
-            alert("Invalid Firebase Config JSON format. Please check again.");
-        }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="bg-white max-w-md w-full rounded-2xl shadow-xl p-8 border border-gray-100">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">VocaLoop Setup</h1>
-                    <p className="text-gray-500 text-sm">Environment variables are missing.<br />Please provide credentials via .env or form.</p>
-                </div>
-
-                <div className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Gemini API Key</label>
-                        <input
-                            type="password"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                            placeholder="AIzaSy..."
-                            value={localApiKey}
-                            onChange={e => setLocalApiKey(e.target.value)}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Firebase Config (JSON)
-                            <span className="text-xs font-normal text-gray-400 ml-2 block mt-1">
-                                Copy object from Firebase Console {'>'} Project settings
-                            </span>
-                        </label>
-                        <textarea
-                            className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                            placeholder='{"apiKey": "...", "authDomain": "...", ...}'
-                            value={localFbConfig}
-                            onChange={e => setLocalFbConfig(e.target.value)}
-                        />
-                    </div>
-
-                    <button
-                        onClick={handleSave}
-                        className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
-                    >
-                        Save & Start VocaLoop
-                    </button>
-
-                    <p className="text-center text-xs text-gray-400 mt-4">
-                        Data is saved locally in your browser's LocalStorage.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // TEST ACCOUNT CREDENTIALS
-const TEST_EMAIL = "demo@vocaloop.ai";
+const TEST_EMAIL = "tester@vocaloop.ai";
 const TEST_PW = "demo1234";
 
 // --- Sample Data for Auto Seeding ---
@@ -216,73 +108,6 @@ const SAMPLE_WORDS = [
     }
 ];
 
-// --- Utils: Hook for Window Resize ---
-const useWindowSize = () => {
-    const [windowSize, setWindowSize] = useState({
-        width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        const handleResize = () => {
-            setWindowSize({ width: window.innerWidth });
-        };
-
-        window.addEventListener("resize", handleResize);
-        handleResize();
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    return windowSize;
-};
-
-// --- Gemini Service ---
-const generateWordData = async (word) => {
-    const prompt = `
-    Analyze the English word '${word}'. 
-    Return a JSON object with the following structure (do not include markdown formatting, just raw JSON):
-    {
-        "word": "${word}",
-        "meaning_ko": "Core Korean meaning (string)",
-        "pronunciation": "IPA pronunciation (string)",
-        "pos": "Part of speech (e.g., Noun, Verb)",
-        "definitions": ["English definition 1", "English definition 2"],
-        "examples": [
-            {"en": "English example sentence using the word", "ko": "Korean translation"}
-        ],
-        "synonyms": ["synonym1", "synonym2"],
-        "nuance": "Brief explanation of nuance or usage context in Korean"
-    }
-    `;
-
-    try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json" }
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        if (!data.candidates || data.candidates.length === 0) {
-            throw new Error("No response from AI.");
-        }
-        const text = data.candidates[0].content.parts[0].text;
-        return JSON.parse(text);
-    } catch (error) {
-        console.error("Gemini Error:", error);
-        throw error;
-    }
-};
-
 // --- Main App Component ---
 function App() {
     const [user, setUser] = useState(null);
@@ -321,9 +146,11 @@ function App() {
                             console.log("Created and logged in with fixed test account");
                         } catch (createErr) {
                             console.error("Account creation failed:", createErr);
+                            showNotification("Failed to create test account: " + createErr.message, "error");
                         }
                     } else {
                         console.error("Login failed:", e);
+                        showNotification("Login failed: " + e.message, "error");
                     }
                 }
             };
@@ -352,9 +179,11 @@ function App() {
                                     });
                                 });
                                 await batch.commit();
+                                console.log("Seeding complete");
                                 showNotification("Sample words added for testing!");
                             } catch (err) {
                                 console.error("Seeding failed:", err);
+                                showNotification("Data seeding failed: " + err.message, "error");
                             }
                         }
 
@@ -367,6 +196,7 @@ function App() {
                         setLoading(false);
                     }, (error) => {
                         console.error("Firestore Error:", error);
+                        showNotification("Data loading error: " + error.message, "error");
                         setLoading(false);
                     });
                 } else {
@@ -377,6 +207,7 @@ function App() {
             return () => unsubscribe();
         } catch (err) {
             console.error("Firebase Init Error:", err);
+            showNotification("System Init Error: " + err.message, "error");
             setLoading(false);
         }
     }, []);
@@ -392,7 +223,7 @@ function App() {
 
         setIsAnalyzing(true);
         try {
-            const analysisResult = await generateWordData(inputWord);
+            const analysisResult = await generateWordData(inputWord, apiKey);
             await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
@@ -403,7 +234,7 @@ function App() {
             showNotification(`'${analysisResult.word}' analyzed and added!`);
         } catch (error) {
             console.error("Add Word Error:", error);
-            showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed. Please try again.", "error");
+            showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
         } finally {
             setIsAnalyzing(false);
         }
@@ -416,171 +247,8 @@ function App() {
             showNotification("Word deleted.");
         } catch (e) {
             console.error("Delete failed", e);
+            showNotification("Failed to delete word: " + e.message, "error");
         }
-    };
-
-    const playTTS = (text) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        window.speechSynthesis.speak(utterance);
-    };
-
-    // --- UI Components ---
-    const Header = () => (
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-700 cursor-pointer" onClick={() => setView('dashboard')}>
-                    <div className="relative flex items-center justify-center w-8 h-8">
-                        <InfinityIcon className="w-8 h-8 absolute text-blue-600" strokeWidth={2.5} />
-                    </div>
-                    <h1 className="text-xl font-bold tracking-tight">VocaLoop</h1>
-                </div>
-                <nav className="flex gap-4">
-                    <button
-                        onClick={() => setView('dashboard')}
-                        className={`text-sm font-medium transition-colors ${view === 'dashboard' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
-                    >
-                        Dashboard
-                    </button>
-                    <button
-                        onClick={() => setView('study')}
-                        className={`text-sm font-medium transition-colors ${view === 'study' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
-                    >
-                        Study
-                    </button>
-                </nav>
-            </div>
-        </header>
-    );
-
-    const EmptyState = () => (
-        <div className="text-center py-12 px-4">
-            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">No words yet</h3>
-            <p className="text-gray-500 mb-6">Add your first word to start the learning loop.</p>
-        </div>
-    );
-
-    const WordCard = ({ item }) => {
-        const [isFlipped, setIsFlipped] = useState(false);
-
-        // ANIMATION: Slower speed (duration-700) and custom bezier
-        const containerClass = isFlipped
-            ? 'max-h-[1000px]'
-            : 'max-h-64';
-
-        // Conditional positioning
-        const frontClass = isFlipped ? 'absolute inset-0' : 'relative';
-        const backClass = isFlipped ? 'relative' : 'absolute inset-0';
-
-        return (
-            <div
-                className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md transition-[max-height] duration-700 w-full ${containerClass}`}
-                style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
-                onClick={() => setIsFlipped(!isFlipped)}
-            >
-                <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`}>
-                    <div className="card-inner">
-                        {/* Front */}
-                        <div className={`card-front bg-white p-6 flex flex-col items-center justify-center text-center z-20 ${frontClass}`}>
-                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
-                            <h3 className="text-3xl font-bold text-gray-900 serif-font mb-2">{item.word}</h3>
-                            <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
-                            <button
-                                className="mt-4 p-2 text-gray-400 hover:text-blue-600 transition-colors z-30"
-                                onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
-                            >
-                                <Volume2 className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Back */}
-                        <div className={`card-back bg-blue-50 p-6 flex flex-col justify-between ${backClass}`}>
-                            <div className="h-full">
-                                {/* Header Row: Word + TTS & Delete */}
-                                <div className="flex justify-between items-start mb-4 pb-3 border-b border-blue-200">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="text-xl font-bold text-gray-900 serif-font">{item.word}</h3>
-                                            <button
-                                                className="text-gray-400 hover:text-blue-600 p-0.5"
-                                                onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
-                                            >
-                                                <Volume2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <h4 className="text-lg font-bold text-blue-700 leading-tight">{item.meaning_ko}</h4>
-                                    </div>
-                                    <button
-                                        className="text-gray-400 hover:text-red-500 p-1 shrink-0 ml-2"
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteWord(item.id); }}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {/* Definition */}
-                                    <div>
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <FileText className="w-3.5 h-3.5 text-blue-400" />
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
-                                        </div>
-                                        <p className="text-sm text-gray-800 leading-relaxed">{item.definitions?.[0]}</p>
-                                    </div>
-
-                                    {/* Nuance (Moved Up) */}
-                                    {item.nuance && (
-                                        <div className="pt-3 border-t border-blue-200">
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                <Brain className="w-3.5 h-3.5 text-purple-500" />
-                                                <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Nuance</p>
-                                            </div>
-                                            <p className="text-xs text-gray-700 leading-relaxed">
-                                                {item.nuance}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Synonyms (New Section) */}
-                                    {item.synonyms && item.synonyms.length > 0 && (
-                                        <div className="pt-3 border-t border-blue-200">
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
-                                                <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">Synonyms</p>
-                                            </div>
-                                            <p className="text-sm text-gray-800 leading-relaxed italic">
-                                                {item.synonyms.join(', ')}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Examples (Moved Down) */}
-                                    {item.examples?.length > 0 && (
-                                        <div className="pt-3 border-t border-blue-200">
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                <Quote className="w-3.5 h-3.5 text-blue-400" />
-                                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Examples</p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {item.examples.map((ex, idx) => (
-                                                    <div key={idx}>
-                                                        <p className="text-sm text-blue-900 font-medium mb-0.5 leading-snug">"{ex.en}"</p>
-                                                        <p className="text-xs text-gray-500">{ex.ko}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     const renderMasonryLayout = () => {
@@ -588,7 +256,7 @@ function App() {
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {words.map(word => <WordCard key={word.id} item={word} />)}
+                    {words.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
                 </div>
             );
         }
@@ -598,10 +266,10 @@ function App() {
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="flex flex-col gap-4">
-                    {leftColumn.map(word => <WordCard key={word.id} item={word} />)}
+                    {leftColumn.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
                 </div>
                 <div className="flex flex-col gap-4">
-                    {rightColumn.map(word => <WordCard key={word.id} item={word} />)}
+                    {rightColumn.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
                 </div>
             </div>
         );
@@ -620,13 +288,15 @@ function App() {
 
     return (
         <div className="min-h-screen pb-20">
-            <Header />
+            <Header view={view} setView={setView} />
+
             {notification && (
                 <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 text-white font-medium flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
                     {notification.type === 'error' ? <RotateCw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                     {notification.msg}
                 </div>
             )}
+
             <main className="max-w-3xl mx-auto px-4 pt-8">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 opacity-20"></div>
@@ -669,6 +339,7 @@ function App() {
                         </p>
                     </form>
                 </div>
+
                 {view === 'dashboard' && (
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
