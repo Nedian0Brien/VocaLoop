@@ -4,15 +4,14 @@ import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote } from './Icons
 const WordCard = ({ item, handleDeleteWord }) => {
     const [isFlipped, setIsFlipped] = useState(false);
 
-    // TTS Function internal to card, or could be passed as prop. 
-    // Implementing securely here for self-containment.
+    // TTS Function internal to card
     const playTTS = (text) => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
     };
 
-    // ANIMATION: Slower speed (duration-700) and custom bezier
+    // ANIMATION: Slower speed
     const containerClass = isFlipped
         ? 'max-h-[1000px]'
         : 'max-h-64';
@@ -32,7 +31,7 @@ const WordCard = ({ item, handleDeleteWord }) => {
                     {/* Front */}
                     <div className={`card-front bg-white p-6 flex flex-col items-center justify-center text-center z-20 ${frontClass}`}>
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
-                        <h3 className="text-3xl font-bold text-gray-900 serif-font mb-2">{item.word}</h3>
+                        <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
                         <button
                             className="mt-4 p-2 text-gray-400 hover:text-blue-600 transition-colors z-30"
@@ -49,7 +48,7 @@ const WordCard = ({ item, handleDeleteWord }) => {
                             <div className="flex justify-between items-start mb-4 pb-3 border-b border-blue-200">
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-xl font-bold text-gray-900 serif-font">{item.word}</h3>
+                                        <h3 className="text-xl font-bold text-gray-900 font-serif">{item.word}</h3>
                                         <button
                                             className="text-gray-400 hover:text-blue-600 p-0.5"
                                             onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
