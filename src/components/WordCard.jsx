@@ -17,12 +17,12 @@ const WordCard = ({ item, handleDeleteWord }) => {
     // Spotlight Effect State (좌표만 저장)
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0, opacity: 0 });
 
-    // 마우스/터치 좌표 기반 스타일 업데이트 공통 로직
-    const updateCardStyles = (clientX, clientY) => {
+    // 마우스 위치 기반 3D Tilt + Spotlight 효과
+    const handleMouseMove = (e) => {
         if (!cardRef.current) return;
         const rect = cardRef.current.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
 
@@ -40,32 +40,12 @@ const WordCard = ({ item, handleDeleteWord }) => {
         setCursorPos({ x, y, opacity: 0.7 });
     };
 
-    // 마우스 이벤트 핸들러
-    const handleMouseMove = (e) => {
-        updateCardStyles(e.clientX, e.clientY);
-    };
-
     const handleMouseLeave = () => {
         setTiltStyle({
             transform: 'rotateX(0deg) rotateY(0deg)',
             transition: 'transform 0.3s ease-out'
         });
         setCursorPos(prev => ({ ...prev, opacity: 0 }));
-    };
-
-    // 터치 이벤트 핸들러 (모바일 지원)
-    const handleTouchStart = (e) => {
-        const touch = e.touches[0];
-        updateCardStyles(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchMove = (e) => {
-        const touch = e.touches[0];
-        updateCardStyles(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchEnd = () => {
-        handleMouseLeave();
     };
 
     useEffect(() => {
@@ -126,9 +106,6 @@ const WordCard = ({ item, handleDeleteWord }) => {
             onClick={() => setIsFlipped(!isFlipped)}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
         >
             <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`} style={tiltStyle}>
                 <div className="card-inner rounded-xl">
