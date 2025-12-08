@@ -4,11 +4,56 @@ import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote } from './Icons
 const WordCard = ({ item, handleDeleteWord }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
+    const cardRef = useRef(null);
 
     // Height Calculation for Smooth Animation
     // Front height is fixed at 16rem (256px)
     // Back height is dynamic based on content
     const [backHeight, setBackHeight] = useState('auto');
+
+    // 3D Tilt Animation State
+    const [tiltStyle, setTiltStyle] = useState({});
+    // Spotlight Effect State
+    const [spotlightStyle, setSpotlightStyle] = useState({});
+
+    // 마우스 위치 기반 3D Tilt + Spotlight 효과
+    const handleMouseMove = (e) => {
+        if (!cardRef.current) return;
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        // 최대 기울기: 앞면 7도, 뒷면 4도 (긴 콘텐츠 안정성)
+        const maxDegree = isFlipped ? 4 : 7;
+        const rotateX = ((y - centerY) / centerY) * -maxDegree;
+        const rotateY = ((x - centerX) / centerX) * maxDegree;
+
+        setTiltStyle({
+            transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02) translateY(-10px)`,
+            transition: 'transform 0.1s ease-out'
+        });
+
+        // Spotlight Effect: 마우스 위치에 빛 효과
+        const spotlightX = (x / rect.width) * 100;
+        const spotlightY = (y / rect.height) * 100;
+        setSpotlightStyle({
+            background: `radial-gradient(circle at ${spotlightX}% ${spotlightY}%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%)`,
+            opacity: 1
+        });
+    };
+
+    const handleMouseLeave = () => {
+        setTiltStyle({
+            transform: 'rotateX(0deg) rotateY(0deg)',
+            transition: 'transform 0.3s ease-out'
+        });
+        setSpotlightStyle({
+            opacity: 0,
+            transition: 'opacity 0.3s ease-out'
+        });
+    };
 
     useEffect(() => {
         if (contentRef.current) {
@@ -59,17 +104,28 @@ const WordCard = ({ item, handleDeleteWord }) => {
 
     return (
         <div
+            ref={cardRef}
             className="overflow-visible cursor-pointer w-full"
             style={{
                 height: currentHeight,
                 transition: 'height 0.7s cubic-bezier(0.25, 1, 0.5, 1)'
             }}
             onClick={() => setIsFlipped(!isFlipped)}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
         >
-            <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`}>
+            <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`} style={tiltStyle}>
                 <div className="card-inner">
                     {/* Front */}
                     <div className={`card-front bg-white p-6 flex flex-col items-center justify-center text-center z-20 h-full rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow ${frontClass}`}>
+                        {/* Spotlight Overlay */}
+                        <div
+                            className="absolute inset-0 rounded-xl pointer-events-none z-10"
+                            style={{
+                                ...spotlightStyle,
+                                transition: 'opacity 0.2s ease-out'
+                            }}
+                        />
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
                         <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
@@ -86,6 +142,14 @@ const WordCard = ({ item, handleDeleteWord }) => {
                         className={`card-back bg-blue-50 p-6 flex flex-col h-full rounded-xl shadow-sm border border-blue-200 ${backClass}`}
                         ref={contentRef}
                     >
+                        {/* Spotlight Overlay */}
+                        <div
+                            className="absolute inset-0 rounded-xl pointer-events-none z-10"
+                            style={{
+                                ...spotlightStyle,
+                                transition: 'opacity 0.2s ease-out'
+                            }}
+                        />
                         {/* Header Row: Word + TTS & Delete */}
                         <div className="flex justify-between items-start mb-4 pb-3 border-b border-blue-200">
                             <div className="flex flex-col">

@@ -34,3 +34,8 @@ body {
 .card-back {
     transform: rotateY(180deg);
 }
+
+/* 호버 시 그림자 강조 효과 (Floating Effect) */
+.card-inner:hover {
+    box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.25);
+}
