@@ -41,3 +41,39 @@ body {
         box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.25);
     }
 }
+
+/* 리스트 아이템 추가 애니메이션 (Slide Down & Fade In) */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-in {
+    animation: slideIn 0.5s ease-out forwards;
+}
+
+/* AI Generation Pulse Glow */
+@keyframes pulseGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(99, 102, 241, 0.5);
+        border-color: rgba(99, 102, 241, 0.8);
+    }
+}
+
+.animate-pulse-glow {
+    animation: pulseGlow 2s infinite ease-in-out;
+}

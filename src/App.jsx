@@ -23,7 +23,7 @@ import Header from './components/Header';
 import SetupScreen from './components/SetupScreen';
 import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
-import { Loader2, Plus, Search, Brain, Check, RotateCw } from './components/Icons';
+import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles } from './components/Icons';
 
 // Hooks & Services
 import useWindowSize from './hooks/useWindowSize';
@@ -256,7 +256,11 @@ function App() {
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {words.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
+                    {words.map((word, index) => (
+                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                        </div>
+                    ))}
                 </div>
             );
         }
@@ -266,10 +270,18 @@ function App() {
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="flex flex-col gap-4">
-                    {leftColumn.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
+                    {leftColumn.map((word, index) => (
+                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                        </div>
+                    ))}
                 </div>
                 <div className="flex flex-col gap-4">
-                    {rightColumn.map(word => <WordCard key={word.id} item={word} handleDeleteWord={handleDeleteWord} />)}
+                    {rightColumn.map((word, index) => (
+                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                        </div>
+                    ))}
                 </div>
             </div>
         );
@@ -305,9 +317,9 @@ function App() {
                         Add New Word
                     </h2>
                     <form onSubmit={handleAddWord} className="relative">
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <div className="flex gap-3">
+                            <div className="relative flex-1 group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors">
                                     <Search className="h-5 w-5 text-gray-400" />
                                 </div>
                                 <input
@@ -322,19 +334,35 @@ function App() {
                             <button
                                 type="submit"
                                 disabled={isAnalyzing || !inputWord.trim()}
-                                className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                className={`
+                                    relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white shadow-md transition-all duration-300
+                                    ${isAnalyzing ? 'cursor-wait pl-10' : 'hover:shadow-lg hover:-translate-y-0.5'}
+                                    bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-[length:200%_auto]
+                                    disabled:opacity-70 disabled:cursor-not-allowed
+                                    group
+                                `}
+                                style={{
+                                    backgroundPosition: isAnalyzing ? 'right center' : 'left center',
+                                }}
                             >
-                                {isAnalyzing ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Analyzing...
-                                    </>
-                                ) : (
-                                    "Add"
-                                )}
+                                <div className="flex items-center gap-2 relative z-10">
+                                    {isAnalyzing ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <span>Crafting...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Generate</span>
+                                            <Sparkles className="w-4 h-4 opacity-80 group-hover:scale-110 transition-transform" />
+                                        </>
+                                    )}
+                                </div>
+                                {/* Shimmer Overlay */}
+                                {!isAnalyzing && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>}
                             </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2 ml-1">
+                        <p className="text-xs text-gray-500 mt-2 ml-1 flex items-center gap-1">
                             <span className="text-blue-600 font-medium">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
                         </p>
                     </form>
