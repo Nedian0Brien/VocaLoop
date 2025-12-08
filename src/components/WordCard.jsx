@@ -17,12 +17,39 @@ const WordCard = ({ item, handleDeleteWord }) => {
         }
     }, [item, isFlipped]);
 
-    const currentHeight = isFlipped ? backHeight : '16rem';
+    // 페이지 로드 시 TTS 음성 미리 로드
+    useEffect(() => {
+        // Chrome에서 음성 목록을 미리 로드하기 위해 빈 호출
+        window.speechSynthesis.getVoices();
 
-    // TTS Function internal to card
+        // voiceschanged 이벤트 리스너 (음성 목록이 비동기로 로드됨)
+        const handleVoicesChanged = () => {
+            window.speechSynthesis.getVoices();
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+
+        return () => {
+            window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        };
+    }, []);
+
+    const currentHeight = isFlipped ? backHeight : '12rem';
+
+    // TTS Function with better voice selection (Samantha 우선)
     const playTTS = (text) => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
+
+        // 음성 우선순위: Samantha (macOS/iOS) > Google US > Daniel
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice =
+            voices.find(v => v.name === 'Samantha') ||
+            voices.find(v => v.name.includes('Google US')) ||
+            voices.find(v => v.name.includes('Google') && v.lang === 'en-US') ||
+            voices.find(v => v.name === 'Daniel');
+
+        if (preferredVoice) utterance.voice = preferredVoice;
+
         window.speechSynthesis.speak(utterance);
     };
 
