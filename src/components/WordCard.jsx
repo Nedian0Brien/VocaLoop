@@ -13,8 +13,9 @@ const WordCard = ({ item, handleDeleteWord }) => {
 
     // 3D Tilt Animation State
     const [tiltStyle, setTiltStyle] = useState({});
-    // Spotlight Effect State
-    const [spotlightStyle, setSpotlightStyle] = useState({});
+
+    // Spotlight Effect State (좌표만 저장)
+    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0, opacity: 0 });
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
@@ -35,13 +36,8 @@ const WordCard = ({ item, handleDeleteWord }) => {
             transition: 'transform 0.1s ease-out'
         });
 
-        // Spotlight Effect: 마우스 위치에 빛 효과
-        const spotlightX = (x / rect.width) * 100;
-        const spotlightY = (y / rect.height) * 100;
-        setSpotlightStyle({
-            background: `radial-gradient(circle at ${spotlightX}% ${spotlightY}%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%)`,
-            opacity: 1
-        });
+        // Spotlight Effect: 좌표 업데이트
+        setCursorPos({ x, y, opacity: 0.7 });
     };
 
     const handleMouseLeave = () => {
@@ -49,10 +45,7 @@ const WordCard = ({ item, handleDeleteWord }) => {
             transform: 'rotateX(0deg) rotateY(0deg)',
             transition: 'transform 0.3s ease-out'
         });
-        setSpotlightStyle({
-            opacity: 0,
-            transition: 'opacity 0.3s ease-out'
-        });
+        setCursorPos(prev => ({ ...prev, opacity: 0 }));
     };
 
     useEffect(() => {
@@ -115,15 +108,31 @@ const WordCard = ({ item, handleDeleteWord }) => {
             onMouseLeave={handleMouseLeave}
         >
             <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`} style={tiltStyle}>
-                <div className="card-inner">
+                <div className="card-inner rounded-xl">
                     {/* Front */}
-                    <div className={`card-front bg-white p-6 flex flex-col items-center justify-center text-center z-20 h-full rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow ${frontClass}`}>
-                        {/* Spotlight Overlay */}
+                    <div className={`card-front overflow-hidden bg-white p-6 flex flex-col items-center justify-center text-center z-20 h-full rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow ${frontClass}`}>
+                        {/* Spotlight Overlay: Front (Soft Blue) */}
                         <div
                             className="absolute inset-0 rounded-xl pointer-events-none z-10"
                             style={{
-                                ...spotlightStyle,
+                                background: `radial-gradient(600px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(59, 130, 246, 0.15), transparent 80%)`,
+                                opacity: cursorPos.opacity,
                                 transition: 'opacity 0.2s ease-out'
+                            }}
+                        />
+                        {/* Border Glow: Front (Blue Tint) */}
+                        <div
+                            className="absolute inset-0 rounded-xl pointer-events-none z-20"
+                            style={{
+                                background: `radial-gradient(400px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(59, 130, 246, 0.6), transparent 100%)`,
+                                opacity: cursorPos.opacity,
+                                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                WebkitMaskComposite: 'xor',
+                                maskComposite: 'exclude',
+                                padding: '1.5px',
+                                transition: 'opacity 0.2s ease-out',
+                                inset: '0px'
                             }}
                         />
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
@@ -139,15 +148,31 @@ const WordCard = ({ item, handleDeleteWord }) => {
 
                     {/* Back */}
                     <div
-                        className={`card-back bg-blue-50 p-6 flex flex-col h-full rounded-xl shadow-sm border border-blue-200 ${backClass}`}
+                        className={`card-back overflow-hidden bg-blue-50 p-6 flex flex-col h-full rounded-xl shadow-sm border border-blue-200 ${backClass}`}
                         ref={contentRef}
                     >
-                        {/* Spotlight Overlay */}
+                        {/* Spotlight Overlay: Back (Bright White) */}
                         <div
                             className="absolute inset-0 rounded-xl pointer-events-none z-10"
                             style={{
-                                ...spotlightStyle,
+                                background: `radial-gradient(600px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.45), transparent 80%)`,
+                                opacity: cursorPos.opacity,
                                 transition: 'opacity 0.2s ease-out'
+                            }}
+                        />
+                        {/* Border Glow: Back (White/Blue mix) */}
+                        <div
+                            className="absolute inset-0 rounded-xl pointer-events-none z-20"
+                            style={{
+                                background: `radial-gradient(400px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.9), transparent 100%)`,
+                                opacity: cursorPos.opacity,
+                                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                WebkitMaskComposite: 'xor',
+                                maskComposite: 'exclude',
+                                padding: '1.5px',
+                                transition: 'opacity 0.2s ease-out',
+                                inset: '0.5px'
                             }}
                         />
                         {/* Header Row: Word + TTS & Delete */}
