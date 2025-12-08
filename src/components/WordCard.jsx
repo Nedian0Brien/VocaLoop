@@ -19,6 +19,9 @@ const WordCard = ({ item, handleDeleteWord }) => {
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
+        // 모바일(터치) 환경에서는 호버 효과 방지
+        if (window.matchMedia && !window.matchMedia('(hover: hover)').matches) return;
+
         if (!cardRef.current) return;
         const rect = cardRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
