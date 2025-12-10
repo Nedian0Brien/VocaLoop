@@ -40,8 +40,9 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
+            set -e
             cd ~/project/voca-loop/VocaLoop
             git pull origin main
             npm install
             npm run build:clean
-            pm2 restart voca-loop
+            pm2 restart voca-loop --update-env
