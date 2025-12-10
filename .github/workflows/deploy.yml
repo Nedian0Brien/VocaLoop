@@ -42,6 +42,7 @@ jobs:
           script: |
             cd ~/project/voca-loop/VocaLoop
             git pull origin main
-            npm ci
+            rm -rf node_modules
+            npm install
             npm run build:clean
             pm2 restart voca-loop
