@@ -28,7 +28,18 @@
 - `KEY`: SSH Private Key
 
 ## ✅ 완료 조건
-- [ ] `.github/workflows/deploy.yml` 파일 생성
-- [ ] GitHub Repository Secrets 설정 완료
-- [ ] `main` 브랜치 푸시 후 Actions 탭에서 빌드 및 배포 성공 확인
-- [ ] 배포 로그에서 `clean` 단계 실행 확인 및 해시 변경 확인
+- [x] `.github/workflows/deploy.yml` 파일 생성
+- [x] GitHub Repository Secrets 설정 완료
+- [x] `main` 브랜치 푸시 후 Actions 탭에서 빌드 및 배포 성공 확인
+- [x] 배포 로그에서 `clean` 단계 실행 확인 및 해시 변경 확인
+
+## 🔒 종료 (Closed)
+- **완료 일자**: 2025-12-10
+- **결과**: CI/CD 파이프라인 구축 완료.
+- **상세 내용**: [ci:GitHub_Actions_CI_CD_파이프라인_구축_및_빌드_최적화.md](../feat/ci:GitHub_Actions_CI_CD_파이프라인_구축_및_빌드_최적화.md) 참고.
+
+### 코멘트
+GitHub Actions를 통한 자동 배포 환경을 성공적으로 구축했습니다.
+초기 배포 시 발생했던 모듈 미발견 오류는 `docs/troubleshooting/issue_ci_cd_deployment_failure.md`에 정리하여 해결했습니다.
+이제 `main` 브랜치 푸시 시 안정적인 자동 배포가 이루어집니다.
+
