@@ -1,4 +1,4 @@
-# Authentication 로직 리팩토링 및 Config 분리
+# refactor: Authentication 로직 리팩토링 및 Config 분리
 
 ## 🎯 목적
 `App.jsx`에 집중된 Firebase 초기화, 인증 상태 관리, DB 리스너 로직을 분리하여 코드 복잡도를 낮추고 유지보수성을 향상시킵니다.
