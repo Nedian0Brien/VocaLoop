@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import {
     getAuth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged
+    signInWithPopup,
+    GoogleAuthProvider,
+    onAuthStateChanged,
+    signOut
 } from "firebase/auth";
 import {
     getFirestore,
@@ -21,6 +22,7 @@ import {
 // Components
 import Header from './components/Header';
 import SetupScreen from './components/SetupScreen';
+import LoginScreen from './components/LoginScreen';
 import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
 import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles } from './components/Icons';
@@ -48,11 +50,6 @@ try {
 } catch (e) {
     console.error("Bad Firebase Config", e);
 }
-
-
-// TEST ACCOUNT CREDENTIALS
-const TEST_EMAIL = "tester@vocaloop.ai";
-const TEST_PW = "demo1234";
 
 // --- Sample Data for Auto Seeding ---
 const SAMPLE_WORDS = [
@@ -112,9 +109,11 @@ const SAMPLE_WORDS = [
 function App() {
     const [user, setUser] = useState(null);
     const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
     const [view, setView] = useState('dashboard');
     const [words, setWords] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loginLoading, setLoginLoading] = useState(false);
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
@@ -131,32 +130,12 @@ function App() {
     useEffect(() => {
         try {
             const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
+            const authInstance = getAuth(app);
             const firestore = getFirestore(app);
+            setAuth(authInstance);
             setDb(firestore);
 
-            const initFixedAuth = async () => {
-                try {
-                    await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PW);
-                    console.log("Logged in with fixed test account");
-                } catch (e) {
-                    if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-email') {
-                        try {
-                            await createUserWithEmailAndPassword(auth, TEST_EMAIL, TEST_PW);
-                            console.log("Created and logged in with fixed test account");
-                        } catch (createErr) {
-                            console.error("Account creation failed:", createErr);
-                            showNotification("Failed to create test account: " + createErr.message, "error");
-                        }
-                    } else {
-                        console.error("Login failed:", e);
-                        showNotification("Login failed: " + e.message, "error");
-                    }
-                }
-            };
-            initFixedAuth();
-
-            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
                 setUser(currentUser);
                 if (currentUser) {
                     const q = query(
@@ -215,6 +194,33 @@ function App() {
     const showNotification = (msg, type = 'success') => {
         setNotification({ msg, type });
         setTimeout(() => setNotification(null), 3000);
+    };
+
+    // Google 로그인 핸들러
+    const handleGoogleLogin = async () => {
+        if (!auth) return;
+        setLoginLoading(true);
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error("Google Login Error:", error);
+            showNotification("로그인 실패: " + error.message, "error");
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    // 로그아웃 핸들러
+    const handleLogout = async () => {
+        if (!auth) return;
+        try {
+            await signOut(auth);
+            showNotification("로그아웃되었습니다.");
+        } catch (error) {
+            console.error("Logout Error:", error);
+            showNotification("로그아웃 실패: " + error.message, "error");
+        }
     };
 
     const handleAddWord = async (e) => {
@@ -298,9 +304,14 @@ function App() {
         );
     }
 
+    // 로그인되지 않은 상태: 로그인 화면 표시
+    if (!user) {
+        return <LoginScreen onGoogleLogin={handleGoogleLogin} isLoading={loginLoading} />;
+    }
+
     return (
         <div className="min-h-screen pb-20">
-            <Header view={view} setView={setView} />
+            <Header view={view} setView={setView} user={user} onLogout={handleLogout} />
 
             {notification && (
                 <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 text-white font-medium flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
