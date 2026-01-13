@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff } from './Icons';
+import React, { useState, useMemo } from 'react';
+import { Mail, Lock, Eye, EyeOff, CheckCircle, XCircle } from './Icons';
 
 // Google 로고 SVG 컴포넌트
 const GoogleLogo = () => (
@@ -20,6 +20,24 @@ function LoginScreen({ onGoogleLogin, onEmailLogin, onEmailSignup, onPasswordRes
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
+
+    // 비밀번호 강도 체크
+    const passwordStrength = useMemo(() => {
+        if (!password) return null;
+
+        return {
+            minLength: password.length >= 8,
+            hasLetter: /[a-zA-Z]/.test(password),
+            hasNumber: /\d/.test(password),
+            hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+    }, [password]);
+
+    // 모든 비밀번호 조건 충족 여부
+    const isPasswordStrong = useMemo(() => {
+        if (!passwordStrength) return false;
+        return Object.values(passwordStrength).every(condition => condition);
+    }, [passwordStrength]);
 
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
@@ -46,8 +64,8 @@ function LoginScreen({ onGoogleLogin, onEmailLogin, onEmailSignup, onPasswordRes
         }
 
         if (mode === 'signup') {
-            if (password.length < 6) {
-                setError('비밀번호는 최소 6자 이상이어야 합니다.');
+            if (!isPasswordStrong) {
+                setError('비밀번호가 보안 요구사항을 충족하지 않습니다.');
                 return;
             }
             if (password !== confirmPassword) {
@@ -166,6 +184,55 @@ function LoginScreen({ onGoogleLogin, onEmailLogin, onEmailSignup, onPasswordRes
                                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                     </button>
                                 </div>
+
+                                {/* 비밀번호 보안 요구사항 (회원가입 시에만) */}
+                                {mode === 'signup' && password && (
+                                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">비밀번호 보안 요구사항:</p>
+                                        <ul className="space-y-1.5">
+                                            <li className="flex items-center gap-2 text-xs">
+                                                {passwordStrength?.minLength ? (
+                                                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                                ) : (
+                                                    <XCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                )}
+                                                <span className={passwordStrength?.minLength ? 'text-green-700' : 'text-gray-600'}>
+                                                    최소 8자 이상
+                                                </span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-xs">
+                                                {passwordStrength?.hasLetter ? (
+                                                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                                ) : (
+                                                    <XCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                )}
+                                                <span className={passwordStrength?.hasLetter ? 'text-green-700' : 'text-gray-600'}>
+                                                    영문자 포함 (a-z, A-Z)
+                                                </span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-xs">
+                                                {passwordStrength?.hasNumber ? (
+                                                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                                ) : (
+                                                    <XCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                )}
+                                                <span className={passwordStrength?.hasNumber ? 'text-green-700' : 'text-gray-600'}>
+                                                    숫자 포함 (0-9)
+                                                </span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-xs">
+                                                {passwordStrength?.hasSpecialChar ? (
+                                                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                                ) : (
+                                                    <XCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                )}
+                                                <span className={passwordStrength?.hasSpecialChar ? 'text-green-700' : 'text-gray-600'}>
+                                                    특수문자 포함 (!@#$%^&* 등)
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         )}
 

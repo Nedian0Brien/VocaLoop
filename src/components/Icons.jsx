@@ -84,7 +84,20 @@ export const Icons = {
             <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
             <line x1="2" y1="2" x2="22" y2="22" />
         </svg>
+    ),
+    CheckCircle: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="m9 12 2 2 4-4" />
+        </svg>
+    ),
+    XCircle: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="m15 9-6 6" />
+            <path d="m9 9 6 6" />
+        </svg>
     )
 };
 
-export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff } = Icons;
+export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle } = Icons;
