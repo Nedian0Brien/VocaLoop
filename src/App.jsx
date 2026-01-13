@@ -4,6 +4,9 @@ import {
     getAuth,
     signInWithPopup,
     GoogleAuthProvider,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    sendPasswordResetEmail,
     onAuthStateChanged,
     signOut
 } from "firebase/auth";
@@ -211,6 +214,109 @@ function App() {
         }
     };
 
+    // 이메일/비밀번호 로그인 핸들러
+    const handleEmailLogin = async (email, password) => {
+        if (!auth) return;
+        setLoginLoading(true);
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showNotification("로그인 성공!");
+        } catch (error) {
+            console.error("Email Login Error:", error);
+            let errorMessage = "로그인 실패";
+
+            // Firebase 에러 코드에 따른 사용자 친화적 메시지
+            switch (error.code) {
+                case 'auth/user-not-found':
+                    errorMessage = "등록되지 않은 이메일입니다.";
+                    break;
+                case 'auth/wrong-password':
+                    errorMessage = "비밀번호가 올바르지 않습니다.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = "유효하지 않은 이메일 형식입니다.";
+                    break;
+                case 'auth/user-disabled':
+                    errorMessage = "비활성화된 계정입니다.";
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = "너무 많은 로그인 시도. 잠시 후 다시 시도해주세요.";
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            showNotification(errorMessage, "error");
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    // 이메일/비밀번호 회원가입 핸들러
+    const handleEmailSignup = async (email, password) => {
+        if (!auth) return;
+        setLoginLoading(true);
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showNotification("회원가입이 완료되었습니다!");
+        } catch (error) {
+            console.error("Email Signup Error:", error);
+            let errorMessage = "회원가입 실패";
+
+            // Firebase 에러 코드에 따른 사용자 친화적 메시지
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = "이미 사용 중인 이메일입니다.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = "유효하지 않은 이메일 형식입니다.";
+                    break;
+                case 'auth/operation-not-allowed':
+                    errorMessage = "이메일/비밀번호 인증이 비활성화되어 있습니다.";
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = "비밀번호가 너무 약합니다. 더 강력한 비밀번호를 사용해주세요.";
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            showNotification(errorMessage, "error");
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    // 비밀번호 재설정 핸들러
+    const handlePasswordReset = async (email) => {
+        if (!auth) return;
+        try {
+            await sendPasswordResetEmail(auth, email);
+            showNotification("비밀번호 재설정 이메일이 전송되었습니다. 이메일을 확인해주세요.");
+            return true;
+        } catch (error) {
+            console.error("Password Reset Error:", error);
+            let errorMessage = "비밀번호 재설정 실패";
+
+            switch (error.code) {
+                case 'auth/user-not-found':
+                    errorMessage = "등록되지 않은 이메일입니다.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = "유효하지 않은 이메일 형식입니다.";
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = "너무 많은 요청. 잠시 후 다시 시도해주세요.";
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            showNotification(errorMessage, "error");
+            return false;
+        }
+    };
+
     // 로그아웃 핸들러
     const handleLogout = async () => {
         if (!auth) return;
@@ -306,7 +412,15 @@ function App() {
 
     // 로그인되지 않은 상태: 로그인 화면 표시
     if (!user) {
-        return <LoginScreen onGoogleLogin={handleGoogleLogin} isLoading={loginLoading} />;
+        return (
+            <LoginScreen
+                onGoogleLogin={handleGoogleLogin}
+                onEmailLogin={handleEmailLogin}
+                onEmailSignup={handleEmailSignup}
+                onPasswordReset={handlePasswordReset}
+                isLoading={loginLoading}
+            />
+        );
     }
 
     return (
