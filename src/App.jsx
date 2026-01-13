@@ -438,40 +438,48 @@ function App() {
         );
     };
 
+    // 알림 컴포넌트 (모든 상태에서 표시)
+    const NotificationToast = () => notification ? (
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 text-white font-medium flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
+            {notification.type === 'error' ? <RotateCw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+            {notification.msg}
+        </div>
+    ) : null;
+
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-500 font-medium">Initializing VocaLoop...</p>
+            <>
+                <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+                        <p className="text-gray-500 font-medium">Initializing VocaLoop...</p>
+                    </div>
                 </div>
-            </div>
+                <NotificationToast />
+            </>
         );
     }
 
     // 로그인되지 않은 상태: 로그인 화면 표시
     if (!user) {
         return (
-            <LoginScreen
-                onGoogleLogin={handleGoogleLogin}
-                onEmailLogin={handleEmailLogin}
-                onEmailSignup={handleEmailSignup}
-                onPasswordReset={handlePasswordReset}
-                isLoading={loginLoading}
-            />
+            <>
+                <LoginScreen
+                    onGoogleLogin={handleGoogleLogin}
+                    onEmailLogin={handleEmailLogin}
+                    onEmailSignup={handleEmailSignup}
+                    onPasswordReset={handlePasswordReset}
+                    isLoading={loginLoading}
+                />
+                <NotificationToast />
+            </>
         );
     }
 
     return (
         <div className="min-h-screen pb-20">
             <Header view={view} setView={setView} user={user} onLogout={handleLogout} />
-
-            {notification && (
-                <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 text-white font-medium flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
-                    {notification.type === 'error' ? <RotateCw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                    {notification.msg}
-                </div>
-            )}
+            <NotificationToast />
 
             <main className="max-w-3xl mx-auto px-4 pt-8">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 relative overflow-hidden">
