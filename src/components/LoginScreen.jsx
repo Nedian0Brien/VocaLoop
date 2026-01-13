@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from './Icons';
 
 // Google 로고 SVG 컴포넌트
 const GoogleLogo = () => (
