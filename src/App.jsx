@@ -7,9 +7,6 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
-    fetchSignInMethodsForEmail,
-    EmailAuthProvider,
-    linkWithCredential,
     onAuthStateChanged,
     signOut
 } from "firebase/auth";
@@ -45,6 +42,13 @@ const loadConfig = (envKey, localKey) => {
     if (typeof window !== 'undefined' && window[localKey]) return window[localKey];
     // 3. Try LocalStorage
     return localStorage.getItem(localKey);
+};
+
+// 이메일을 Firestore 경로로 사용 가능한 안전한 문자열로 변환
+const getStorageKeyFromEmail = (email) => {
+    if (!email) return null;
+    // Firestore 경로에서 사용할 수 없는 특수문자를 언더스코어로 변환
+    return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
 };
 
 const apiKey = loadConfig('VITE_GEMINI_API_KEY', '__api_key') || "";
@@ -143,19 +147,22 @@ function App() {
 
             const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
                 setUser(currentUser);
-                if (currentUser) {
+                if (currentUser && currentUser.email) {
+                    // 이메일 기반 스토리지 키 사용 - 같은 이메일이면 Google/이메일 로그인 모두 같은 데이터 사용
+                    const userStorageKey = getStorageKeyFromEmail(currentUser.email);
+
                     const q = query(
-                        collection(firestore, 'artifacts', appId, 'users', currentUser.uid, 'words')
+                        collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'words')
                     );
 
                     onSnapshot(q, async (snapshot) => {
                         if (snapshot.empty && !seededRef.current) {
                             seededRef.current = true;
-                            console.log("Seeding sample data...");
+                            console.log("Seeding sample data for", currentUser.email);
                             try {
                                 const batch = writeBatch(firestore);
                                 SAMPLE_WORDS.forEach(wordData => {
-                                    const newDocRef = doc(collection(firestore, 'artifacts', appId, 'users', currentUser.uid, 'words'));
+                                    const newDocRef = doc(collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'words'));
                                     batch.set(newDocRef, {
                                         ...wordData,
                                         createdAt: serverTimestamp(),
@@ -361,12 +368,13 @@ function App() {
 
     const handleAddWord = async (e) => {
         e.preventDefault();
-        if (!inputWord.trim() || !user || !db) return;
+        if (!inputWord.trim() || !user || !db || !user.email) return;
 
         setIsAnalyzing(true);
         try {
+            const userStorageKey = getStorageKeyFromEmail(user.email);
             const analysisResult = await generateWordData(inputWord, apiKey);
-            await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'words'), {
+            await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
                 status: 'NEW',
@@ -383,9 +391,10 @@ function App() {
     };
 
     const handleDeleteWord = async (wordId) => {
-        if (!window.confirm("Delete this word?") || !db || !user) return;
+        if (!window.confirm("Delete this word?") || !db || !user || !user.email) return;
         try {
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'words', wordId));
+            const userStorageKey = getStorageKeyFromEmail(user.email);
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId));
             showNotification("Word deleted.");
         } catch (e) {
             console.error("Delete failed", e);
