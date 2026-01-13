@@ -7,6 +7,7 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
+    fetchSignInMethodsForEmail,
     onAuthStateChanged,
     signOut
 } from "firebase/auth";
@@ -205,10 +206,37 @@ function App() {
         setLoginLoading(true);
         try {
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            const result = await signInWithPopup(auth, provider);
+
+            // 새로 가입한 사용자인지 확인
+            const isNewUser = result._tokenResponse?.isNewUser;
+            if (isNewUser) {
+                showNotification("🎉 Google 계정으로 가입이 완료되었습니다! 환영합니다.");
+            } else {
+                showNotification("환영합니다!");
+            }
         } catch (error) {
             console.error("Google Login Error:", error);
-            showNotification("로그인 실패: " + error.message, "error");
+            let errorMessage = "Google 로그인 실패";
+
+            switch (error.code) {
+                case 'auth/popup-closed-by-user':
+                    errorMessage = "로그인 팝업이 닫혔습니다.";
+                    break;
+                case 'auth/cancelled-popup-request':
+                    errorMessage = "로그인이 취소되었습니다.";
+                    break;
+                case 'auth/popup-blocked':
+                    errorMessage = "팝업이 차단되었습니다. 팝업 차단을 해제해주세요.";
+                    break;
+                case 'auth/account-exists-with-different-credential':
+                    errorMessage = "이 이메일은 다른 방식으로 이미 가입되었습니다. 이메일/비밀번호로 로그인해주세요.";
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            showNotification(errorMessage, "error");
         } finally {
             setLoginLoading(false);
         }
@@ -220,7 +248,7 @@ function App() {
         setLoginLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            showNotification("로그인 성공!");
+            showNotification("로그인 성공! 환영합니다.");
         } catch (error) {
             console.error("Email Login Error:", error);
             let errorMessage = "로그인 실패";
@@ -228,7 +256,17 @@ function App() {
             // Firebase 에러 코드에 따른 사용자 친화적 메시지
             switch (error.code) {
                 case 'auth/user-not-found':
-                    errorMessage = "등록되지 않은 이메일입니다.";
+                    // 이메일로 가입된 계정이 없는 경우, Google 계정인지 확인
+                    try {
+                        const methods = await fetchSignInMethodsForEmail(auth, email);
+                        if (methods.length > 0 && methods.includes('google.com')) {
+                            errorMessage = "이 이메일은 Google 계정으로 가입되었습니다. Google로 로그인해주세요.";
+                        } else {
+                            errorMessage = "등록되지 않은 이메일입니다.";
+                        }
+                    } catch {
+                        errorMessage = "등록되지 않은 이메일입니다.";
+                    }
                     break;
                 case 'auth/wrong-password':
                     errorMessage = "비밀번호가 올바르지 않습니다.";
@@ -241,6 +279,19 @@ function App() {
                     break;
                 case 'auth/too-many-requests':
                     errorMessage = "너무 많은 로그인 시도. 잠시 후 다시 시도해주세요.";
+                    break;
+                case 'auth/invalid-credential':
+                    // 이메일/비밀번호 조합이 잘못된 경우
+                    try {
+                        const methods = await fetchSignInMethodsForEmail(auth, email);
+                        if (methods.length > 0 && methods.includes('google.com')) {
+                            errorMessage = "이 이메일은 Google 계정으로 가입되었습니다. Google로 로그인해주세요.";
+                        } else {
+                            errorMessage = "이메일 또는 비밀번호가 올바르지 않습니다.";
+                        }
+                    } catch {
+                        errorMessage = "이메일 또는 비밀번호가 올바르지 않습니다.";
+                    }
                     break;
                 default:
                     errorMessage = error.message;
@@ -257,8 +308,22 @@ function App() {
         if (!auth) return;
         setLoginLoading(true);
         try {
+            // 먼저 이미 가입된 이메일인지 확인
+            const methods = await fetchSignInMethodsForEmail(auth, email);
+            if (methods.length > 0) {
+                if (methods.includes('google.com')) {
+                    showNotification("이 이메일은 이미 Google 계정으로 가입되었습니다. Google로 로그인해주세요.", "error");
+                    setLoginLoading(false);
+                    return;
+                } else if (methods.includes('password')) {
+                    showNotification("이미 가입된 이메일입니다. 로그인해주세요.", "error");
+                    setLoginLoading(false);
+                    return;
+                }
+            }
+
             await createUserWithEmailAndPassword(auth, email, password);
-            showNotification("회원가입이 완료되었습니다!");
+            showNotification("🎉 회원가입이 완료되었습니다! 환영합니다.");
         } catch (error) {
             console.error("Email Signup Error:", error);
             let errorMessage = "회원가입 실패";
@@ -266,7 +331,16 @@ function App() {
             // Firebase 에러 코드에 따른 사용자 친화적 메시지
             switch (error.code) {
                 case 'auth/email-already-in-use':
-                    errorMessage = "이미 사용 중인 이메일입니다.";
+                    try {
+                        const methods = await fetchSignInMethodsForEmail(auth, email);
+                        if (methods.includes('google.com')) {
+                            errorMessage = "이 이메일은 이미 Google 계정으로 가입되었습니다. Google로 로그인해주세요.";
+                        } else {
+                            errorMessage = "이미 가입된 이메일입니다. 로그인해주세요.";
+                        }
+                    } catch {
+                        errorMessage = "이미 사용 중인 이메일입니다.";
+                    }
                     break;
                 case 'auth/invalid-email':
                     errorMessage = "유효하지 않은 이메일 형식입니다.";
