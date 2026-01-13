@@ -44,6 +44,13 @@ const loadConfig = (envKey, localKey) => {
     return localStorage.getItem(localKey);
 };
 
+// 이메일을 Firestore 경로로 사용 가능한 안전한 문자열로 변환
+const getStorageKeyFromEmail = (email) => {
+    if (!email) return null;
+    // Firestore 경로에서 사용할 수 없는 특수문자를 언더스코어로 변환
+    return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
+};
+
 const apiKey = loadConfig('VITE_GEMINI_API_KEY', '__api_key') || "";
 const appId = "vocaloop-default";
 const firebaseConfigRaw = loadConfig('VITE_FIREBASE_CONFIG', '__firebase_config');
@@ -140,19 +147,22 @@ function App() {
 
             const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
                 setUser(currentUser);
-                if (currentUser) {
+                if (currentUser && currentUser.email) {
+                    // 이메일 기반 스토리지 키 사용 - 같은 이메일이면 Google/이메일 로그인 모두 같은 데이터 사용
+                    const userStorageKey = getStorageKeyFromEmail(currentUser.email);
+
                     const q = query(
-                        collection(firestore, 'artifacts', appId, 'users', currentUser.uid, 'words')
+                        collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'words')
                     );
 
                     onSnapshot(q, async (snapshot) => {
                         if (snapshot.empty && !seededRef.current) {
                             seededRef.current = true;
-                            console.log("Seeding sample data...");
+                            console.log("Seeding sample data for", currentUser.email);
                             try {
                                 const batch = writeBatch(firestore);
                                 SAMPLE_WORDS.forEach(wordData => {
-                                    const newDocRef = doc(collection(firestore, 'artifacts', appId, 'users', currentUser.uid, 'words'));
+                                    const newDocRef = doc(collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'words'));
                                     batch.set(newDocRef, {
                                         ...wordData,
                                         createdAt: serverTimestamp(),
@@ -205,10 +215,34 @@ function App() {
         setLoginLoading(true);
         try {
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            const result = await signInWithPopup(auth, provider);
+
+            // 새로 가입한 사용자인지 확인
+            const isNewUser = result._tokenResponse?.isNewUser;
+            if (isNewUser) {
+                showNotification("🎉 Google 계정으로 가입이 완료되었습니다! 환영합니다.");
+            } else {
+                showNotification("환영합니다!");
+            }
         } catch (error) {
             console.error("Google Login Error:", error);
-            showNotification("로그인 실패: " + error.message, "error");
+            let errorMessage = "Google 로그인 실패";
+
+            switch (error.code) {
+                case 'auth/popup-closed-by-user':
+                    errorMessage = "로그인 팝업이 닫혔습니다.";
+                    break;
+                case 'auth/cancelled-popup-request':
+                    errorMessage = "로그인이 취소되었습니다.";
+                    break;
+                case 'auth/popup-blocked':
+                    errorMessage = "팝업이 차단되었습니다. 팝업 차단을 해제해주세요.";
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            showNotification(errorMessage, "error");
         } finally {
             setLoginLoading(false);
         }
@@ -220,7 +254,7 @@ function App() {
         setLoginLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            showNotification("로그인 성공!");
+            showNotification("로그인 성공! 환영합니다.");
         } catch (error) {
             console.error("Email Login Error:", error);
             let errorMessage = "로그인 실패";
@@ -228,7 +262,7 @@ function App() {
             // Firebase 에러 코드에 따른 사용자 친화적 메시지
             switch (error.code) {
                 case 'auth/user-not-found':
-                    errorMessage = "등록되지 않은 이메일입니다.";
+                    errorMessage = "등록되지 않은 이메일입니다. 회원가입을 먼저 진행해주세요.";
                     break;
                 case 'auth/wrong-password':
                     errorMessage = "비밀번호가 올바르지 않습니다.";
@@ -241,6 +275,9 @@ function App() {
                     break;
                 case 'auth/too-many-requests':
                     errorMessage = "너무 많은 로그인 시도. 잠시 후 다시 시도해주세요.";
+                    break;
+                case 'auth/invalid-credential':
+                    errorMessage = "이메일 또는 비밀번호가 올바르지 않습니다.";
                     break;
                 default:
                     errorMessage = error.message;
@@ -258,7 +295,7 @@ function App() {
         setLoginLoading(true);
         try {
             await createUserWithEmailAndPassword(auth, email, password);
-            showNotification("회원가입이 완료되었습니다!");
+            showNotification("🎉 회원가입이 완료되었습니다! 환영합니다.");
         } catch (error) {
             console.error("Email Signup Error:", error);
             let errorMessage = "회원가입 실패";
@@ -266,7 +303,7 @@ function App() {
             // Firebase 에러 코드에 따른 사용자 친화적 메시지
             switch (error.code) {
                 case 'auth/email-already-in-use':
-                    errorMessage = "이미 사용 중인 이메일입니다.";
+                    errorMessage = "이미 가입된 이메일입니다. 로그인을 시도해주세요.";
                     break;
                 case 'auth/invalid-email':
                     errorMessage = "유효하지 않은 이메일 형식입니다.";
@@ -331,12 +368,13 @@ function App() {
 
     const handleAddWord = async (e) => {
         e.preventDefault();
-        if (!inputWord.trim() || !user || !db) return;
+        if (!inputWord.trim() || !user || !db || !user.email) return;
 
         setIsAnalyzing(true);
         try {
+            const userStorageKey = getStorageKeyFromEmail(user.email);
             const analysisResult = await generateWordData(inputWord, apiKey);
-            await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'words'), {
+            await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
                 status: 'NEW',
@@ -353,9 +391,10 @@ function App() {
     };
 
     const handleDeleteWord = async (wordId) => {
-        if (!window.confirm("Delete this word?") || !db || !user) return;
+        if (!window.confirm("Delete this word?") || !db || !user || !user.email) return;
         try {
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'words', wordId));
+            const userStorageKey = getStorageKeyFromEmail(user.email);
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId));
             showNotification("Word deleted.");
         } catch (e) {
             console.error("Delete failed", e);
