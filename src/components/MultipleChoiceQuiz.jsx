@@ -1,0 +1,234 @@
+import React, { useState, useEffect } from 'react';
+import { Volume2, Check, X, Sparkles, AlertCircle } from './Icons';
+import { generateMultipleChoiceOptions } from '../services/quizService';
+
+export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, apiKey }) {
+  const [options, setOptions] = useState([]);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // 문제 생성
+  useEffect(() => {
+    async function generateQuestion() {
+      setLoading(true);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(false);
+
+      try {
+        const generatedOptions = await generateMultipleChoiceOptions(word, allWords, aiMode, apiKey);
+        setOptions(generatedOptions);
+      } catch (error) {
+        console.error('문제 생성 실패:', error);
+        // 에러 시 로컬 모드로 폴백
+        const generatedOptions = await generateMultipleChoiceOptions(word, allWords, false, null);
+        setOptions(generatedOptions);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    generateQuestion();
+  }, [word, allWords, aiMode, apiKey]);
+
+  const handleSelectOption = (option) => {
+    if (isAnswered) return;
+
+    setSelectedOption(option);
+  };
+
+  const handleSubmit = () => {
+    if (!selectedOption || isAnswered) return;
+
+    const correct = selectedOption === word.meaning_ko;
+    setIsCorrect(correct);
+    setIsAnswered(true);
+
+    // 1초 후 다음 문제로
+    setTimeout(() => {
+      onAnswer(correct);
+    }, 1500);
+  };
+
+  const speakWord = () => {
+    const utterance = new SpeechSynthesisUtterance(word.word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.8;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-500">
+            {aiMode ? 'AI가 문제를 생성하는 중...' : '문제를 준비하는 중...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      {/* 진행 상황 */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+          <span className="font-medium">
+            문제 {progress.current} / {progress.total}
+          </span>
+          <span>
+            정답: <span className="text-green-600 font-bold">{stats.correct}</span> |
+            오답: <span className="text-red-600 font-bold">{stats.wrong}</span>
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+          <div
+            className="bg-blue-600 h-full transition-all duration-300"
+            style={{ width: `${(progress.current / progress.total) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 퀴즈 카드 */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        {/* 헤더 */}
+        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium opacity-90">객관식 문제</span>
+            {aiMode && (
+              <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                <Sparkles className="w-3 h-3" />
+                AI 모드
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <h2 className="text-4xl font-bold">{word.word}</h2>
+            <button
+              onClick={speakWord}
+              className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="발음 듣기"
+            >
+              <Volume2 className="w-5 h-5" />
+            </button>
+          </div>
+
+          {word.pronunciation && (
+            <p className="text-lg opacity-90 mt-2">{word.pronunciation}</p>
+          )}
+
+          {word.pos && (
+            <span className="inline-block mt-3 px-3 py-1 bg-white/20 rounded-full text-sm">
+              {word.pos}
+            </span>
+          )}
+        </div>
+
+        {/* 질문 */}
+        <div className="p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">
+            이 단어의 뜻을 고르세요
+          </h3>
+
+          {/* 선택지 */}
+          <div className="space-y-3 mb-6">
+            {options.map((option, index) => {
+              const isSelected = selectedOption === option;
+              const isCorrectOption = option === word.meaning_ko;
+
+              let buttonStyle = 'border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+
+              if (isAnswered) {
+                if (isCorrectOption) {
+                  buttonStyle = 'border-2 border-green-500 bg-green-50';
+                } else if (isSelected && !isCorrectOption) {
+                  buttonStyle = 'border-2 border-red-500 bg-red-50';
+                } else {
+                  buttonStyle = 'border-2 border-gray-200 bg-gray-50';
+                }
+              } else if (isSelected) {
+                buttonStyle = 'border-2 border-blue-500 bg-blue-50';
+              }
+
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleSelectOption(option)}
+                  disabled={isAnswered}
+                  className={`w-full text-left p-4 rounded-xl transition-all ${buttonStyle} ${
+                    isAnswered ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <span className="flex-1 font-medium text-gray-900">{option}</span>
+                    {isAnswered && isCorrectOption && (
+                      <Check className="w-6 h-6 text-green-600 flex-shrink-0" />
+                    )}
+                    {isAnswered && isSelected && !isCorrectOption && (
+                      <X className="w-6 h-6 text-red-600 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 피드백 */}
+          {isAnswered && (
+            <div className={`p-4 rounded-xl mb-6 ${
+              isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                {isCorrect ? (
+                  <Check className="w-6 h-6 text-green-600 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <h4 className={`font-bold mb-1 ${
+                    isCorrect ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {isCorrect ? '정답입니다! 🎉' : '아쉽네요 😢'}
+                  </h4>
+                  {!isCorrect && (
+                    <p className="text-sm text-gray-700">
+                      정답: <strong>{word.meaning_ko}</strong>
+                    </p>
+                  )}
+                  {word.definitions && word.definitions.length > 0 && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      💡 {word.definitions[0]}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 버튼 */}
+          {!isAnswered && (
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedOption}
+              className={`w-full py-4 rounded-xl font-bold transition-all ${
+                selectedOption
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {selectedOption ? '정답 확인' : '선택지를 골라주세요'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
