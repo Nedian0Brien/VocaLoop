@@ -52,6 +52,15 @@ function generateLocalMultipleChoice(word, allWords) {
  * @returns {Promise<Array>} - 4개의 선택지 (정답 포함, 섞인 상태)
  */
 async function generateAIMultipleChoice(word, apiKey) {
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-exp',
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  });
+
   const prompt = `당신은 영어 단어 학습을 위한 객관식 문제 출제자입니다.
 
 다음 영어 단어에 대한 4지선다 문제를 만들어주세요:
@@ -71,26 +80,9 @@ async function generateAIMultipleChoice(word, apiKey) {
 }`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error('AI 응답 없음');
-    }
-
-    const text = result.candidates[0].content.parts[0].text;
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
     const data = JSON.parse(text);
 
     // 검증
@@ -200,6 +192,15 @@ function levenshteinDistance(a, b) {
  * @returns {Promise<Object>} - { isCorrect: boolean, feedback: string }
  */
 export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-exp',
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  });
+
   const prompt = `당신은 영어 단어 학습 채점 전문가입니다.
 
 다음 영어 단어에 대한 학습자의 답안을 채점해주세요:
@@ -219,26 +220,9 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
 }`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error('AI 응답 없음');
-    }
-
-    const text = result.candidates[0].content.parts[0].text;
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
     const data = JSON.parse(text);
 
     return {
