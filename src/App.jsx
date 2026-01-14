@@ -28,6 +28,7 @@ import SetupScreen from './components/SetupScreen';
 import LoginScreen from './components/LoginScreen';
 import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
+import QuizView from './components/QuizView';
 import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles } from './components/Icons';
 
 // Hooks & Services
@@ -127,6 +128,7 @@ function App() {
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [aiMode, setAiMode] = useState(false); // AI 모드 토글
     const seededRef = useRef(false);
 
     const windowSize = useWindowSize();
@@ -553,19 +555,15 @@ function App() {
                     </div>
                 )}
                 {view === 'study' && (
-                    <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
-                        <Brain className="w-16 h-16 text-blue-200 mx-auto mb-4" />
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Quiz Mode Coming Soon</h3>
-                        <p className="text-gray-500 max-w-md mx-auto mb-6">
-                            Phase 2 will activate the Adaptive Learning Loop with quiz generation and hybrid grading.
-                        </p>
-                        <button
-                            className="px-6 py-2 bg-gray-100 text-gray-600 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-                            onClick={() => setView('dashboard')}
-                        >
-                            Back to Dashboard
-                        </button>
-                    </div>
+                    <QuizView
+                        words={words}
+                        setView={setView}
+                        db={db}
+                        user={user}
+                        aiMode={aiMode}
+                        setAiMode={setAiMode}
+                        apiKey={apiKey}
+                    />
                 )}
             </main>
         </div>
