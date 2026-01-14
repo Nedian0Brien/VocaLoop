@@ -52,10 +52,6 @@ function generateLocalMultipleChoice(word, allWords) {
  * @returns {Promise<Array>} - 4개의 선택지 (정답 포함, 섞인 상태)
  */
 async function generateAIMultipleChoice(word, apiKey) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
   const prompt = `당신은 영어 단어 학습을 위한 객관식 문제 출제자입니다.
 
 다음 영어 단어에 대한 4지선다 문제를 만들어주세요:
@@ -68,8 +64,6 @@ async function generateAIMultipleChoice(word, apiKey) {
 2. 철자나 발음이 비슷한 다른 영어 단어의 뜻
 3. 같은 의미 범주에 속하지만 미묘하게 다른 의미
 
-**중요: JSON 형식으로만 응답해주세요. 다른 설명은 포함하지 마세요.**
-
 응답 형식:
 {
   "correct": "정답 한글 뜻",
@@ -77,17 +71,27 @@ async function generateAIMultipleChoice(word, apiKey) {
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
 
-    // JSON 추출
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('JSON 형식이 아닙니다');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
     }
 
-    const data = JSON.parse(jsonMatch[0]);
+    const result = await response.json();
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error('AI 응답 없음');
+    }
+
+    const text = result.candidates[0].content.parts[0].text;
+    const data = JSON.parse(text);
 
     // 검증
     if (!data.correct || !Array.isArray(data.wrong) || data.wrong.length !== 3) {
@@ -196,10 +200,6 @@ function levenshteinDistance(a, b) {
  * @returns {Promise<Object>} - { isCorrect: boolean, feedback: string }
  */
 export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
   const prompt = `당신은 영어 단어 학습 채점 전문가입니다.
 
 다음 영어 단어에 대한 학습자의 답안을 채점해주세요:
@@ -212,8 +212,6 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
 - 유사한 의미이지만 핵심이 다름: 오답
 - 철자 오류가 있지만 의도는 명확함: 정답 (단, 오타 지적)
 
-**중요: JSON 형식으로만 응답해주세요.**
-
 응답 형식:
 {
   "isCorrect": true 또는 false,
@@ -221,17 +219,27 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
 
-    // JSON 추출
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('JSON 형식이 아닙니다');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
     }
 
-    const data = JSON.parse(jsonMatch[0]);
+    const result = await response.json();
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error('AI 응답 없음');
+    }
+
+    const text = result.candidates[0].content.parts[0].text;
+    const data = JSON.parse(text);
 
     return {
       isCorrect: data.isCorrect === true,
