@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 
@@ -9,14 +9,16 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  useLayoutEffect(() => {
+    setLoading(true);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setIsCorrect(false);
+  }, [word]);
+
   // 문제 생성
   useEffect(() => {
     async function generateQuestion() {
-      setLoading(true);
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setIsCorrect(false);
-
       try {
         const generatedOptions = await generateMultipleChoiceOptions(word, allWords, aiMode, apiKey);
         setOptions(generatedOptions);
