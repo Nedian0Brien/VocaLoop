@@ -47,16 +47,16 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     setIsAnswered(true);
   }, [isAnswered, selectedOption, word.meaning_ko]);
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = useCallback(() => {
     if (!isAnswered) return;
     onAnswer(isCorrect);
-  };
+  }, [isAnswered, isCorrect, onAnswer]);
 
   useEffect(() => {
     if (loading) return;
 
     const handleKeyDown = (event) => {
-      if (isAnswered || loading) return;
+      if (loading) return;
 
       const target = event.target;
       if (
@@ -68,7 +68,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
         return;
       }
 
-      if (event.key >= '1' && event.key <= '4') {
+      if (event.key >= '1' && event.key <= '4' && !isAnswered) {
         const optionIndex = Number(event.key) - 1;
         const option = options[optionIndex];
         if (option) {
@@ -79,13 +79,17 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
 
       if (event.key === 'Enter') {
         event.preventDefault();
-        handleSubmit();
+        if (isAnswered) {
+          handleNextQuestion();
+        } else {
+          handleSubmit();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSubmit, isAnswered, loading, options]);
+  }, [handleNextQuestion, handleSubmit, isAnswered, loading, options]);
 
   const speakWord = () => {
     const utterance = new SpeechSynthesisUtterance(word.word);
