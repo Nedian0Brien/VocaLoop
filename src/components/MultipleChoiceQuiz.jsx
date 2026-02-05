@@ -52,6 +52,24 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     }, 1500);
   };
 
+  const handleKeyDown = (event) => {
+    if (loading || isAnswered) return;
+
+    if (event.key >= '1' && event.key <= '4') {
+      const optionIndex = Number(event.key) - 1;
+      const option = options[optionIndex];
+      if (option) {
+        event.preventDefault();
+        setSelectedOption(option);
+      }
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSubmit();
+    }
+  };
+
   const speakWord = () => {
     const utterance = new SpeechSynthesisUtterance(word.word);
     utterance.lang = 'en-US';
@@ -94,7 +112,11 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
       </div>
 
       {/* 퀴즈 카드 */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div
+        className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
         {/* 헤더 */}
         <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6">
           <div className="flex items-center justify-between mb-4">
@@ -134,6 +156,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
           <h3 className="text-xl font-bold text-gray-900 mb-6">
             이 단어의 뜻을 고르세요
           </h3>
+          <p className="text-sm text-gray-500 mb-4">1~4로 선택, Enter로 제출</p>
 
           {/* 선택지 */}
           <div className="space-y-3 mb-6">
