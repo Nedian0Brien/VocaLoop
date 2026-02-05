@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Volume2, Check, X, Sparkles, AlertCircle } from './Icons';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 
 export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, apiKey }) {
@@ -9,14 +9,16 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  useLayoutEffect(() => {
+    setLoading(true);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setIsCorrect(false);
+  }, [word]);
+
   // 문제 생성
   useEffect(() => {
     async function generateQuestion() {
-      setLoading(true);
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setIsCorrect(false);
-
       try {
         const generatedOptions = await generateMultipleChoiceOptions(word, allWords, aiMode, apiKey);
         setOptions(generatedOptions);
@@ -39,36 +41,57 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     setSelectedOption(option);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!selectedOption || isAnswered) return;
 
     const correct = selectedOption === word.meaning_ko;
     setIsCorrect(correct);
     setIsAnswered(true);
+  }, [isAnswered, selectedOption, word.meaning_ko]);
 
-    // 1초 후 다음 문제로
-    setTimeout(() => {
-      onAnswer(correct);
-    }, 1500);
-  };
+  const handleNextQuestion = useCallback(() => {
+    if (!isAnswered) return;
+    onAnswer(isCorrect);
+  }, [isAnswered, isCorrect, onAnswer]);
 
-  const handleKeyDown = (event) => {
-    if (loading || isAnswered) return;
+  useEffect(() => {
+    if (loading) return;
 
-    if (event.key >= '1' && event.key <= '4') {
-      const optionIndex = Number(event.key) - 1;
-      const option = options[optionIndex];
-      if (option) {
-        event.preventDefault();
-        setSelectedOption(option);
+    const handleKeyDown = (event) => {
+      if (loading) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable
+      ) {
+        return;
       }
-    }
 
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSubmit();
-    }
-  };
+      if (event.key >= '1' && event.key <= '4' && !isAnswered) {
+        const optionIndex = Number(event.key) - 1;
+        const option = options[optionIndex];
+        if (option) {
+          event.preventDefault();
+          setSelectedOption(option);
+        }
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (isAnswered) {
+          handleNextQuestion();
+        } else {
+          handleSubmit();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNextQuestion, handleSubmit, isAnswered, loading, options]);
 
   const speakWord = () => {
     const utterance = new SpeechSynthesisUtterance(word.word);
@@ -112,11 +135,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
       </div>
 
       {/* 퀴즈 카드 */}
-      <div
-        className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-      >
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         {/* 헤더 */}
         <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6">
           <div className="flex items-center justify-between mb-4">
@@ -156,10 +175,8 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
           <h3 className="text-xl font-bold text-gray-900 mb-6">
             이 단어의 뜻을 고르세요
           </h3>
-          <p className="text-sm text-gray-500 mb-4">1~4로 선택, Enter로 제출</p>
-
           {/* 선택지 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             {options.map((option, index) => {
               const isSelected = selectedOption === option;
               const isCorrectOption = option === word.meaning_ko;
@@ -189,7 +206,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                 >
                   <div className="flex items-center gap-3 w-full">
                     <span className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm">
-                      {String.fromCharCode(65 + index)}
+                      {index + 1}
                     </span>
                     <span className="flex-1 font-medium text-gray-900">{option}</span>
                     {isAnswered && isCorrectOption && (
@@ -204,8 +221,12 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
             })}
           </div>
 
-          {/* 피드백 */}
-          {isAnswered && (
+          <div
+            className={`transition-all duration-500 ease-in-out overflow-hidden ${
+              isAnswered ? 'max-h-[1200px] opacity-100 mb-6' : 'max-h-0 opacity-0'
+            }`}
+          >
+            {/* 피드백 */}
             <div className={`p-4 rounded-xl mb-6 ${
               isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
             }`}>
@@ -226,28 +247,106 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                       정답: <strong>{word.meaning_ko}</strong>
                     </p>
                   )}
-                  {word.definitions && word.definitions.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      💡 {word.definitions[0]}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
-          )}
+
+            {/* 단어 정보 */}
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 space-y-4">
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FileText className="w-3.5 h-3.5 text-blue-400" />
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
+                </div>
+                {word.definitions?.length ? (
+                  <ul className="text-sm text-gray-800 leading-relaxed list-disc list-inside space-y-1">
+                    {word.definitions.map((definition, idx) => (
+                      <li key={`definition-${idx}`}>{definition}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">등록된 정의가 없습니다.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-blue-200">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Brain className="w-3.5 h-3.5 text-purple-500" />
+                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Nuance</p>
+                </div>
+                {word.nuance ? (
+                  <p className="text-xs text-gray-700 leading-relaxed">{word.nuance}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">등록된 뉘앙스 설명이 없습니다.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-blue-200">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
+                  <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">Synonyms</p>
+                </div>
+                {word.synonyms?.length ? (
+                  <p className="text-sm text-gray-800 leading-relaxed italic">
+                    {word.synonyms.join(', ')}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500">등록된 유의어가 없습니다.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-blue-200">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Quote className="w-3.5 h-3.5 text-blue-400" />
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Examples</p>
+                </div>
+                {word.examples?.length ? (
+                  <div className="space-y-2">
+                    {word.examples.map((example, idx) => (
+                      <div key={`example-${idx}`}>
+                        <p className="text-sm text-blue-900 font-medium mb-0.5 leading-snug">"{example.en}"</p>
+                        <p className="text-xs text-gray-500">{example.ko}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">등록된 예문이 없습니다.</p>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* 버튼 */}
-          {!isAnswered && (
+          {!isAnswered ? (
             <button
               onClick={handleSubmit}
               disabled={!selectedOption}
-              className={`w-full py-4 rounded-xl font-bold transition-all ${
+              className={`w-full py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
                 selectedOption
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {selectedOption ? '정답 확인' : '선택지를 골라주세요'}
+              {selectedOption ? (
+                <>
+                  <span>정답 확인</span>
+                  <span className="flex items-center gap-1 text-sm font-semibold text-blue-100">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-white/20 text-white text-xs">
+                      ↵
+                    </span>
+                    Enter
+                  </span>
+                </>
+              ) : (
+                '선택지를 골라주세요'
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleNextQuestion}
+              className="w-full py-4 rounded-xl font-bold transition-all bg-blue-600 text-white hover:bg-blue-700"
+            >
+              다음 문제
             </button>
           )}
         </div>
