@@ -136,7 +136,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
           </h3>
 
           {/* 선택지 */}
-          <div className="space-y-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             {options.map((option, index) => {
               const isSelected = selectedOption === option;
               const isCorrectOption = option === word.meaning_ko;
@@ -162,9 +162,9 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                   disabled={isAnswered}
                   className={`w-full text-left p-4 rounded-xl transition-all ${buttonStyle} ${
                     isAnswered ? 'cursor-not-allowed' : 'cursor-pointer'
-                  }`}
+                  } h-full flex`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full">
                     <span className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm">
                       {String.fromCharCode(65 + index)}
                     </span>
