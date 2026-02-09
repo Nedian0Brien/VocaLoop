@@ -12,6 +12,27 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [showSettings, setShowSettings] = useState(false);
+  const [quizCount, setQuizCount] = useState(words.length);
+
+  useEffect(() => {
+    setQuizCount((prev) => Math.min(prev || words.length, words.length));
+  }, [words.length]);
+
+  const clampQuizCount = (value) => {
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+    return Math.max(1, Math.min(value, words.length));
+  };
+
+  const shuffleWords = (list) => {
+    const shuffled = [...list];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
 
   // 학습할 단어가 없는 경우
   if (!words || words.length === 0) {
@@ -34,8 +55,10 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
   const startQuiz = (mode) => {
     setSelectedMode(mode);
-    // 단어 큐 초기화 (모든 단어 복사)
-    setQueue([...words]);
+    // 단어 큐 초기화 (랜덤 순서 + 출제 개수)
+    const shuffledWords = shuffleWords(words);
+    const limitedQueue = shuffledWords.slice(0, clampQuizCount(quizCount));
+    setQueue(limitedQueue);
     setCurrentIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
     setQuizState('quiz');
@@ -81,17 +104,29 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setStats({ correct: 0, wrong: 0, total: 0 });
   };
 
+  const handleBackToModeSelect = () => {
+    setQuizState('select');
+    setSelectedMode(null);
+    setQueue([]);
+    setCurrentIndex(0);
+    setStats({ correct: 0, wrong: 0, total: 0 });
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => setView('dashboard')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">뒤로 가기</span>
-        </button>
+        {quizState === 'quiz' ? (
+          <button
+            onClick={handleBackToModeSelect}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">뒤로 가기</span>
+          </button>
+        ) : (
+          <div />
+        )}
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500">
@@ -131,6 +166,26 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
                 }`}
               />
             </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700" htmlFor="quiz-count">
+              문제 출제 개수
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id="quiz-count"
+                type="number"
+                min={1}
+                max={words.length}
+                value={quizCount}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setQuizCount(clampQuizCount(value));
+                }}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+              />
+              <span className="text-xs text-gray-500">최대 {words.length}개</span>
+            </div>
           </div>
           <div className="text-xs text-gray-600 bg-white rounded-lg p-3">
             <p className="font-medium mb-2">💡 모드별 차이점:</p>

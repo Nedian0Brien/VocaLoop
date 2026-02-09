@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 
@@ -8,6 +8,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
+  const scrollPositionRef = useRef(0);
 
   useLayoutEffect(() => {
     setLoading(true);
@@ -44,6 +45,10 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   const handleSubmit = useCallback(() => {
     if (!selectedOption || isAnswered) return;
 
+    scrollPositionRef.current = window.scrollY;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     const correct = selectedOption === word.meaning_ko;
     setIsCorrect(correct);
     setIsAnswered(true);
@@ -92,6 +97,12 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNextQuestion, handleSubmit, isAnswered, loading, options]);
+
+  useLayoutEffect(() => {
+    if (isAnswered) {
+      window.scrollTo({ top: scrollPositionRef.current });
+    }
+  }, [isAnswered]);
 
   const speakWord = () => {
     const utterance = new SpeechSynthesisUtterance(word.word);
@@ -251,6 +262,15 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
               </div>
             </div>
 
+            {isAnswered && (
+              <button
+                onClick={handleNextQuestion}
+                className="w-full py-4 rounded-xl font-bold transition-all bg-blue-600 text-white hover:bg-blue-700 mb-6"
+              >
+                다음 문제
+              </button>
+            )}
+
             {/* 단어 정보 */}
             <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 space-y-4">
               <div>
@@ -317,7 +337,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
           </div>
 
           {/* 버튼 */}
-          {!isAnswered ? (
+          {!isAnswered && (
             <button
               onClick={handleSubmit}
               disabled={!selectedOption}
@@ -340,13 +360,6 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
               ) : (
                 '선택지를 골라주세요'
               )}
-            </button>
-          ) : (
-            <button
-              onClick={handleNextQuestion}
-              className="w-full py-4 rounded-xl font-bold transition-all bg-blue-600 text-white hover:bg-blue-700"
-            >
-              다음 문제
             </button>
           )}
         </div>
