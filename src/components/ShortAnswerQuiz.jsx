@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect, useRef } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, HelpCircle } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 
@@ -8,10 +8,15 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
   const [gradeResult, setGradeResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const scrollPositionRef = useRef(0);
 
   const handleSubmit = async () => {
     if (!userAnswer.trim() || isAnswered || loading) return;
 
+    scrollPositionRef.current = window.scrollY;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setLoading(true);
 
     try {
@@ -60,6 +65,12 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
       setLoading(false);
     }
   };
+
+  useLayoutEffect(() => {
+    if (isAnswered) {
+      window.scrollTo({ top: scrollPositionRef.current });
+    }
+  }, [isAnswered]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !isAnswered) {
