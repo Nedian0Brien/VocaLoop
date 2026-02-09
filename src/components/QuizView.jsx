@@ -104,17 +104,29 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setStats({ correct: 0, wrong: 0, total: 0 });
   };
 
+  const handleBackToModeSelect = () => {
+    setQuizState('select');
+    setSelectedMode(null);
+    setQueue([]);
+    setCurrentIndex(0);
+    setStats({ correct: 0, wrong: 0, total: 0 });
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => setView('dashboard')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">뒤로 가기</span>
-        </button>
+        {quizState === 'quiz' ? (
+          <button
+            onClick={handleBackToModeSelect}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">뒤로 가기</span>
+          </button>
+        ) : (
+          <div />
+        )}
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500">
