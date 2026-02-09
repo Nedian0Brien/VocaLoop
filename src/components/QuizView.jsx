@@ -4,6 +4,8 @@ import QuizModeSelector from './QuizModeSelector';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
 import ShortAnswerQuiz from './ShortAnswerQuiz';
 import QuizResult from './QuizResult';
+import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
+import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
 
 export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey }) {
   const [quizState, setQuizState] = useState('select'); // 'select', 'quiz', 'result'
@@ -13,16 +15,37 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [showSettings, setShowSettings] = useState(false);
   const [quizCount, setQuizCount] = useState(words.length);
+  const [toeflQuestionCount, setToeflQuestionCount] = useState(5);
+  const [toeflTargetScore, setToeflTargetScore] = useState(100);
 
   useEffect(() => {
-    setQuizCount((prev) => Math.min(prev || words.length, words.length));
+    if (words.length > 0) {
+      setQuizCount((prev) => Math.min(prev || words.length, words.length));
+    }
   }, [words.length]);
 
   const clampQuizCount = (value) => {
     if (!Number.isFinite(value)) {
-      return 1;
+      return words.length > 0 ? 1 : 0;
+    }
+    if (words.length === 0) {
+      return 0;
     }
     return Math.max(1, Math.min(value, words.length));
+  };
+
+  const clampToeflQuestionCount = (value) => {
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+    return Math.max(1, Math.min(value, 10));
+  };
+
+  const clampToeflTargetScore = (value) => {
+    if (!Number.isFinite(value)) {
+      return 100;
+    }
+    return Math.max(60, Math.min(value, 120));
   };
 
   const shuffleWords = (list) => {
@@ -34,34 +57,17 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     return shuffled;
   };
 
-  // 학습할 단어가 없는 경우
-  if (!words || words.length === 0) {
-    return (
-      <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
-        <Brain className="w-16 h-16 text-blue-200 mx-auto mb-4" />
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">단어가 없습니다</h3>
-        <p className="text-gray-500 max-w-md mx-auto mb-6">
-          먼저 Dashboard에서 단어를 추가해주세요.
-        </p>
-        <button
-          className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          onClick={() => setView('dashboard')}
-        >
-          Dashboard로 이동
-        </button>
-      </div>
-    );
-  }
-
   const startQuiz = (mode) => {
     setSelectedMode(mode);
-    // 단어 큐 초기화 (랜덤 순서 + 출제 개수)
-    const shuffledWords = shuffleWords(words);
-    const limitedQueue = shuffledWords.slice(0, clampQuizCount(quizCount));
-    setQueue(limitedQueue);
-    setCurrentIndex(0);
-    setStats({ correct: 0, wrong: 0, total: 0 });
     setQuizState('quiz');
+
+    if (mode === 'multiple' || mode === 'short') {
+      const shuffledWords = shuffleWords(words);
+      const limitedQueue = shuffledWords.slice(0, clampQuizCount(quizCount));
+      setQueue(limitedQueue);
+      setCurrentIndex(0);
+      setStats({ correct: 0, wrong: 0, total: 0 });
+    }
   };
 
   const handleAnswer = (isCorrect) => {
@@ -187,6 +193,38 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               <span className="text-xs text-gray-500">최대 {words.length}개</span>
             </div>
           </div>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="toefl-target">
+                TOEFL 목표 점수
+              </label>
+              <input
+                id="toefl-target"
+                type="number"
+                min={60}
+                max={120}
+                value={toeflTargetScore}
+                onChange={(event) =>
+                  setToeflTargetScore(clampToeflTargetScore(Number(event.target.value)))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="toefl-question-count">
+                TOEFL 문제 개수
+              </label>
+              <input
+                id="toefl-question-count"
+                type="number"
+                min={1}
+                max={10}
+                value={toeflQuestionCount}
+                onChange={(event) => setToeflQuestionCount(clampToeflQuestionCount(Number(event.target.value)))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+          </div>
           <div className="text-xs text-gray-600 bg-white rounded-lg p-3">
             <p className="font-medium mb-2">💡 모드별 차이점:</p>
             <ul className="space-y-1 ml-4 list-disc">
@@ -199,7 +237,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
       {/* 퀴즈 상태에 따른 렌더링 */}
       {quizState === 'select' && (
-        <QuizModeSelector onSelectMode={startQuiz} />
+        <QuizModeSelector onSelectMode={startQuiz} wordCount={words.length} />
       )}
 
       {quizState === 'quiz' && selectedMode === 'multiple' && (
@@ -223,6 +261,19 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
           aiMode={aiMode}
           apiKey={apiKey}
         />
+      )}
+
+      {quizState === 'quiz' && selectedMode === 'toefl-complete' && (
+        <ToeflCompleteTheWordQuiz
+          apiKey={apiKey}
+          questionCount={toeflQuestionCount}
+          targetScore={toeflTargetScore}
+          onExit={handleBackToModeSelect}
+        />
+      )}
+
+      {quizState === 'quiz' && selectedMode === 'toefl-build' && (
+        <ToeflBuildSentencePlaceholder onExit={handleBackToModeSelect} />
       )}
 
       {quizState === 'result' && (
