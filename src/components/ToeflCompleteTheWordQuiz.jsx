@@ -22,25 +22,36 @@ const renderParagraphWithInputs = (paragraph, blanks, answers, onChange, isCheck
       continue;
     }
     parts.push(paragraph.slice(lastIndex, matchIndex));
-    const answerValue = answers[blankIndex] || '';
-    const isCorrect =
-      isChecked && answerValue.toLowerCase() === blanks[blankIndex].answer.toLowerCase();
-    const isWrong = isChecked && !isCorrect;
+    const blankAnswer = blanks[blankIndex].answer || '';
+    const blankAnswers = answers[blankIndex] || new Array(blankAnswer.length).fill('');
+    const isBlankFilled =
+      blankAnswers.length > 0 && blankAnswers.every((value) => value.trim().length > 0);
     parts.push(
-      <input
-        key={`blank-${blankId}`}
-        value={answerValue}
-        onChange={(event) => onChange(blankIndex, event.target.value)}
-        maxLength={1}
-        disabled={isChecked}
-        className={`mx-0.5 w-7 h-8 border rounded-md text-center text-sm font-semibold ${
-          isChecked
-            ? isCorrect
-              ? 'border-green-400 bg-green-50 text-green-700'
-              : 'border-red-400 bg-red-50 text-red-700'
-            : 'border-gray-300 focus:border-blue-500 focus:outline-none'
-        }`}
-      />
+      <span key={`blank-${blankId}`} className="inline-flex items-center mx-1">
+        {blankAnswer.split('').map((letter, letterIndex) => {
+          const answerValue = blankAnswers[letterIndex] || '';
+          const isCorrect =
+            isChecked && answerValue.toLowerCase() === letter.toLowerCase();
+          return (
+            <input
+              key={`blank-${blankId}-${letterIndex}`}
+              value={answerValue}
+              onChange={(event) => onChange(blankIndex, letterIndex, event.target.value)}
+              maxLength={1}
+              disabled={isChecked}
+              className={`mx-0.5 w-7 h-8 border rounded-md text-center text-sm font-semibold ${
+                isChecked
+                  ? isCorrect
+                    ? 'border-green-400 bg-green-50 text-green-700'
+                    : 'border-red-400 bg-red-50 text-red-700'
+                  : isBlankFilled
+                  ? 'border-blue-400 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 focus:border-blue-500 focus:outline-none'
+              }`}
+            />
+          );
+        })}
+      </span>
     );
     lastIndex = matchIndex + match[0].length;
   }
@@ -71,7 +82,7 @@ export default function ToeflCompleteTheWordQuiz({
 
   const initializeAnswers = (questionList) => {
     const answerMatrix = questionList.map((question) =>
-      new Array(question.blanks.length).fill('')
+      question.blanks.map((blank) => new Array(blank.answer.length).fill(''))
     );
     setAnswers(answerMatrix);
   };
@@ -110,16 +121,25 @@ export default function ToeflCompleteTheWordQuiz({
   const totalQuestions = questions.length;
 
   const currentAnswers = answers[currentIndex] || [];
-  const filledAll = currentQuestion
-    ? currentAnswers.filter((value) => value.trim().length > 0).length ===
-      currentQuestion.blanks.length
-    : false;
+  const filledBlankCount = currentQuestion
+    ? currentQuestion.blanks.reduce((count, blank, index) => {
+        const blankAnswers = currentAnswers[index] || [];
+        const isFilled =
+          blankAnswers.length > 0 &&
+          blankAnswers.every((value) => value.trim().length > 0);
+        return count + (isFilled ? 1 : 0);
+      }, 0)
+    : 0;
+  const remainingBlankCount = currentQuestion
+    ? currentQuestion.blanks.length - filledBlankCount
+    : 0;
 
   const correctness = useMemo(() => {
     if (!currentQuestion || !checked) return null;
     const correctCount = currentQuestion.blanks.reduce((count, blank, index) => {
-      const userAnswer = currentAnswers[index] || '';
-      return count + (userAnswer.toLowerCase() === blank.answer.toLowerCase() ? 1 : 0);
+      const blankAnswers = currentAnswers[index] || [];
+      const userAnswer = blankAnswers.join('').toLowerCase();
+      return count + (userAnswer === blank.answer.toLowerCase() ? 1 : 0);
     }, 0);
     return {
       correctCount,
@@ -128,13 +148,15 @@ export default function ToeflCompleteTheWordQuiz({
     };
   }, [checked, currentQuestion, currentAnswers]);
 
-  const handleAnswerChange = (blankIndex, value) => {
+  const handleAnswerChange = (blankIndex, letterIndex, value) => {
     if (!currentQuestion) return;
     const sanitized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
     setAnswers((prev) => {
       const updated = [...prev];
       const questionAnswers = [...(updated[currentIndex] || [])];
-      questionAnswers[blankIndex] = sanitized;
+      const blankAnswers = [...(questionAnswers[blankIndex] || [])];
+      blankAnswers[letterIndex] = sanitized;
+      questionAnswers[blankIndex] = blankAnswers;
       updated[currentIndex] = questionAnswers;
       return updated;
     });
@@ -143,8 +165,9 @@ export default function ToeflCompleteTheWordQuiz({
   const handleCheckAnswers = async () => {
     if (!currentQuestion) return;
     const isPerfect = currentQuestion.blanks.every((blank, index) => {
-      const userAnswer = currentAnswers[index] || '';
-      return userAnswer.toLowerCase() === blank.answer.toLowerCase();
+      const blankAnswers = currentAnswers[index] || [];
+      const userAnswer = blankAnswers.join('').toLowerCase();
+      return userAnswer === blank.answer.toLowerCase();
     });
     setChecked(true);
     setFeedback('');
@@ -158,7 +181,7 @@ export default function ToeflCompleteTheWordQuiz({
       const result = await generateCompleteTheWordFeedback({
         apiKey,
         question: currentQuestion,
-        userAnswers: currentAnswers
+        userAnswers: currentAnswers.map((blankAnswers) => blankAnswers.join(''))
       });
       setFeedback(result.feedback || '');
     } catch (err) {
@@ -183,8 +206,9 @@ export default function ToeflCompleteTheWordQuiz({
       .map((question, index) => {
         const questionAnswers = answers[index] || [];
         const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
-          const userAnswer = questionAnswers[blankIndex] || '';
-          return count + (userAnswer.toLowerCase() === blank.answer.toLowerCase() ? 1 : 0);
+          const blankAnswers = questionAnswers[blankIndex] || [];
+          const userAnswer = blankAnswers.join('').toLowerCase();
+          return count + (userAnswer === blank.answer.toLowerCase() ? 1 : 0);
         }, 0);
         return `Q${index + 1}: ${correctCount}/${question.blanks.length}`;
       })
@@ -321,7 +345,9 @@ export default function ToeflCompleteTheWordQuiz({
       </div>
 
       <div className="bg-gray-50 rounded-xl p-6 text-gray-800 text-sm leading-relaxed">
-        <p className="mb-4 text-xs text-gray-500 font-medium">빈칸 {currentQuestion.blanks.length}개</p>
+        <p className="mb-4 text-xs text-gray-500 font-medium">
+          빈칸 {currentQuestion.blanks.length}개
+        </p>
         <p>
           {renderParagraphWithInputs(
             currentQuestion.paragraph,
@@ -361,23 +387,20 @@ export default function ToeflCompleteTheWordQuiz({
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onExit}
-          className="px-5 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          모드 선택으로
-        </button>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="text-sm text-gray-600 flex items-center gap-4">
+          <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
+            푼 문제 {filledBlankCount}개
+          </span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">
+            남은 문제 {remainingBlankCount}개
+          </span>
+        </div>
         <div className="flex items-center gap-3">
           {!checked ? (
             <button
               onClick={handleCheckAnswers}
-              disabled={!filledAll}
-              className={`px-6 py-2 font-medium rounded-lg transition-colors ${
-                filledAll
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
+              className="px-6 py-2 font-medium rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
             >
               정답 확인
             </button>

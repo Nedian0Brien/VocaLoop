@@ -33,11 +33,11 @@ export const generateCompleteTheWordSet = async ({
   const prompt = `
 You are creating a TOEFL academic reading practice set for a learner targeting ${targetScore}+.
 Create ${questionCount} questions. Each question must include:
-1) An academic paragraph (120-160 words) with ${blanksPerQuestion} missing LETTERS inside words.
+1) An academic paragraph (120-160 words) with ${blanksPerQuestion} missing LETTER SEQUENCES (2-4 letters) inside words.
 2) The paragraph should use TOEFL-like academic tone and topics.
 3) The missing letters should be replaced with placeholders like {{1}}, {{2}}, ... {{${blanksPerQuestion}}} in order of appearance.
 4) Provide the full original paragraph (without blanks).
-5) Provide a blanks array with id and the correct single-letter answer.
+5) Provide a blanks array with id and the correct multi-letter answer string.
 
 Return ONLY valid JSON in this schema:
 {
@@ -46,7 +46,7 @@ Return ONLY valid JSON in this schema:
       "paragraph": "Text with {{1}} placeholders",
       "fullParagraph": "Complete paragraph",
       "blanks": [
-        { "id": 1, "answer": "a" }
+        { "id": 1, "answer": "tion" }
       ]
     }
   ]
@@ -63,8 +63,8 @@ export const generateCompleteTheWordFeedback = async ({
   const prompt = `
 You are an English tutor providing concise feedback in Korean.
 Question paragraph: ${question.fullParagraph}
-Correct answers (id:letter): ${question.blanks.map((blank) => `${blank.id}:${blank.answer}`).join(', ')}
-User answers (id:letter): ${userAnswers.map((answer, index) => `${question.blanks[index].id}:${answer}`).join(', ')}
+Correct answers (id:letters): ${question.blanks.map((blank) => `${blank.id}:${blank.answer}`).join(', ')}
+User answers (id:letters): ${userAnswers.map((answer, index) => `${question.blanks[index].id}:${answer}`).join(', ')}
 
 Return JSON only:
 {
