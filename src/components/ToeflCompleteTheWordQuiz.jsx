@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles } from './Icons';
 import {
   generateCompleteTheWordSet,
@@ -6,7 +6,55 @@ import {
   generateCompleteTheWordSummary
 } from '../services/toeflService';
 
-const renderParagraphWithInputs = (paragraph, blanks, answers, onChange, isChecked) => {
+const getBlankSegments = (answer = '') => {
+  const safeAnswer = String(answer);
+  if (!safeAnswer) {
+    return [{ type: 'editable', value: '' }];
+  }
+
+  const chars = safeAnswer.split('');
+  const editableIndexes = chars
+    .map((char, index) => (/^[a-zA-Z]$/.test(char) ? index : null))
+    .filter((index) => index !== null);
+
+  if (editableIndexes.length <= 2) {
+    return chars.map((char, index) => ({
+      type: /^[a-zA-Z]$/.test(char) ? 'editable' : 'fixed',
+      value: char,
+      inputIndex: /^[a-zA-Z]$/.test(char) ? index : null
+    }));
+  }
+
+  const hiddenSet = new Set();
+  editableIndexes.forEach((index, order) => {
+    const isEdge = order === 0 || order === editableIndexes.length - 1;
+    const shouldReveal = isEdge || order % 2 === 0;
+    if (!shouldReveal) {
+      hiddenSet.add(index);
+    }
+  });
+
+  return chars.map((char, index) => {
+    const isAlphabet = /^[a-zA-Z]$/.test(char);
+    if (!isAlphabet) {
+      return { type: 'fixed', value: char, inputIndex: null };
+    }
+    if (hiddenSet.has(index)) {
+      return { type: 'editable', value: '', inputIndex: index };
+    }
+    return { type: 'fixed', value: char, inputIndex: null };
+  });
+};
+
+const renderParagraphWithInputs = ({
+  paragraph,
+  blanks,
+  answers,
+  onChange,
+  isChecked,
+  questionIndex,
+  inputRefs
+}) => {
   const parts = [];
   const regex = /{{(\d+)}}/g;
   let lastIndex = 0;
@@ -21,40 +69,72 @@ const renderParagraphWithInputs = (paragraph, blanks, answers, onChange, isCheck
       lastIndex = matchIndex + match[0].length;
       continue;
     }
+
     parts.push(paragraph.slice(lastIndex, matchIndex));
+
     const blankAnswer = blanks[blankIndex].answer || '';
+    const blankSegments = blanks[blankIndex].segments || getBlankSegments(blankAnswer);
     const blankAnswers = answers[blankIndex] || new Array(blankAnswer.length).fill('');
+
+    const editableIndices = blankSegments
+      .filter((segment) => segment.type === 'editable')
+      .map((segment) => segment.inputIndex);
+
     const isBlankFilled =
-      blankAnswers.length > 0 && blankAnswers.every((value) => value.trim().length > 0);
+      editableIndices.length > 0 &&
+      editableIndices.every((inputIndex) => (blankAnswers[inputIndex] || '').trim().length > 0);
+
     parts.push(
-      <span key={`blank-${blankId}`} className="inline-flex items-center mx-1">
-        {blankAnswer.split('').map((letter, letterIndex) => {
-          const answerValue = blankAnswers[letterIndex] || '';
+      <span key={`blank-${blankId}`} className="inline-flex items-center mx-1 align-middle">
+        {blankSegments.map((segment, segmentIndex) => {
+          if (segment.type === 'fixed') {
+            return (
+              <span
+                key={`fixed-${blankId}-${segmentIndex}`}
+                className="inline-flex items-center justify-center h-8 px-1 min-w-[1.2rem] rounded-md bg-white/70 border border-transparent text-sm font-semibold text-gray-700"
+              >
+                {segment.value}
+              </span>
+            );
+          }
+
+          const answerValue = blankAnswers[segment.inputIndex] || '';
+          const expectedLetter = blankAnswer[segment.inputIndex] || '';
           const isCorrect =
-            isChecked && answerValue.toLowerCase() === letter.toLowerCase();
+            isChecked && answerValue.toLowerCase() === expectedLetter.toLowerCase();
+
           return (
             <input
-              key={`blank-${blankId}-${letterIndex}`}
+              key={`blank-${blankId}-${segmentIndex}`}
+              ref={(node) => {
+                if (!node) return;
+                inputRefs.current[`${questionIndex}-${blankIndex}-${segment.inputIndex}`] = node;
+              }}
               value={answerValue}
-              onChange={(event) => onChange(blankIndex, letterIndex, event.target.value)}
+              onChange={(event) =>
+                onChange(blankIndex, segment.inputIndex, event.target.value)
+              }
               maxLength={1}
               disabled={isChecked}
-              className={`mx-0.5 w-7 h-8 border rounded-md text-center text-sm font-semibold ${
+              aria-label={`빈칸 ${blankIndex + 1}의 ${segmentIndex + 1}번째 철자`}
+              className={`mx-0.5 w-8 h-8 border rounded-md text-center text-sm font-semibold transition-colors duration-200 ${
                 isChecked
                   ? isCorrect
                     ? 'border-green-400 bg-green-50 text-green-700'
                     : 'border-red-400 bg-red-50 text-red-700'
                   : isBlankFilled
                   ? 'border-blue-400 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 focus:border-blue-500 focus:outline-none'
+                  : 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none'
               }`}
             />
           );
         })}
       </span>
     );
+
     lastIndex = matchIndex + match[0].length;
   }
+
   parts.push(paragraph.slice(lastIndex));
   return parts;
 };
@@ -77,12 +157,13 @@ export default function ToeflCompleteTheWordQuiz({
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const blanksPerQuestion = 10;
+  const inputRefs = useRef({});
 
   const currentQuestion = questions[currentIndex];
 
   const initializeAnswers = (questionList) => {
     const answerMatrix = questionList.map((question) =>
-      question.blanks.map((blank) => new Array(blank.answer.length).fill(''))
+      question.blanks.map((blank) => new Array((blank.answer || '').length).fill(''))
     );
     setAnswers(answerMatrix);
   };
@@ -101,7 +182,11 @@ export default function ToeflCompleteTheWordQuiz({
       });
       const cleanedQuestions = (data.questions || []).map((question) => ({
         ...question,
-        blanks: question.blanks?.slice(0, blanksPerQuestion) || []
+        blanks:
+          question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
+            ...blank,
+            segments: getBlankSegments(blank.answer || '')
+          })) || []
       }));
       setQuestions(cleanedQuestions);
       initializeAnswers(cleanedQuestions);
@@ -124,9 +209,10 @@ export default function ToeflCompleteTheWordQuiz({
   const filledBlankCount = currentQuestion
     ? currentQuestion.blanks.reduce((count, blank, index) => {
         const blankAnswers = currentAnswers[index] || [];
+        const editableIndices = (blank.segments || []).filter((segment) => segment.type === 'editable');
         const isFilled =
-          blankAnswers.length > 0 &&
-          blankAnswers.every((value) => value.trim().length > 0);
+          editableIndices.length > 0 &&
+          editableIndices.every((segment) => (blankAnswers[segment.inputIndex] || '').trim().length > 0);
         return count + (isFilled ? 1 : 0);
       }, 0)
     : 0;
@@ -138,8 +224,17 @@ export default function ToeflCompleteTheWordQuiz({
     if (!currentQuestion || !checked) return null;
     const correctCount = currentQuestion.blanks.reduce((count, blank, index) => {
       const blankAnswers = currentAnswers[index] || [];
-      const userAnswer = blankAnswers.join('').toLowerCase();
-      return count + (userAnswer === blank.answer.toLowerCase() ? 1 : 0);
+      const editableIndices = (blank.segments || [])
+        .filter((segment) => segment.type === 'editable')
+        .map((segment) => segment.inputIndex);
+
+      const isCorrect = editableIndices.every((inputIndex) => {
+        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+        return userAnswer === targetAnswer;
+      });
+
+      return count + (isCorrect ? 1 : 0);
     }, 0);
     return {
       correctCount,
@@ -148,26 +243,56 @@ export default function ToeflCompleteTheWordQuiz({
     };
   }, [checked, currentQuestion, currentAnswers]);
 
-  const handleAnswerChange = (blankIndex, letterIndex, value) => {
+  const focusNextInput = (blankIndex, inputIndex) => {
+    const blank = currentQuestion?.blanks?.[blankIndex];
+    if (!blank) return;
+
+    const editableIndices = (blank.segments || [])
+      .filter((segment) => segment.type === 'editable')
+      .map((segment) => segment.inputIndex);
+
+    const nextEditableIndex = editableIndices.find((index) => index > inputIndex);
+
+    if (nextEditableIndex === undefined) return;
+
+    const key = `${currentIndex}-${blankIndex}-${nextEditableIndex}`;
+    const nextInput = inputRefs.current[key];
+    if (nextInput) {
+      nextInput.focus();
+      nextInput.select();
+    }
+  };
+
+  const handleAnswerChange = (blankIndex, inputIndex, value) => {
     if (!currentQuestion) return;
     const sanitized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
     setAnswers((prev) => {
       const updated = [...prev];
       const questionAnswers = [...(updated[currentIndex] || [])];
       const blankAnswers = [...(questionAnswers[blankIndex] || [])];
-      blankAnswers[letterIndex] = sanitized;
+      blankAnswers[inputIndex] = sanitized;
       questionAnswers[blankIndex] = blankAnswers;
       updated[currentIndex] = questionAnswers;
       return updated;
     });
+
+    if (sanitized) {
+      focusNextInput(blankIndex, inputIndex);
+    }
   };
 
   const handleCheckAnswers = async () => {
     if (!currentQuestion) return;
     const isPerfect = currentQuestion.blanks.every((blank, index) => {
       const blankAnswers = currentAnswers[index] || [];
-      const userAnswer = blankAnswers.join('').toLowerCase();
-      return userAnswer === blank.answer.toLowerCase();
+      const editableIndices = (blank.segments || [])
+        .filter((segment) => segment.type === 'editable')
+        .map((segment) => segment.inputIndex);
+      return editableIndices.every((inputIndex) => {
+        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+        return userAnswer === targetAnswer;
+      });
     });
     setChecked(true);
     setFeedback('');
@@ -207,8 +332,17 @@ export default function ToeflCompleteTheWordQuiz({
         const questionAnswers = answers[index] || [];
         const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
           const blankAnswers = questionAnswers[blankIndex] || [];
-          const userAnswer = blankAnswers.join('').toLowerCase();
-          return count + (userAnswer === blank.answer.toLowerCase() ? 1 : 0);
+          const editableIndices = (blank.segments || [])
+            .filter((segment) => segment.type === 'editable')
+            .map((segment) => segment.inputIndex);
+
+          const isCorrect = editableIndices.every((inputIndex) => {
+            const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+            const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+            return userAnswer === targetAnswer;
+          });
+
+          return count + (isCorrect ? 1 : 0);
         }, 0);
         return `Q${index + 1}: ${correctCount}/${question.blanks.length}`;
       })
@@ -329,7 +463,7 @@ export default function ToeflCompleteTheWordQuiz({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Complete-the-Word</h2>
@@ -346,16 +480,18 @@ export default function ToeflCompleteTheWordQuiz({
 
       <div className="bg-gray-50 rounded-xl p-6 text-gray-800 text-sm leading-relaxed">
         <p className="mb-4 text-xs text-gray-500 font-medium">
-          빈칸 {currentQuestion.blanks.length}개
+          빈칸 {currentQuestion.blanks.length}개 · 고정 철자는 수정할 수 없어요.
         </p>
         <p>
-          {renderParagraphWithInputs(
-            currentQuestion.paragraph,
-            currentQuestion.blanks,
-            currentAnswers,
-            handleAnswerChange,
-            checked
-          )}
+          {renderParagraphWithInputs({
+            paragraph: currentQuestion.paragraph,
+            blanks: currentQuestion.blanks,
+            answers: currentAnswers,
+            onChange: handleAnswerChange,
+            isChecked: checked,
+            questionIndex: currentIndex,
+            inputRefs
+          })}
         </p>
       </div>
 
@@ -408,7 +544,7 @@ export default function ToeflCompleteTheWordQuiz({
             <button
               onClick={handleNextQuestion}
               disabled={isGeneratingSummary}
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {currentIndex < totalQuestions - 1
                 ? '다음 문항'
