@@ -7,6 +7,9 @@ import QuizResult from './QuizResult';
 import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
 
+const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
+const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
+
 export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey }) {
   const [quizState, setQuizState] = useState('select'); // 'select', 'quiz', 'result'
   const [selectedMode, setSelectedMode] = useState(null); // 'multiple', 'short'
@@ -17,12 +20,25 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [quizCount, setQuizCount] = useState(words.length);
   const [toeflQuestionCount, setToeflQuestionCount] = useState(5);
   const [toeflTargetScore, setToeflTargetScore] = useState(100);
+  const [showToeflSetup, setShowToeflSetup] = useState(false);
 
   useEffect(() => {
     if (words.length > 0) {
       setQuizCount((prev) => Math.min(prev || words.length, words.length));
     }
   }, [words.length]);
+
+  useEffect(() => {
+    const storedQuestionCount = Number(localStorage.getItem(TOEFL_QUESTION_STORAGE_KEY));
+    const storedTargetScore = Number(localStorage.getItem(TOEFL_TARGET_STORAGE_KEY));
+
+    if (Number.isFinite(storedQuestionCount)) {
+      setToeflQuestionCount(clampToeflQuestionCount(storedQuestionCount));
+    }
+    if (Number.isFinite(storedTargetScore)) {
+      setToeflTargetScore(clampToeflTargetScore(storedTargetScore));
+    }
+  }, []);
 
   const clampQuizCount = (value) => {
     if (!Number.isFinite(value)) {
@@ -58,6 +74,11 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   };
 
   const startQuiz = (mode) => {
+    if (mode === 'toefl-complete') {
+      setShowToeflSetup(true);
+      return;
+    }
+
     setSelectedMode(mode);
     setQuizState('quiz');
 
@@ -116,6 +137,14 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setQueue([]);
     setCurrentIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
+  };
+
+  const handleStartToeflComplete = () => {
+    localStorage.setItem(TOEFL_QUESTION_STORAGE_KEY, String(toeflQuestionCount));
+    localStorage.setItem(TOEFL_TARGET_STORAGE_KEY, String(toeflTargetScore));
+    setShowToeflSetup(false);
+    setSelectedMode('toefl-complete');
+    setQuizState('quiz');
   };
 
   return (
@@ -238,6 +267,105 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
       {/* 퀴즈 상태에 따른 렌더링 */}
       {quizState === 'select' && (
         <QuizModeSelector onSelectMode={startQuiz} wordCount={words.length} />
+      )}
+
+      {showToeflSetup && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-blue-100 p-6 md:p-8 animate-in zoom-in-95 slide-in-from-bottom-3 duration-300">
+            <div className="flex items-start justify-between gap-3 mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">Complete-the-Word 설정</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  문제 개수와 목표 점수를 설정하고 시작하세요.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowToeflSetup(false)}
+                className="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all"
+                aria-label="설정 닫기"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+                <label htmlFor="setup-question-slider" className="block text-sm font-semibold text-gray-900 mb-2">
+                  문제 출제 개수
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="setup-question-slider"
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={toeflQuestionCount}
+                    onChange={(event) =>
+                      setToeflQuestionCount(clampToeflQuestionCount(Number(event.target.value)))
+                    }
+                    className="w-full accent-blue-600"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={toeflQuestionCount}
+                    onChange={(event) =>
+                      setToeflQuestionCount(clampToeflQuestionCount(Number(event.target.value)))
+                    }
+                    className="w-20 px-3 py-2 border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-600">권장: 5~7문항으로 집중 학습</p>
+              </div>
+
+              <div className="rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50 to-fuchsia-50 p-4">
+                <label htmlFor="setup-target-slider" className="block text-sm font-semibold text-gray-900 mb-2">
+                  TOEFL 목표 점수
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="setup-target-slider"
+                    type="range"
+                    min={60}
+                    max={120}
+                    value={toeflTargetScore}
+                    onChange={(event) =>
+                      setToeflTargetScore(clampToeflTargetScore(Number(event.target.value)))
+                    }
+                    className="w-full accent-purple-600"
+                  />
+                  <input
+                    type="number"
+                    min={60}
+                    max={120}
+                    value={toeflTargetScore}
+                    onChange={(event) =>
+                      setToeflTargetScore(clampToeflTargetScore(Number(event.target.value)))
+                    }
+                    className="w-24 px-3 py-2 border border-purple-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-600">선택한 설정은 다음에도 자동으로 기억됩니다.</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse md:flex-row md:items-center md:justify-end gap-3">
+              <button
+                onClick={() => setShowToeflSetup(false)}
+                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleStartToeflComplete}
+                className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Complete-the-Word 시작하기
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {quizState === 'quiz' && selectedMode === 'multiple' && (
