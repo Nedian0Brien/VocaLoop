@@ -19,7 +19,8 @@ import {
     serverTimestamp,
     writeBatch,
     doc,
-    deleteDoc
+    deleteDoc,
+    updateDoc
 } from "firebase/firestore";
 
 // Components
@@ -29,7 +30,8 @@ import LoginScreen from './components/LoginScreen';
 import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
 import QuizView from './components/QuizView';
-import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles } from './components/Icons';
+import FolderSidebar from './components/FolderSidebar';
+import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles, Folder } from './components/Icons';
 
 // Hooks & Services
 import useWindowSize from './hooks/useWindowSize';
@@ -129,6 +131,8 @@ function App() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
+    const [folders, setFolders] = useState([]);
+    const [selectedFolderId, setSelectedFolderId] = useState(null);
     const seededRef = useRef(false);
 
     const windowSize = useWindowSize();
@@ -156,6 +160,16 @@ function App() {
                     const q = query(
                         collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'words')
                     );
+
+                    // Folders 실시간 리스너
+                    const foldersQuery = query(
+                        collection(firestore, 'artifacts', appId, 'users', userStorageKey, 'folders')
+                    );
+                    onSnapshot(foldersQuery, (fSnap) => {
+                        const foldersData = fSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        foldersData.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                        setFolders(foldersData);
+                    });
 
                     onSnapshot(q, async (snapshot) => {
                         if (snapshot.empty && !seededRef.current) {
@@ -368,6 +382,13 @@ function App() {
         }
     };
 
+    const [addToFolderId, setAddToFolderId] = useState(null);
+
+    // selectedFolderId가 변경되면 addToFolderId도 동기화
+    useEffect(() => {
+        setAddToFolderId(selectedFolderId);
+    }, [selectedFolderId]);
+
     const handleAddWord = async (e) => {
         e.preventDefault();
         if (!inputWord.trim() || !user || !db || !user.email) return;
@@ -380,10 +401,12 @@ function App() {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
                 status: 'NEW',
-                stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
+                stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 },
+                folderId: addToFolderId || null
             });
             setInputWord("");
-            showNotification(`'${analysisResult.word}' analyzed and added!`);
+            const folderName = addToFolderId ? folders.find(f => f.id === addToFolderId)?.name : null;
+            showNotification(`'${analysisResult.word}' ${folderName ? `→ ${folderName}` : ''} 추가 완료!`);
         } catch (error) {
             console.error("Add Word Error:", error);
             showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
@@ -404,35 +427,116 @@ function App() {
         }
     };
 
+    // --- Folder CRUD ---
+    const handleCreateFolder = async (name, color) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'folders'), {
+                name,
+                color,
+                createdAt: serverTimestamp()
+            });
+            showNotification(`'${name}' 폴더가 생성되었습니다.`);
+        } catch (e) {
+            showNotification('폴더 생성 실패: ' + e.message, 'error');
+        }
+    };
+
+    const handleRenameFolder = async (folderId, newName) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folderId), { name: newName });
+            showNotification('폴더 이름이 변경되었습니다.');
+        } catch (e) {
+            showNotification('이름 변경 실패: ' + e.message, 'error');
+        }
+    };
+
+    const handleDeleteFolder = async (folderId) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            // 해당 폴더의 단어들을 미분류로 이동
+            const wordsInFolder = words.filter(w => w.folderId === folderId);
+            const batch = writeBatch(db);
+            wordsInFolder.forEach(w => {
+                batch.update(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', w.id), { folderId: null });
+            });
+            batch.delete(doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folderId));
+            await batch.commit();
+            showNotification('폴더가 삭제되었습니다.');
+        } catch (e) {
+            showNotification('폴더 삭제 실패: ' + e.message, 'error');
+        }
+    };
+
+    const handleMoveWord = async (wordId, targetFolderId) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId), {
+                folderId: targetFolderId || null
+            });
+        } catch (e) {
+            showNotification('단어 이동 실패: ' + e.message, 'error');
+        }
+    };
+
+    // --- Computed values ---
+    const wordCountByFolder = {};
+    words.forEach(w => {
+        const fId = w.folderId || '__uncategorized';
+        wordCountByFolder[fId] = (wordCountByFolder[fId] || 0) + 1;
+    });
+
+    const filteredWords = selectedFolderId
+        ? words.filter(w => w.folderId === selectedFolderId)
+        : words;
+
     const renderMasonryLayout = () => {
-        if (words.length === 0) return <EmptyState />;
+        if (filteredWords.length === 0) {
+            if (selectedFolderId && words.length > 0) {
+                return (
+                    <div className="text-center py-12 px-4">
+                        <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Folder className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">이 폴더는 비어있습니다</h3>
+                        <p className="text-gray-500">단어 카드의 폴더 버튼으로 단어를 이동할 수 있습니다.</p>
+                    </div>
+                );
+            }
+            return <EmptyState />;
+        }
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {words.map((word, index) => (
+                    {filteredWords.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
                         </div>
                     ))}
                 </div>
             );
         }
-        const leftColumn = words.filter((_, i) => i % 2 === 0);
-        const rightColumn = words.filter((_, i) => i % 2 !== 0);
+        const leftColumn = filteredWords.filter((_, i) => i % 2 === 0);
+        const rightColumn = filteredWords.filter((_, i) => i % 2 !== 0);
 
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="flex flex-col gap-4">
                     {leftColumn.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-col gap-4">
                     {rightColumn.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
                         </div>
                     ))}
                 </div>
@@ -536,16 +640,48 @@ function App() {
                                 {!isAnalyzing && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>}
                             </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2 ml-1 flex items-center gap-1">
-                            <span className="text-blue-600 font-medium">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
-                        </p>
+                        <div className="flex items-center justify-between mt-2 ml-1">
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <span className="text-blue-600 font-medium">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
+                            </p>
+                            {folders.length > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Folder className="w-3.5 h-3.5 text-gray-400" />
+                                    <select
+                                        value={addToFolderId || ''}
+                                        onChange={(e) => setAddToFolderId(e.target.value || null)}
+                                        className="text-xs border-gray-300 rounded-md py-0.5 px-1.5 text-gray-600 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    >
+                                        <option value="">미분류</option>
+                                        {folders.map(f => (
+                                            <option key={f.id} value={f.id}>{f.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
                     </form>
                 </div>
 
                 {view === 'dashboard' && (
                     <div className="space-y-6">
+                        <FolderSidebar
+                            folders={folders}
+                            selectedFolderId={selectedFolderId}
+                            onSelectFolder={setSelectedFolderId}
+                            onCreateFolder={handleCreateFolder}
+                            onRenameFolder={handleRenameFolder}
+                            onDeleteFolder={handleDeleteFolder}
+                            wordCountByFolder={wordCountByFolder}
+                            totalWordCount={words.length}
+                        />
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">My Vocabulary ({words.length})</h2>
+                            <h2 className="text-xl font-bold text-gray-900">
+                                {selectedFolderId
+                                    ? `${folders.find(f => f.id === selectedFolderId)?.name || '폴더'} (${filteredWords.length})`
+                                    : `My Vocabulary (${words.length})`
+                                }
+                            </h2>
                             <select className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-gray-600">
                                 <option>Newest First</option>
                                 <option>Needs Review</option>
@@ -563,6 +699,9 @@ function App() {
                         aiMode={aiMode}
                         setAiMode={setAiMode}
                         apiKey={apiKey}
+                        folders={folders}
+                        selectedFolderId={selectedFolderId}
+                        onSelectFolder={setSelectedFolderId}
                     />
                 )}
             </main>

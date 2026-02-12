@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, Settings as SettingsIcon, ArrowLeft } from './Icons';
+import { Brain, Settings as SettingsIcon, ArrowLeft, Folder } from './Icons';
 import QuizModeSelector from './QuizModeSelector';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
 import ShortAnswerQuiz from './ShortAnswerQuiz';
@@ -10,7 +10,7 @@ import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
 const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
 const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
 
-export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey }) {
+export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey, folders = [], selectedFolderId, onSelectFolder }) {
   const [quizState, setQuizState] = useState('select'); // 'select', 'quiz', 'result'
   const [selectedMode, setSelectedMode] = useState(null); // 'multiple', 'short'
   const [queue, setQueue] = useState([]);
@@ -21,12 +21,17 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [toeflQuestionCount, setToeflQuestionCount] = useState(5);
   const [toeflTargetScore, setToeflTargetScore] = useState(100);
   const [showToeflSetup, setShowToeflSetup] = useState(false);
+  const [quizFolderId, setQuizFolderId] = useState(selectedFolderId || null);
+
+  const quizWords = quizFolderId
+    ? words.filter(w => w.folderId === quizFolderId)
+    : words;
 
   useEffect(() => {
-    if (words.length > 0) {
-      setQuizCount((prev) => Math.min(prev || words.length, words.length));
+    if (quizWords.length > 0) {
+      setQuizCount((prev) => Math.min(prev || quizWords.length, quizWords.length));
     }
-  }, [words.length]);
+  }, [quizWords.length]);
 
   useEffect(() => {
     const storedQuestionCount = Number(localStorage.getItem(TOEFL_QUESTION_STORAGE_KEY));
@@ -42,12 +47,12 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
   const clampQuizCount = (value) => {
     if (!Number.isFinite(value)) {
-      return words.length > 0 ? 1 : 0;
+      return quizWords.length > 0 ? 1 : 0;
     }
-    if (words.length === 0) {
+    if (quizWords.length === 0) {
       return 0;
     }
-    return Math.max(1, Math.min(value, words.length));
+    return Math.max(1, Math.min(value, quizWords.length));
   };
 
   const clampToeflQuestionCount = (value) => {
@@ -83,7 +88,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setQuizState('quiz');
 
     if (mode === 'multiple' || mode === 'short') {
-      const shuffledWords = shuffleWords(words);
+      const shuffledWords = shuffleWords(quizWords);
       const limitedQueue = shuffledWords.slice(0, clampQuizCount(quizCount));
       setQueue(limitedQueue);
       setCurrentIndex(0);
@@ -164,6 +169,14 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
         )}
 
         <div className="flex items-center gap-4">
+          {quizFolderId && (
+            <div className="flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+              <Folder className="w-3.5 h-3.5" />
+              <span className="font-medium truncate max-w-[100px]">
+                {folders.find(f => f.id === quizFolderId)?.name || '폴더'}
+              </span>
+            </div>
+          )}
           <div className="text-sm text-gray-500">
             AI 모드: <span className={`font-bold ${aiMode ? 'text-green-600' : 'text-gray-400'}`}>
               {aiMode ? 'ON' : 'OFF'}
@@ -202,6 +215,30 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               />
             </button>
           </div>
+          {folders.length > 0 && (
+            <div className="flex flex-col gap-2 mb-4">
+              <label className="text-sm font-medium text-gray-700" htmlFor="quiz-folder">
+                폴더별 출제
+              </label>
+              <div className="flex items-center gap-2">
+                <Folder className="w-4 h-4 text-gray-400" />
+                <select
+                  id="quiz-folder"
+                  value={quizFolderId || ''}
+                  onChange={(e) => setQuizFolderId(e.target.value || null)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">전체 단어 ({words.length}개)</option>
+                  {folders.map(f => {
+                    const count = words.filter(w => w.folderId === f.id).length;
+                    return (
+                      <option key={f.id} value={f.id}>{f.name} ({count}개)</option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700" htmlFor="quiz-count">
               문제 출제 개수
@@ -211,7 +248,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
                 id="quiz-count"
                 type="number"
                 min={1}
-                max={words.length}
+                max={quizWords.length}
                 value={quizCount}
                 onChange={(event) => {
                   const value = Number(event.target.value);
@@ -219,7 +256,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
                 }}
                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
               />
-              <span className="text-xs text-gray-500">최대 {words.length}개</span>
+              <span className="text-xs text-gray-500">최대 {quizWords.length}개</span>
             </div>
           </div>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -266,7 +303,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
       {/* 퀴즈 상태에 따른 렌더링 */}
       {quizState === 'select' && (
-        <QuizModeSelector onSelectMode={startQuiz} wordCount={words.length} />
+        <QuizModeSelector onSelectMode={startQuiz} wordCount={quizWords.length} />
       )}
 
       {showToeflSetup && (
