@@ -6,6 +6,18 @@ import {
   generateCompleteTheWordSummary
 } from '../services/toeflService';
 
+const getPrefixRevealCount = (alphabetCount) => {
+  if (alphabetCount < 2) return 0;
+
+  let revealCount = 1;
+  if (alphabetCount >= 5) revealCount = 2;
+  if (alphabetCount >= 8) revealCount = 3;
+  if (alphabetCount >= 11) revealCount = 4;
+
+  const halfLimit = Math.floor(alphabetCount / 2);
+  return Math.max(1, Math.min(revealCount, 4, halfLimit));
+};
+
 const getBlankSegments = (answer = '') => {
   const safeAnswer = String(answer);
   if (!safeAnswer) {
@@ -17,32 +29,28 @@ const getBlankSegments = (answer = '') => {
     .map((char, index) => (/^[a-zA-Z]$/.test(char) ? index : null))
     .filter((index) => index !== null);
 
-  if (editableIndexes.length <= 2) {
-    return chars.map((char, index) => ({
-      type: /^[a-zA-Z]$/.test(char) ? 'editable' : 'fixed',
+  if (editableIndexes.length === 0) {
+    return chars.map((char) => ({
+      type: 'fixed',
       value: char,
-      inputIndex: /^[a-zA-Z]$/.test(char) ? index : null
+      inputIndex: null
     }));
   }
 
-  const hiddenSet = new Set();
-  editableIndexes.forEach((index, order) => {
-    const isEdge = order === 0 || order === editableIndexes.length - 1;
-    const shouldReveal = isEdge || order % 2 === 0;
-    if (!shouldReveal) {
-      hiddenSet.add(index);
-    }
-  });
+  const revealCount = getPrefixRevealCount(editableIndexes.length);
+  const revealedIndexes = new Set(editableIndexes.slice(0, revealCount));
 
   return chars.map((char, index) => {
     const isAlphabet = /^[a-zA-Z]$/.test(char);
     if (!isAlphabet) {
       return { type: 'fixed', value: char, inputIndex: null };
     }
-    if (hiddenSet.has(index)) {
-      return { type: 'editable', value: '', inputIndex: index };
+
+    if (revealedIndexes.has(index)) {
+      return { type: 'fixed', value: char, inputIndex: null };
     }
-    return { type: 'fixed', value: char, inputIndex: null };
+
+    return { type: 'editable', value: '', inputIndex: index };
   });
 };
 
