@@ -6,16 +6,29 @@ import {
   generateCompleteTheWordSummary
 } from '../services/toeflService';
 
-const getPrefixRevealCount = (alphabetCount) => {
-  if (alphabetCount < 2) return 0;
+const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
-  let revealCount = 1;
-  if (alphabetCount >= 5) revealCount = 2;
-  if (alphabetCount >= 8) revealCount = 3;
-  if (alphabetCount >= 11) revealCount = 4;
-
-  const halfLimit = Math.floor(alphabetCount / 2);
-  return Math.max(1, Math.min(revealCount, 4, halfLimit));
+const FONT_SCALE_STYLES = {
+  1: {
+    paragraph: 'text-lg leading-[1.9] md:text-xl',
+    cell: 'w-7 h-7 text-base md:w-8 md:h-8 md:text-lg'
+  },
+  2: {
+    paragraph: 'text-xl leading-[1.9] md:text-2xl',
+    cell: 'w-8 h-8 text-lg md:w-9 md:h-9 md:text-xl'
+  },
+  3: {
+    paragraph: 'text-2xl leading-[1.9] md:text-[1.75rem]',
+    cell: 'w-9 h-9 text-xl md:w-10 md:h-10 md:text-2xl'
+  },
+  4: {
+    paragraph: 'text-[1.8rem] leading-[1.9] md:text-[2rem]',
+    cell: 'w-10 h-10 text-2xl md:w-11 md:h-11 md:text-[1.7rem]'
+  },
+  5: {
+    paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',
+    cell: 'w-11 h-11 text-2xl md:w-12 md:h-12 md:text-[2rem]'
+  }
 };
 
 const getBlankSegments = (answer = '') => {
@@ -59,10 +72,13 @@ const renderParagraphWithInputs = ({
   blanks,
   answers,
   onChange,
+  onKeyDown,
   onBlankClick,
   isChecked,
   questionIndex,
-  inputRefs
+  inputRefs,
+  fontScaleLevel,
+  blankResults
 }) => {
   const parts = [];
   const regex = /{{(\d+)}}/g;
@@ -89,6 +105,9 @@ const renderParagraphWithInputs = ({
       .filter((segment) => segment.type === 'editable')
       .map((segment) => segment.inputIndex);
 
+    const blankResult = blankResults?.[blankIndex];
+    const isWordCorrect = Boolean(blankResult?.isCorrect);
+    const hasWordResult = Boolean(blankResult);
     const isBlankFilled =
       editableIndices.length > 0 &&
       editableIndices.every((inputIndex) => (blankAnswers[inputIndex] || '').trim().length > 0);
@@ -97,7 +116,11 @@ const renderParagraphWithInputs = ({
       <span
         key={`blank-${blankId}`}
         className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-xl border shadow-sm cursor-text transition-colors duration-200 ${
-          isChecked
+          isChecked && hasWordResult
+            ? isWordCorrect
+              ? 'border-green-400 bg-green-50/70'
+              : 'border-red-400 bg-red-50/70'
+            : isChecked
             ? 'border-gray-300 bg-white'
             : isBlankFilled
             ? 'border-blue-300 bg-blue-50/40'
@@ -121,7 +144,7 @@ const renderParagraphWithInputs = ({
       >
         {blankSegments.map((segment, segmentIndex) => {
           const isLastSegment = segmentIndex === blankSegments.length - 1;
-          const baseCellClass = `inline-flex items-center justify-center w-11 h-11 text-2xl font-medium md:w-12 md:h-12 md:text-[2rem] leading-none ${
+          const baseCellClass = `inline-flex items-center justify-center ${FONT_SCALE_STYLES[fontScaleLevel]?.cell || FONT_SCALE_STYLES[3].cell} font-medium leading-none ${
             isLastSegment ? '' : 'border-r border-gray-200'
           }`;
 
@@ -138,8 +161,10 @@ const renderParagraphWithInputs = ({
 
           const answerValue = blankAnswers[segment.inputIndex] || '';
           const expectedLetter = blankAnswer[segment.inputIndex] || '';
+          const displayValue = isChecked && !isWordCorrect ? expectedLetter : answerValue;
           const isCorrect =
             isChecked && answerValue.toLowerCase() === expectedLetter.toLowerCase();
+          const isWrongLetter = isChecked && !isWordCorrect && !isCorrect;
 
           return (
             <input
@@ -148,18 +173,21 @@ const renderParagraphWithInputs = ({
                 if (!node) return;
                 inputRefs.current[`${questionIndex}-${blankIndex}-${segment.inputIndex}`] = node;
               }}
-              value={answerValue}
+              value={displayValue}
               onChange={(event) =>
                 onChange(blankIndex, segment.inputIndex, event.target.value)
               }
+              onKeyDown={(event) => onKeyDown(event, blankIndex, segment.inputIndex)}
               maxLength={1}
               disabled={isChecked}
               aria-label={`빈칸 ${blankIndex + 1}의 ${segmentIndex + 1}번째 철자`}
               className={`${baseCellClass} bg-white text-center transition-colors duration-200 focus:outline-none focus:bg-blue-50/70 ${
                 isChecked
-                  ? isCorrect
+                  ? isWordCorrect
                     ? 'bg-green-50 text-green-700'
-                    : 'bg-red-50 text-red-700'
+                    : isWrongLetter
+                    ? 'bg-red-50 text-red-600'
+                    : 'bg-red-50 text-red-600'
                   : isBlankFilled
                   ? 'text-blue-700'
                   : 'text-gray-700'
@@ -193,6 +221,11 @@ export default function ToeflCompleteTheWordQuiz({
   const [summary, setSummary] = useState(null);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [fontScaleLevel, setFontScaleLevel] = useState(() => {
+    const saved = Number(localStorage.getItem(FONT_SCALE_STORAGE_KEY));
+    if (!Number.isFinite(saved)) return 3;
+    return Math.max(1, Math.min(5, Math.round(saved)));
+  });
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -241,6 +274,10 @@ export default function ToeflCompleteTheWordQuiz({
     loadQuestions();
   }, [questionCount, targetScore, apiKey]);
 
+  useEffect(() => {
+    localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel));
+  }, [fontScaleLevel]);
+
   const totalQuestions = questions.length;
 
   const currentAnswers = answers[currentIndex] || [];
@@ -257,6 +294,11 @@ export default function ToeflCompleteTheWordQuiz({
   const remainingBlankCount = currentQuestion
     ? currentQuestion.blanks.length - filledBlankCount
     : 0;
+
+  const getEditableIndices = (blank) =>
+    (blank?.segments || [])
+      .filter((segment) => segment.type === 'editable')
+      .map((segment) => segment.inputIndex);
 
   const correctness = useMemo(() => {
     if (!currentQuestion || !checked) return null;
@@ -281,10 +323,20 @@ export default function ToeflCompleteTheWordQuiz({
     };
   }, [checked, currentQuestion, currentAnswers]);
 
-  const getEditableIndices = (blank) =>
-    (blank?.segments || [])
-      .filter((segment) => segment.type === 'editable')
-      .map((segment) => segment.inputIndex);
+  const blankResults = useMemo(() => {
+    if (!currentQuestion || !checked) return [];
+
+    return currentQuestion.blanks.map((blank, index) => {
+      const blankAnswers = currentAnswers[index] || [];
+      const editableIndices = getEditableIndices(blank);
+      const isCorrect = editableIndices.every((inputIndex) => {
+        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+        return userAnswer === targetAnswer;
+      });
+      return { isCorrect };
+    });
+  }, [checked, currentQuestion, currentAnswers]);
 
   const focusInputByKey = (key) => {
     const input = inputRefs.current[key];
@@ -342,6 +394,27 @@ export default function ToeflCompleteTheWordQuiz({
     focusInputByKey(key);
   };
 
+  const focusPreviousInput = (blankIndex, inputIndex) => {
+    const blank = currentQuestion?.blanks?.[blankIndex];
+    if (!blank) return;
+
+    const editableIndices = getEditableIndices(blank);
+    const prevInSameBlank = [...editableIndices].reverse().find((index) => index < inputIndex);
+    if (prevInSameBlank !== undefined) {
+      focusInputByKey(`${currentIndex}-${blankIndex}-${prevInSameBlank}`);
+      return;
+    }
+
+    for (let i = blankIndex - 1; i >= 0; i -= 1) {
+      const prevBlank = currentQuestion.blanks[i];
+      const prevEditableIndices = getEditableIndices(prevBlank);
+      if (prevEditableIndices.length === 0) continue;
+      const targetIndex = prevEditableIndices[prevEditableIndices.length - 1];
+      focusInputByKey(`${currentIndex}-${i}-${targetIndex}`);
+      return;
+    }
+  };
+
   const handleAnswerChange = (blankIndex, inputIndex, value) => {
     if (!currentQuestion) return;
     const sanitized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
@@ -375,25 +448,25 @@ export default function ToeflCompleteTheWordQuiz({
     }
   };
 
-  const handleCheckAnswers = async () => {
+  const handleInputKeyDown = (event, blankIndex, inputIndex) => {
+    if (event.key !== 'Backspace' || checked) return;
+
+    const currentValue = (currentAnswers[blankIndex] || [])[inputIndex] || '';
+    if (currentValue) return;
+
+    event.preventDefault();
+    focusPreviousInput(blankIndex, inputIndex);
+  };
+
+  const handleCheckAnswers = () => {
     if (!currentQuestion) return;
-    const isPerfect = currentQuestion.blanks.every((blank, index) => {
-      const blankAnswers = currentAnswers[index] || [];
-      const editableIndices = (blank.segments || [])
-        .filter((segment) => segment.type === 'editable')
-        .map((segment) => segment.inputIndex);
-      return editableIndices.every((inputIndex) => {
-        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-        return userAnswer === targetAnswer;
-      });
-    });
     setChecked(true);
     setFeedback('');
-    if (isPerfect) {
-      setStatus('feedback');
-      return;
-    }
+    setStatus('feedback');
+  };
+
+  const handleGenerateFeedback = async () => {
+    if (!currentQuestion || isGeneratingFeedback || feedback) return;
 
     setIsGeneratingFeedback(true);
     try {
@@ -407,7 +480,6 @@ export default function ToeflCompleteTheWordQuiz({
       setFeedback('AI 피드백을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsGeneratingFeedback(false);
-      setStatus('feedback');
     }
   };
 
@@ -576,19 +648,38 @@ export default function ToeflCompleteTheWordQuiz({
         <p className="mb-6 text-base md:text-lg font-semibold text-gray-900">
           Fill in the missing letters in the paragraph.
         </p>
+        <div className="mb-5 rounded-lg border border-gray-200 bg-white px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-700">글자 크기</p>
+            <span className="text-xs text-gray-500">{fontScaleLevel}단계 / 5단계</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={5}
+            step={1}
+            value={fontScaleLevel}
+            onChange={(event) => setFontScaleLevel(Number(event.target.value))}
+            className="w-full accent-blue-600"
+            aria-label="문제 글자 크기"
+          />
+        </div>
         <p className="mb-4 text-xs text-gray-500 font-medium">
           빈칸 {currentQuestion.blanks.length}개 · 일부 철자는 고정으로 제공됩니다.
         </p>
-        <p className="text-[2.05rem] leading-[1.9] tracking-[-0.01em] text-gray-700">
+        <p className={`${FONT_SCALE_STYLES[fontScaleLevel]?.paragraph || FONT_SCALE_STYLES[3].paragraph} tracking-[-0.01em] text-gray-700`}>
           {renderParagraphWithInputs({
             paragraph: currentQuestion.paragraph,
             blanks: currentQuestion.blanks,
             answers: currentAnswers,
             onChange: handleAnswerChange,
+            onKeyDown: handleInputKeyDown,
             onBlankClick: focusBlankInput,
             isChecked: checked,
             questionIndex: currentIndex,
-            inputRefs
+            inputRefs,
+            fontScaleLevel,
+            blankResults
           })}
         </p>
       </div>
@@ -613,9 +704,20 @@ export default function ToeflCompleteTheWordQuiz({
             <p className="mt-2 text-gray-600 leading-relaxed">{currentQuestion.fullParagraph}</p>
           </div>
           <div className="text-sm text-gray-700">
-            <span className="font-semibold">AI 피드백</span>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="font-semibold">AI 피드백</span>
+              <button
+                type="button"
+                onClick={handleGenerateFeedback}
+                disabled={isGeneratingFeedback || Boolean(feedback)}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Sparkles className={`w-4 h-4 ${isGeneratingFeedback ? 'animate-pulse' : ''}`} />
+                {isGeneratingFeedback ? 'AI 피드백 생성 중...' : feedback ? 'AI 피드백 생성 완료' : 'AI 피드백 생성'}
+              </button>
+            </div>
             <p className="mt-2 text-gray-600">
-              {isGeneratingFeedback ? '피드백을 생성 중입니다...' : feedback}
+              {feedback || '버튼을 눌러 오답 기반 AI 피드백을 생성할 수 있습니다.'}
             </p>
           </div>
         </div>
