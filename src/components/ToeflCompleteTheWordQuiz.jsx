@@ -11,23 +11,23 @@ const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 const FONT_SCALE_STYLES = {
   1: {
     paragraph: 'text-lg leading-[1.9] md:text-xl',
-    cell: 'w-7 h-7 text-base md:w-8 md:h-8 md:text-lg'
+    cell: 'w-6 h-6 text-base md:w-8 md:h-8 md:text-lg'
   },
   2: {
     paragraph: 'text-xl leading-[1.9] md:text-2xl',
-    cell: 'w-8 h-8 text-lg md:w-9 md:h-9 md:text-xl'
+    cell: 'w-7 h-7 text-lg md:w-9 md:h-9 md:text-xl'
   },
   3: {
     paragraph: 'text-2xl leading-[1.9] md:text-[1.75rem]',
-    cell: 'w-9 h-9 text-xl md:w-10 md:h-10 md:text-2xl'
+    cell: 'w-8 h-8 text-xl md:w-10 md:h-10 md:text-2xl'
   },
   4: {
     paragraph: 'text-[1.8rem] leading-[1.9] md:text-[2rem]',
-    cell: 'w-10 h-10 text-2xl md:w-11 md:h-11 md:text-[1.7rem]'
+    cell: 'w-9 h-9 text-2xl md:w-11 md:h-11 md:text-[1.7rem]'
   },
   5: {
     paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',
-    cell: 'w-11 h-11 text-2xl md:w-12 md:h-12 md:text-[2rem]'
+    cell: 'w-10 h-10 text-2xl md:w-12 md:h-12 md:text-[2rem]'
   }
 };
 
@@ -492,10 +492,23 @@ export default function ToeflCompleteTheWordQuiz({
 
     setIsGeneratingFeedback(true);
     try {
+      // Reconstruct full words including prefix hints
+      const userAnswers = currentAnswers.map((blankAnswers, blankIndex) => {
+        const blank = currentQuestion.blanks[blankIndex];
+        const segments = getBlankSegments(blank.answer);
+
+        return segments.map((segment) => {
+          if (segment.type === 'fixed') {
+            return segment.value;
+          }
+          return blankAnswers[segment.inputIndex] || '';
+        }).join('');
+      });
+
       const result = await generateCompleteTheWordFeedback({
         apiKey,
         question: currentQuestion,
-        userAnswers: currentAnswers.map((blankAnswers) => blankAnswers.join(''))
+        userAnswers
       });
       setFeedback(result.feedback || '');
     } catch (err) {
@@ -651,7 +664,7 @@ export default function ToeflCompleteTheWordQuiz({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Complete-the-Word</h2>
@@ -673,7 +686,7 @@ export default function ToeflCompleteTheWordQuiz({
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-6 md:p-8 text-gray-800">
+      <div className="bg-gray-50 rounded-xl p-4 md:p-8 text-gray-800">
         <p className="mb-6 text-base md:text-lg font-semibold text-gray-900">
           Fill in the missing letters in the paragraph.
         </p>
