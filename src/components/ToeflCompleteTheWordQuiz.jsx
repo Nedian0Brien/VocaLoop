@@ -63,15 +63,23 @@ const getBlankSegments = (answer = '') => {
   }
 
   const hiddenSet = new Set(editableIndexes);
+  const revealedIndexes = new Set();
   const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
   const suffixRevealCount = Math.min(getSuffixRevealCount(editableIndexes.length), editableIndexes.length - prefixRevealCount - 1);
 
-  editableIndexes.slice(0, prefixRevealCount).forEach((index) => hiddenSet.delete(index));
-  editableIndexes.slice(editableIndexes.length - suffixRevealCount).forEach((index) => hiddenSet.delete(index));
+  editableIndexes.slice(0, prefixRevealCount).forEach((index) => {
+    hiddenSet.delete(index);
+    revealedIndexes.add(index);
+  });
+  editableIndexes.slice(editableIndexes.length - suffixRevealCount).forEach((index) => {
+    hiddenSet.delete(index);
+    revealedIndexes.add(index);
+  });
 
   if (hiddenSet.size === 0) {
     const middleOrder = Math.floor(editableIndexes.length / 2);
     hiddenSet.add(editableIndexes[middleOrder]);
+    revealedIndexes.delete(editableIndexes[middleOrder]);
   }
 
   return chars.map((char, index) => {
