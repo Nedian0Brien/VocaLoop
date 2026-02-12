@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles } from './Icons';
+import { Sparkles, Settings, X } from './Icons';
 import {
   generateCompleteTheWordSet,
   generateCompleteTheWordFeedback,
@@ -209,6 +209,8 @@ const renderParagraphWithInputs = ({
               onKeyDown={(event) => onKeyDown(event, blankIndex, segment.inputIndex)}
               maxLength={1}
               disabled={isChecked}
+              inputMode="latin"
+              lang="en"
               aria-label={`빈칸 ${blankIndex + 1}의 ${segmentIndex + 1}번째 철자`}
               className={`${baseCellClass} bg-white text-center transition-colors duration-200 focus:outline-none focus:bg-blue-50/70 ${
                 isChecked
@@ -255,6 +257,7 @@ export default function ToeflCompleteTheWordQuiz({
     if (!Number.isFinite(saved)) return 3;
     return Math.max(1, Math.min(5, Math.round(saved)));
   });
+  const [showSettings, setShowSettings] = useState(false);
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -446,7 +449,7 @@ export default function ToeflCompleteTheWordQuiz({
 
   const handleAnswerChange = (blankIndex, inputIndex, value) => {
     if (!currentQuestion) return;
-    const sanitized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
+    const sanitized = value.replace(/[^a-zA-Z]/g, '').toLowerCase().slice(-1);
 
     const blank = currentQuestion.blanks[blankIndex];
     const editableIndices = getEditableIndices(blank);
@@ -670,6 +673,13 @@ export default function ToeflCompleteTheWordQuiz({
           <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
             목표 점수 TOEFL {targetScore}+
           </span>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="퀴즈 설정"
+          >
+            <Settings className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
       </div>
 
@@ -677,22 +687,6 @@ export default function ToeflCompleteTheWordQuiz({
         <p className="mb-6 text-base md:text-lg font-semibold text-gray-900">
           Fill in the missing letters in the paragraph.
         </p>
-        <div className="mb-5 rounded-lg border border-gray-200 bg-white px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-700">글자 크기</p>
-            <span className="text-xs text-gray-500">{fontScaleLevel}단계 / 5단계</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={5}
-            step={1}
-            value={fontScaleLevel}
-            onChange={(event) => setFontScaleLevel(Number(event.target.value))}
-            className="w-full accent-blue-600"
-            aria-label="문제 글자 크기"
-          />
-        </div>
         <p className="mb-4 text-xs text-gray-500 font-medium">
           빈칸 {currentQuestion.blanks.length}개 · 일부 철자는 고정으로 제공됩니다.
         </p>
@@ -784,6 +778,53 @@ export default function ToeflCompleteTheWordQuiz({
           )}
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">퀴즈 설정</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="설정 닫기"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-gray-700">글자 크기</p>
+                  <span className="text-sm text-gray-500">{fontScaleLevel}단계 / 5단계</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={fontScaleLevel}
+                  onChange={(event) => setFontScaleLevel(Number(event.target.value))}
+                  className="w-full accent-blue-600"
+                  aria-label="문제 글자 크기"
+                />
+                <p className="text-xs text-gray-500 mt-2">문단과 빈칸의 크기를 조절할 수 있습니다.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

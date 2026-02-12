@@ -33,20 +33,25 @@ export const generateCompleteTheWordSet = async ({
   const prompt = `
 You are creating a TOEFL academic reading practice set for a learner targeting ${targetScore}+.
 Create ${questionCount} questions. Each question must include:
-1) An academic paragraph (120-160 words) with ${blanksPerQuestion} missing LETTER SEQUENCES (2-4 letters) inside words.
+1) An academic paragraph (120-160 words) with ${blanksPerQuestion} COMPLETE WORDS replaced with placeholders.
 2) The paragraph should use TOEFL-like academic tone and topics.
-3) The missing letters should be replaced with placeholders like {{1}}, {{2}}, ... {{${blanksPerQuestion}}} in order of appearance.
-4) Provide the full original paragraph (without blanks).
-5) Provide a blanks array with id and the correct multi-letter answer string.
+3) Replace ENTIRE WORDS (not partial letters) with placeholders like {{1}}, {{2}}, ... {{${blanksPerQuestion}}} in order of appearance.
+4) Choose words that are 4-10 letters long for the blanks.
+5) Provide the full original paragraph (without blanks).
+6) Provide a blanks array with id and the correct COMPLETE WORD as the answer.
+
+IMPORTANT: Replace the ENTIRE word, not just part of it.
+Example CORRECT: "The {{1}} of knowledge is essential." (answer: "transfer")
+Example WRONG: "The trans{{1}} of knowledge is essential." (answer: "fer")
 
 Return ONLY valid JSON in this schema:
 {
   "questions": [
     {
-      "paragraph": "Text with {{1}} placeholders",
-      "fullParagraph": "Complete paragraph",
+      "paragraph": "Text with {{1}} placeholders for complete words",
+      "fullParagraph": "Complete paragraph with all words",
       "blanks": [
-        { "id": 1, "answer": "tion" }
+        { "id": 1, "answer": "transfer" }
       ]
     }
   ]
