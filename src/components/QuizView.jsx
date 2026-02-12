@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Brain, Settings as SettingsIcon, ArrowLeft, Folder, X } from './Icons';
 import QuizModeSelector from './QuizModeSelector';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
@@ -7,16 +7,20 @@ import QuizResult from './QuizResult';
 import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
 import FolderQuizPicker from './FolderQuizPicker';
+import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 
 const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
 const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
 
-export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey, folders = [], selectedFolderId, onSelectFolder }) {
+export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey, folders = [], selectedFolderId, onSelectFolder, onUpdateLearningRate }) {
   const [quizState, setQuizState] = useState('select'); // 'select', 'quiz', 'result'
   const [selectedMode, setSelectedMode] = useState(null); // 'multiple', 'short'
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
+
+  // 학습률 추적: 각 단어의 세션 내 오답 기록
+  const wordQuizTracker = useRef({}); // { [wordId]: { wrongCount: 0, lastPenalty: 0, wasReasked: false } }
   const [showSettings, setShowSettings] = useState(false);
   const [quizCount, setQuizCount] = useState(words.length);
   const [toeflQuestionCount, setToeflQuestionCount] = useState(5);
@@ -112,6 +116,9 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   };
 
   const handleAnswer = (isCorrect) => {
+    const currentWord = queue[currentIndex];
+    const wordId = currentWord?.id;
+
     const newStats = {
       ...stats,
       correct: stats.correct + (isCorrect ? 1 : 0),
@@ -119,6 +126,39 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
       total: stats.total + 1
     };
     setStats(newStats);
+
+    // 학습률 업데이트
+    if (wordId && onUpdateLearningRate) {
+      const tracker = wordQuizTracker.current[wordId] || { wrongCount: 0, lastPenalty: 0, wasReasked: false };
+      const currentRate = currentWord.learningRate || 0;
+
+      if (isCorrect) {
+        const newRate = calculateCorrectRate({
+          currentRate,
+          quizType: selectedMode || 'multiple',
+          isReasked: tracker.wasReasked,
+          isAiSimilar: aiMode && tracker.wasReasked,
+          lastPenalty: tracker.lastPenalty,
+        });
+        onUpdateLearningRate(wordId, newRate, {
+          review_count: (currentWord.stats?.review_count || 0) + 1,
+        });
+      } else {
+        const { newRate, penalty } = calculateWrongRate({
+          currentRate,
+          wrongCount: tracker.wrongCount,
+        });
+        tracker.wrongCount += 1;
+        tracker.lastPenalty = penalty;
+        tracker.wasReasked = true;
+        wordQuizTracker.current[wordId] = tracker;
+
+        onUpdateLearningRate(wordId, newRate, {
+          wrong_count: (currentWord.stats?.wrong_count || 0) + 1,
+          review_count: (currentWord.stats?.review_count || 0) + 1,
+        });
+      }
+    }
 
     if (isCorrect) {
       // 정답: 다음 문제로
@@ -130,7 +170,6 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
       }
     } else {
       // 오답: 현재 단어를 큐 뒤로 보내기
-      const currentWord = queue[currentIndex];
       const newQueue = [...queue];
       newQueue.splice(currentIndex, 1);
       newQueue.push(currentWord);
@@ -149,6 +188,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setQueue([]);
     setCurrentIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
+    wordQuizTracker.current = {};
   };
 
   const handleBackToModeSelect = () => {
@@ -157,6 +197,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     setQueue([]);
     setCurrentIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
+    wordQuizTracker.current = {};
   };
 
   const handleStartToeflComplete = () => {

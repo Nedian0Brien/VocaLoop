@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder } from './Icons';
+import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
 
 const FOLDER_COLOR_MAP = {
     blue: { bg: 'bg-blue-100', text: 'text-blue-600', dot: 'bg-blue-500' },
@@ -159,6 +160,10 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                 {currentFolder.name}
                             </span>
                         )}
+                        {/* Learning Rate Donut - top right */}
+                        <div className="absolute top-2.5 right-2.5 z-30">
+                            <LearningRateDonut rate={item.learningRate || 0} size={40} strokeWidth={3.5} />
+                        </div>
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
                         <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
@@ -210,6 +215,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                     >
                                         <Volume2 className="w-4 h-4" />
                                     </button>
+                                    <LearningStatusBadge rate={item.learningRate || 0} />
                                 </div>
                                 <h4 className="text-lg font-bold text-blue-700 leading-tight">{item.meaning_ko}</h4>
                             </div>

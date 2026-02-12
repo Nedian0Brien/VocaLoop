@@ -620,6 +620,7 @@ export default function ToeflCompleteTheWordQuiz({
         ...wordData,
         createdAt: serverTimestamp(),
         status: 'NEW',
+        learningRate: 0,
         stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
       });
 
