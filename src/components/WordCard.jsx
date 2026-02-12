@@ -152,14 +152,14 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                 inset: '0px'
                             }}
                         />
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{item.pos}</span>
-                            {currentFolder && (
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${folderColor.bg} ${folderColor.text}`}>
-                                    {currentFolder.name}
-                                </span>
-                            )}
-                        </div>
+                        {/* Folder badge - top left */}
+                        {currentFolder && (
+                            <span className={`absolute top-3 left-3 z-30 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${folderColor.bg} ${folderColor.text}`}>
+                                <Folder className="w-3 h-3" />
+                                {currentFolder.name}
+                            </span>
+                        )}
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
                         <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
                         <button

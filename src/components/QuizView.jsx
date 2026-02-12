@@ -22,10 +22,24 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [toeflQuestionCount, setToeflQuestionCount] = useState(5);
   const [toeflTargetScore, setToeflTargetScore] = useState(100);
   const [showToeflSetup, setShowToeflSetup] = useState(false);
-  const [quizFolderId, setQuizFolderId] = useState(selectedFolderId || null);
+  const [quizFolderIds, setQuizFolderIds] = useState(
+    selectedFolderId ? [selectedFolderId] : []
+  );
 
-  const quizWords = quizFolderId
-    ? words.filter(w => w.folderId === quizFolderId)
+  const toggleQuizFolder = (folderId) => {
+    if (!folderId) {
+      setQuizFolderIds([]);
+      return;
+    }
+    setQuizFolderIds(prev =>
+      prev.includes(folderId)
+        ? prev.filter(id => id !== folderId)
+        : [...prev, folderId]
+    );
+  };
+
+  const quizWords = quizFolderIds.length > 0
+    ? words.filter(w => quizFolderIds.includes(w.folderId))
     : words;
 
   useEffect(() => {
@@ -170,15 +184,18 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
         )}
 
         <div className="flex items-center gap-4">
-          {quizFolderId && (
+          {quizFolderIds.length > 0 && (
             <button
-              onClick={() => { if (quizState === 'select') setQuizFolderId(null); }}
+              onClick={() => { if (quizState === 'select') setQuizFolderIds([]); }}
               className={`flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg transition-colors ${quizState === 'select' ? 'hover:bg-blue-100 cursor-pointer' : 'cursor-default'}`}
               title={quizState === 'select' ? '클릭하여 전체 단어로 전환' : ''}
             >
               <Folder className="w-3.5 h-3.5" />
-              <span className="font-medium truncate max-w-[100px]">
-                {folders.find(f => f.id === quizFolderId)?.name || '폴더'}
+              <span className="font-medium truncate max-w-[140px]">
+                {quizFolderIds.length === 1
+                  ? folders.find(f => f.id === quizFolderIds[0])?.name || '폴더'
+                  : `${quizFolderIds.length}개 폴더`
+                }
               </span>
               {quizState === 'select' && <X className="w-3 h-3 ml-0.5 text-blue-400" />}
             </button>
@@ -289,8 +306,8 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
           <FolderQuizPicker
             folders={folders}
             words={words}
-            quizFolderId={quizFolderId}
-            onSelectFolder={setQuizFolderId}
+            quizFolderIds={quizFolderIds}
+            onToggleFolder={toggleQuizFolder}
           />
           <QuizModeSelector onSelectMode={startQuiz} wordCount={quizWords.length} />
         </>
