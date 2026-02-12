@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Settings, X } from './Icons';
+import { Sparkles, Settings, X, Save } from './Icons';
 import {
   generateCompleteTheWordSet,
   generateCompleteTheWordFeedback,
   generateCompleteTheWordSummary
 } from '../services/toeflService';
+import { generateWordData } from '../services/geminiService';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
@@ -230,7 +232,9 @@ export default function ToeflCompleteTheWordQuiz({
   apiKey,
   questionCount,
   targetScore,
-  onExit
+  onExit,
+  db,
+  user
 }) {
   const [status, setStatus] = useState('loading'); // loading | ready | feedback | summary | error
   const [error, setError] = useState('');
@@ -248,6 +252,9 @@ export default function ToeflCompleteTheWordQuiz({
     return Math.max(1, Math.min(5, Math.round(saved)));
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [incorrectWords, setIncorrectWords] = useState(new Set());
+  const [isSavingWords, setIsSavingWords] = useState(false);
+  const [savedWordsCount, setSavedWordsCount] = useState(0);
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -485,6 +492,23 @@ export default function ToeflCompleteTheWordQuiz({
     setChecked(true);
     setFeedback('');
     setStatus('feedback');
+
+    // Collect incorrect words for vocabulary saving
+    const newIncorrectWords = new Set(incorrectWords);
+    currentQuestion.blanks.forEach((blank, index) => {
+      const blankAnswers = currentAnswers[index] || [];
+      const editableIndices = getEditableIndices(blank);
+      const isCorrect = editableIndices.every((inputIndex) => {
+        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+        return userAnswer === targetAnswer;
+      });
+
+      if (!isCorrect && blank.answer) {
+        newIncorrectWords.add(blank.answer.toLowerCase().trim());
+      }
+    });
+    setIncorrectWords(newIncorrectWords);
   };
 
   const handleGenerateFeedback = async () => {
@@ -565,6 +589,56 @@ export default function ToeflCompleteTheWordQuiz({
     } finally {
       setIsGeneratingSummary(false);
       setStatus('summary');
+    }
+  };
+
+  const getStorageKeyFromEmail = (email) => {
+    if (!email) return null;
+    return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
+  };
+
+  const handleSaveToVocabulary = async () => {
+    if (!db || !user || !user.email || incorrectWords.size === 0) {
+      alert('저장할 단어가 없거나 로그인이 필요합니다.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `틀린 단어 ${incorrectWords.size}개를 단어장에 저장하시겠습니까?`
+    );
+    if (!confirmed) return;
+
+    setIsSavingWords(true);
+    setSavedWordsCount(0);
+
+    const appId = 'vocaloop-default';
+    const userStorageKey = getStorageKeyFromEmail(user.email);
+    let successCount = 0;
+
+    try {
+      for (const word of incorrectWords) {
+        try {
+          const wordData = await generateWordData(word, apiKey);
+          await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
+            ...wordData,
+            createdAt: serverTimestamp(),
+            status: 'NEW',
+            stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
+          });
+          successCount++;
+          setSavedWordsCount(successCount);
+        } catch (error) {
+          console.error(`Failed to save word: ${word}`, error);
+        }
+      }
+
+      alert(`${successCount}개의 단어를 단어장에 저장했습니다!`);
+      setIncorrectWords(new Set()); // Clear the incorrect words set
+    } catch (error) {
+      console.error('Error saving words:', error);
+      alert('단어 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingWords(false);
     }
   };
 
@@ -746,6 +820,30 @@ export default function ToeflCompleteTheWordQuiz({
               {feedback || '버튼을 눌러 오답 기반 AI 피드백을 생성할 수 있습니다.'}
             </p>
           </div>
+
+          {incorrectWords.size > 0 && (
+            <div className="pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <span className="font-semibold">단어장에 저장</span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    틀린 단어 {incorrectWords.size}개를 단어장에 저장할 수 있습니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveToVocabulary}
+                  disabled={isSavingWords || !db || !user}
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Save className={`w-4 h-4 ${isSavingWords ? 'animate-pulse' : ''}`} />
+                  {isSavingWords
+                    ? `저장 중... (${savedWordsCount}/${incorrectWords.size})`
+                    : `단어장에 저장 (${incorrectWords.size}개)`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -397,6 +397,8 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
           questionCount={toeflQuestionCount}
           targetScore={toeflTargetScore}
           onExit={handleBackToModeSelect}
+          db={db}
+          user={user}
         />
       )}
 
