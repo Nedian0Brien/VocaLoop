@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, Settings as SettingsIcon, ArrowLeft, Folder } from './Icons';
+import { Brain, Settings as SettingsIcon, ArrowLeft, Folder, X } from './Icons';
 import QuizModeSelector from './QuizModeSelector';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
 import ShortAnswerQuiz from './ShortAnswerQuiz';
 import QuizResult from './QuizResult';
 import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
+import FolderQuizPicker from './FolderQuizPicker';
 
 const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
 const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
@@ -170,12 +171,17 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
         <div className="flex items-center gap-4">
           {quizFolderId && (
-            <div className="flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+            <button
+              onClick={() => { if (quizState === 'select') setQuizFolderId(null); }}
+              className={`flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg transition-colors ${quizState === 'select' ? 'hover:bg-blue-100 cursor-pointer' : 'cursor-default'}`}
+              title={quizState === 'select' ? '클릭하여 전체 단어로 전환' : ''}
+            >
               <Folder className="w-3.5 h-3.5" />
               <span className="font-medium truncate max-w-[100px]">
                 {folders.find(f => f.id === quizFolderId)?.name || '폴더'}
               </span>
-            </div>
+              {quizState === 'select' && <X className="w-3 h-3 ml-0.5 text-blue-400" />}
+            </button>
           )}
           <div className="text-sm text-gray-500">
             AI 모드: <span className={`font-bold ${aiMode ? 'text-green-600' : 'text-gray-400'}`}>
@@ -215,30 +221,6 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               />
             </button>
           </div>
-          {folders.length > 0 && (
-            <div className="flex flex-col gap-2 mb-4">
-              <label className="text-sm font-medium text-gray-700" htmlFor="quiz-folder">
-                폴더별 출제
-              </label>
-              <div className="flex items-center gap-2">
-                <Folder className="w-4 h-4 text-gray-400" />
-                <select
-                  id="quiz-folder"
-                  value={quizFolderId || ''}
-                  onChange={(e) => setQuizFolderId(e.target.value || null)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">전체 단어 ({words.length}개)</option>
-                  {folders.map(f => {
-                    const count = words.filter(w => w.folderId === f.id).length;
-                    return (
-                      <option key={f.id} value={f.id}>{f.name} ({count}개)</option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-          )}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700" htmlFor="quiz-count">
               문제 출제 개수
@@ -303,7 +285,15 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
 
       {/* 퀴즈 상태에 따른 렌더링 */}
       {quizState === 'select' && (
-        <QuizModeSelector onSelectMode={startQuiz} wordCount={quizWords.length} />
+        <>
+          <FolderQuizPicker
+            folders={folders}
+            words={words}
+            quizFolderId={quizFolderId}
+            onSelectFolder={setQuizFolderId}
+          />
+          <QuizModeSelector onSelectMode={startQuiz} wordCount={quizWords.length} />
+        </>
       )}
 
       {showToeflSetup && (
