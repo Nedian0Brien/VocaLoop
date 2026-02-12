@@ -31,6 +31,18 @@ const FONT_SCALE_STYLES = {
   }
 };
 
+const getPrefixRevealCount = (letterCount) => {
+  if (letterCount <= 3) return 1;
+  if (letterCount <= 6) return 2;
+  return 3;
+};
+
+const getSuffixRevealCount = (letterCount) => {
+  if (letterCount <= 4) return 1;
+  if (letterCount <= 7) return 2;
+  return 3;
+};
+
 const getBlankSegments = (answer = '') => {
   const safeAnswer = String(answer);
   if (!safeAnswer) {
@@ -50,8 +62,17 @@ const getBlankSegments = (answer = '') => {
     }));
   }
 
-  const revealCount = getPrefixRevealCount(editableIndexes.length);
-  const revealedIndexes = new Set(editableIndexes.slice(0, revealCount));
+  const hiddenSet = new Set(editableIndexes);
+  const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
+  const suffixRevealCount = Math.min(getSuffixRevealCount(editableIndexes.length), editableIndexes.length - prefixRevealCount - 1);
+
+  editableIndexes.slice(0, prefixRevealCount).forEach((index) => hiddenSet.delete(index));
+  editableIndexes.slice(editableIndexes.length - suffixRevealCount).forEach((index) => hiddenSet.delete(index));
+
+  if (hiddenSet.size === 0) {
+    const middleOrder = Math.floor(editableIndexes.length / 2);
+    hiddenSet.add(editableIndexes[middleOrder]);
+  }
 
   return chars.map((char, index) => {
     const isAlphabet = /^[a-zA-Z]$/.test(char);
