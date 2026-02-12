@@ -51,6 +51,7 @@ const renderParagraphWithInputs = ({
   blanks,
   answers,
   onChange,
+  onBlankClick,
   isChecked,
   questionIndex,
   inputRefs
@@ -85,13 +86,42 @@ const renderParagraphWithInputs = ({
       editableIndices.every((inputIndex) => (blankAnswers[inputIndex] || '').trim().length > 0);
 
     parts.push(
-      <span key={`blank-${blankId}`} className="inline-flex items-center mx-1 align-middle">
+      <span
+        key={`blank-${blankId}`}
+        className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-xl border shadow-sm cursor-text transition-colors duration-200 ${
+          isChecked
+            ? 'border-gray-300 bg-white'
+            : isBlankFilled
+            ? 'border-blue-300 bg-blue-50/40'
+            : 'border-gray-300 bg-white'
+        }`}
+        role="button"
+        tabIndex={isChecked ? -1 : 0}
+        onClick={(event) => {
+          if (isChecked) return;
+          if (event.target instanceof HTMLInputElement) return;
+          onBlankClick(blankIndex);
+        }}
+        onKeyDown={(event) => {
+          if (isChecked) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onBlankClick(blankIndex);
+          }
+        }}
+        aria-label={`빈칸 ${blankIndex + 1} 입력 시작`}
+      >
         {blankSegments.map((segment, segmentIndex) => {
+          const isLastSegment = segmentIndex === blankSegments.length - 1;
+          const baseCellClass = `inline-flex items-center justify-center w-11 h-11 text-2xl font-medium md:w-12 md:h-12 md:text-[2rem] leading-none ${
+            isLastSegment ? '' : 'border-r border-gray-200'
+          }`;
+
           if (segment.type === 'fixed') {
             return (
               <span
                 key={`fixed-${blankId}-${segmentIndex}`}
-                className="inline-flex items-center justify-center h-8 px-1 min-w-[1.2rem] rounded-md bg-white/70 border border-transparent text-sm font-semibold text-gray-700"
+                className={`${baseCellClass} bg-gray-50 text-gray-800`}
               >
                 {segment.value}
               </span>
@@ -117,14 +147,14 @@ const renderParagraphWithInputs = ({
               maxLength={1}
               disabled={isChecked}
               aria-label={`빈칸 ${blankIndex + 1}의 ${segmentIndex + 1}번째 철자`}
-              className={`mx-0.5 w-8 h-8 border rounded-md text-center text-sm font-semibold transition-colors duration-200 ${
+              className={`${baseCellClass} bg-white text-center transition-colors duration-200 focus:outline-none focus:bg-blue-50/70 ${
                 isChecked
                   ? isCorrect
-                    ? 'border-green-400 bg-green-50 text-green-700'
-                    : 'border-red-400 bg-red-50 text-red-700'
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
                   : isBlankFilled
-                  ? 'border-blue-400 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none'
+                  ? 'text-blue-700'
+                  : 'text-gray-700'
               }`}
             />
           );
@@ -243,29 +273,79 @@ export default function ToeflCompleteTheWordQuiz({
     };
   }, [checked, currentQuestion, currentAnswers]);
 
+  const getEditableIndices = (blank) =>
+    (blank?.segments || [])
+      .filter((segment) => segment.type === 'editable')
+      .map((segment) => segment.inputIndex);
+
+  const focusInputByKey = (key) => {
+    const input = inputRefs.current[key];
+    if (!input) return;
+    input.focus();
+    input.select();
+  };
+
+  const focusBlankInput = (blankIndex, preferFirstEmpty = true) => {
+    const blank = currentQuestion?.blanks?.[blankIndex];
+    if (!blank) return;
+
+    const editableIndices = getEditableIndices(blank);
+    if (editableIndices.length === 0) return;
+
+    const blankAnswers = currentAnswers[blankIndex] || [];
+    const targetIndex =
+      preferFirstEmpty
+        ? editableIndices.find((index) => !(blankAnswers[index] || '').trim()) ?? editableIndices[0]
+        : editableIndices[0];
+
+    const key = `${currentIndex}-${blankIndex}-${targetIndex}`;
+    focusInputByKey(key);
+  };
+
+  const focusNextIncompleteBlank = (fromBlankIndex) => {
+    if (!currentQuestion) return;
+
+    const nextBlankIndex = currentQuestion.blanks.findIndex((blank, blankIndex) => {
+      if (blankIndex <= fromBlankIndex) return false;
+      const editableIndices = getEditableIndices(blank);
+      if (editableIndices.length === 0) return false;
+      const blankAnswers = currentAnswers[blankIndex] || [];
+      return editableIndices.some((index) => !(blankAnswers[index] || '').trim());
+    });
+
+    if (nextBlankIndex === -1) return;
+
+    requestAnimationFrame(() => {
+      focusBlankInput(nextBlankIndex);
+    });
+  };
+
   const focusNextInput = (blankIndex, inputIndex) => {
     const blank = currentQuestion?.blanks?.[blankIndex];
     if (!blank) return;
 
-    const editableIndices = (blank.segments || [])
-      .filter((segment) => segment.type === 'editable')
-      .map((segment) => segment.inputIndex);
+    const editableIndices = getEditableIndices(blank);
 
     const nextEditableIndex = editableIndices.find((index) => index > inputIndex);
 
     if (nextEditableIndex === undefined) return;
 
     const key = `${currentIndex}-${blankIndex}-${nextEditableIndex}`;
-    const nextInput = inputRefs.current[key];
-    if (nextInput) {
-      nextInput.focus();
-      nextInput.select();
-    }
+    focusInputByKey(key);
   };
 
   const handleAnswerChange = (blankIndex, inputIndex, value) => {
     if (!currentQuestion) return;
     const sanitized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
+
+    const blank = currentQuestion.blanks[blankIndex];
+    const editableIndices = getEditableIndices(blank);
+    const updatedBlankAnswers = [...(currentAnswers[blankIndex] || [])];
+    updatedBlankAnswers[inputIndex] = sanitized;
+    const isBlankFilled =
+      editableIndices.length > 0 &&
+      editableIndices.every((index) => (updatedBlankAnswers[index] || '').trim().length > 0);
+
     setAnswers((prev) => {
       const updated = [...prev];
       const questionAnswers = [...(updated[currentIndex] || [])];
@@ -277,7 +357,13 @@ export default function ToeflCompleteTheWordQuiz({
     });
 
     if (sanitized) {
-      focusNextInput(blankIndex, inputIndex);
+      const hasNextInputInBlank = editableIndices.some((index) => index > inputIndex);
+
+      if (hasNextInputInBlank) {
+        focusNextInput(blankIndex, inputIndex);
+      } else if (isBlankFilled) {
+        focusNextIncompleteBlank(blankIndex);
+      }
     }
   };
 
@@ -478,16 +564,20 @@ export default function ToeflCompleteTheWordQuiz({
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-6 text-gray-800 text-sm leading-relaxed">
-        <p className="mb-4 text-xs text-gray-500 font-medium">
-          빈칸 {currentQuestion.blanks.length}개 · 고정 철자는 수정할 수 없어요.
+      <div className="bg-gray-50 rounded-xl p-6 md:p-8 text-gray-800">
+        <p className="mb-6 text-base md:text-lg font-semibold text-gray-900">
+          Fill in the missing letters in the paragraph.
         </p>
-        <p>
+        <p className="mb-4 text-xs text-gray-500 font-medium">
+          빈칸 {currentQuestion.blanks.length}개 · 일부 철자는 고정으로 제공됩니다.
+        </p>
+        <p className="text-[2.05rem] leading-[1.9] tracking-[-0.01em] text-gray-700">
           {renderParagraphWithInputs({
             paragraph: currentQuestion.paragraph,
             blanks: currentQuestion.blanks,
             answers: currentAnswers,
             onChange: handleAnswerChange,
+            onBlankClick: focusBlankInput,
             isChecked: checked,
             questionIndex: currentIndex,
             inputRefs
