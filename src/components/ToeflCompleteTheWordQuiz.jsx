@@ -37,12 +37,6 @@ const getPrefixRevealCount = (letterCount) => {
   return 3;
 };
 
-const getSuffixRevealCount = (letterCount) => {
-  if (letterCount <= 4) return 1;
-  if (letterCount <= 7) return 2;
-  return 3;
-};
-
 const getBlankSegments = (answer = '') => {
   const safeAnswer = String(answer);
   if (!safeAnswer) {
@@ -65,13 +59,9 @@ const getBlankSegments = (answer = '') => {
   const hiddenSet = new Set(editableIndexes);
   const revealedIndexes = new Set();
   const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
-  const suffixRevealCount = Math.min(getSuffixRevealCount(editableIndexes.length), editableIndexes.length - prefixRevealCount - 1);
 
+  // Only reveal prefix (first few letters), not suffix
   editableIndexes.slice(0, prefixRevealCount).forEach((index) => {
-    hiddenSet.delete(index);
-    revealedIndexes.add(index);
-  });
-  editableIndexes.slice(editableIndexes.length - suffixRevealCount).forEach((index) => {
     hiddenSet.delete(index);
     revealedIndexes.add(index);
   });
