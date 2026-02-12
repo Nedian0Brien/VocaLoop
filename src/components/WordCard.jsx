@@ -1,7 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
+import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder } from './Icons';
 
-const WordCard = ({ item, handleDeleteWord }) => {
+const FOLDER_COLOR_MAP = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600', dot: 'bg-blue-500' },
+    purple: { bg: 'bg-purple-100', text: 'text-purple-600', dot: 'bg-purple-500' },
+    green: { bg: 'bg-green-100', text: 'text-green-600', dot: 'bg-green-500' },
+    orange: { bg: 'bg-orange-100', text: 'text-orange-600', dot: 'bg-orange-500' },
+    pink: { bg: 'bg-pink-100', text: 'text-pink-600', dot: 'bg-pink-500' },
+    teal: { bg: 'bg-teal-100', text: 'text-teal-600', dot: 'bg-teal-500' },
+};
+
+const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
     const cardRef = useRef(null);
@@ -16,6 +25,11 @@ const WordCard = ({ item, handleDeleteWord }) => {
 
     // Spotlight Effect State (좌표만 저장)
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0, opacity: 0 });
+
+    // Folder move dropdown
+    const [showFolderMenu, setShowFolderMenu] = useState(false);
+    const currentFolder = folders.find(f => f.id === item.folderId);
+    const folderColor = currentFolder ? (FOLDER_COLOR_MAP[currentFolder.color] || FOLDER_COLOR_MAP.blue) : null;
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
@@ -138,7 +152,14 @@ const WordCard = ({ item, handleDeleteWord }) => {
                                 inset: '0px'
                             }}
                         />
-                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{item.pos}</span>
+                            {currentFolder && (
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${folderColor.bg} ${folderColor.text}`}>
+                                    {currentFolder.name}
+                                </span>
+                            )}
+                        </div>
                         <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
                         <button
@@ -192,12 +213,50 @@ const WordCard = ({ item, handleDeleteWord }) => {
                                 </div>
                                 <h4 className="text-lg font-bold text-blue-700 leading-tight">{item.meaning_ko}</h4>
                             </div>
-                            <button
-                                className="text-gray-400 hover:text-red-500 p-1 shrink-0 ml-2"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteWord(item.id); }}
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                                {/* Folder move button */}
+                                <div className="relative">
+                                    <button
+                                        className={`p-1 rounded transition-colors ${showFolderMenu ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-500'}`}
+                                        onClick={(e) => { e.stopPropagation(); setShowFolderMenu(!showFolderMenu); }}
+                                        title="폴더 이동"
+                                    >
+                                        <Folder className="w-4 h-4" />
+                                    </button>
+                                    {showFolderMenu && (
+                                        <div
+                                            className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[150px]"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <button
+                                                onClick={() => { onMoveWord(item.id, null); setShowFolderMenu(false); }}
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${!item.folderId ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                                            >
+                                                미분류
+                                            </button>
+                                            {folders.map(f => {
+                                                const c = FOLDER_COLOR_MAP[f.color] || FOLDER_COLOR_MAP.blue;
+                                                return (
+                                                    <button
+                                                        key={f.id}
+                                                        onClick={() => { onMoveWord(item.id, f.id); setShowFolderMenu(false); }}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${item.folderId === f.id ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                                                    >
+                                                        <div className={`w-2 h-2 rounded-full ${c.dot}`} />
+                                                        <span className="truncate">{f.name}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    className="text-gray-400 hover:text-red-500 p-1"
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteWord(item.id); }}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
