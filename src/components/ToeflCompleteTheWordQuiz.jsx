@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Settings, X, Save } from './Icons';
+import { Sparkles, Settings, X, Save, Check } from './Icons';
 import {
   generateCompleteTheWordSet,
   generateCompleteTheWordFeedback,
@@ -253,8 +253,8 @@ export default function ToeflCompleteTheWordQuiz({
   });
   const [showSettings, setShowSettings] = useState(false);
   const [incorrectWords, setIncorrectWords] = useState(new Set());
-  const [isSavingWords, setIsSavingWords] = useState(false);
-  const [savedWordsCount, setSavedWordsCount] = useState(0);
+  const [savingWords, setSavingWords] = useState(new Set()); // Words currently being saved
+  const [savedWords, setSavedWords] = useState(new Set()); // Words successfully saved
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -597,48 +597,45 @@ export default function ToeflCompleteTheWordQuiz({
     return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
   };
 
-  const handleSaveToVocabulary = async () => {
-    if (!db || !user || !user.email || incorrectWords.size === 0) {
-      alert('저장할 단어가 없거나 로그인이 필요합니다.');
+  const handleSaveWordToVocabulary = async (word) => {
+    if (!db || !user || !user.email) {
+      alert('로그인이 필요합니다.');
       return;
     }
 
-    const confirmed = window.confirm(
-      `틀린 단어 ${incorrectWords.size}개를 단어장에 저장하시겠습니까?`
-    );
-    if (!confirmed) return;
-
-    setIsSavingWords(true);
-    setSavedWordsCount(0);
+    if (savedWords.has(word)) {
+      alert('이미 저장된 단어입니다.');
+      return;
+    }
 
     const appId = 'vocaloop-default';
     const userStorageKey = getStorageKeyFromEmail(user.email);
-    let successCount = 0;
+
+    // Mark as saving
+    setSavingWords(prev => new Set([...prev, word]));
 
     try {
-      for (const word of incorrectWords) {
-        try {
-          const wordData = await generateWordData(word, apiKey);
-          await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
-            ...wordData,
-            createdAt: serverTimestamp(),
-            status: 'NEW',
-            stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
-          });
-          successCount++;
-          setSavedWordsCount(successCount);
-        } catch (error) {
-          console.error(`Failed to save word: ${word}`, error);
-        }
-      }
+      const wordData = await generateWordData(word, apiKey);
+      await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
+        ...wordData,
+        createdAt: serverTimestamp(),
+        status: 'NEW',
+        stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
+      });
 
-      alert(`${successCount}개의 단어를 단어장에 저장했습니다!`);
-      setIncorrectWords(new Set()); // Clear the incorrect words set
+      // Mark as saved
+      setSavedWords(prev => new Set([...prev, word]));
+      alert(`'${word}' 단어를 단어장에 저장했습니다!`);
     } catch (error) {
-      console.error('Error saving words:', error);
-      alert('단어 저장 중 오류가 발생했습니다.');
+      console.error(`Failed to save word: ${word}`, error);
+      alert(`'${word}' 저장에 실패했습니다: ${error.message}`);
     } finally {
-      setIsSavingWords(false);
+      // Remove from saving
+      setSavingWords(prev => {
+        const updated = new Set(prev);
+        updated.delete(word);
+        return updated;
+      });
     }
   };
 
@@ -823,24 +820,60 @@ export default function ToeflCompleteTheWordQuiz({
 
           {incorrectWords.size > 0 && (
             <div className="pt-3 border-t border-gray-200">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <span className="font-semibold">단어장에 저장</span>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    틀린 단어 {incorrectWords.size}개를 단어장에 저장할 수 있습니다.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveToVocabulary}
-                  disabled={isSavingWords || !db || !user}
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Save className={`w-4 h-4 ${isSavingWords ? 'animate-pulse' : ''}`} />
-                  {isSavingWords
-                    ? `저장 중... (${savedWordsCount}/${incorrectWords.size})`
-                    : `단어장에 저장 (${incorrectWords.size}개)`}
-                </button>
+              <div className="mb-3">
+                <span className="font-semibold">틀린 단어 ({incorrectWords.size}개)</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  저장이 필요한 단어만 선택해서 단어장에 추가하세요.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Array.from(incorrectWords).map((word) => {
+                  const isSaving = savingWords.has(word);
+                  const isSaved = savedWords.has(word);
+
+                  return (
+                    <div
+                      key={word}
+                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all ${
+                        isSaved
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`font-medium ${isSaved ? 'text-green-700' : 'text-gray-700'}`}>
+                        {word}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveWordToVocabulary(word)}
+                        disabled={isSaving || isSaved || !db || !user}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold transition-all ${
+                          isSaved
+                            ? 'bg-green-100 text-green-700 cursor-default'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed'
+                        }`}
+                        title={isSaved ? '저장 완료' : '단어장에 저장'}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Save className="w-3 h-3 animate-pulse" />
+                            <span>저장 중...</span>
+                          </>
+                        ) : isSaved ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>저장됨</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3 h-3" />
+                            <span>저장</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
