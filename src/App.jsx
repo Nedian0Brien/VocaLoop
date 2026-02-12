@@ -31,6 +31,7 @@ import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
 import QuizView from './components/QuizView';
 import FolderSidebar from './components/FolderSidebar';
+import AccountSettings from './components/AccountSettings';
 import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles, Folder } from './components/Icons';
 
 // Hooks & Services
@@ -133,6 +134,7 @@ function App() {
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
     const [folders, setFolders] = useState([]);
     const [selectedFolderId, setSelectedFolderId] = useState(null);
+    const [showSettings, setShowSettings] = useState(false);
     const seededRef = useRef(false);
 
     const windowSize = useWindowSize();
@@ -584,8 +586,25 @@ function App() {
 
     return (
         <div className="min-h-screen pb-20">
-            <Header view={view} setView={setView} user={user} onLogout={handleLogout} />
+            <Header view={view} setView={setView} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
+
+            {showSettings && (
+                <AccountSettings
+                    user={user}
+                    db={db}
+                    words={words}
+                    folders={folders}
+                    onClose={() => setShowSettings(false)}
+                    onLogout={handleLogout}
+                    showNotification={showNotification}
+                    appId={appId}
+                    getStorageKeyFromEmail={getStorageKeyFromEmail}
+                    onCreateFolder={handleCreateFolder}
+                    onRenameFolder={handleRenameFolder}
+                    onDeleteFolder={handleDeleteFolder}
+                />
+            )}
 
             <main className="max-w-3xl mx-auto px-4 pt-8">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 relative overflow-hidden">
