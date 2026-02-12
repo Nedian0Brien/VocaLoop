@@ -37,6 +37,14 @@ import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles, Folder } from 
 // Hooks & Services
 import useWindowSize from './hooks/useWindowSize';
 import { generateWordData } from './services/geminiService';
+import {
+    getLearningStatus,
+    LEARNING_STATUS,
+    LEARNING_STATUS_CONFIG,
+    groupWordsByStatus,
+    sortByLearningRate,
+} from './utils/learningRate';
+import LearningRateDonut from './components/LearningRateDonut';
 
 // --- System Constants ---
 const loadConfig = (envKey, localKey) => {
@@ -136,6 +144,8 @@ function App() {
     const [selectedFolderId, setSelectedFolderId] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
     const seededRef = useRef(false);
+    const [sortMode, setSortMode] = useState('newest'); // 'newest', 'learning-rate-asc', 'learning-rate-desc', 'status-group'
+    const [groupByStatus, setGroupByStatus] = useState(false);
 
     const windowSize = useWindowSize();
     const isMobile = windowSize.width < 640;
@@ -185,6 +195,7 @@ function App() {
                                         ...wordData,
                                         createdAt: serverTimestamp(),
                                         status: 'NEW',
+                                        learningRate: 0,
                                         stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
                                     });
                                 });
@@ -403,6 +414,7 @@ function App() {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
                 status: 'NEW',
+                learningRate: 0,
                 stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 },
                 folderId: addToFolderId || null
             });
@@ -486,6 +498,24 @@ function App() {
         }
     };
 
+    // --- Learning Rate Update ---
+    const handleUpdateLearningRate = async (wordId, newRate, statsUpdate = {}) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            const updateData = { learningRate: Math.max(0, Math.min(100, Math.round(newRate))) };
+            if (statsUpdate.wrong_count !== undefined) {
+                updateData['stats.wrong_count'] = statsUpdate.wrong_count;
+            }
+            if (statsUpdate.review_count !== undefined) {
+                updateData['stats.review_count'] = statsUpdate.review_count;
+            }
+            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId), updateData);
+        } catch (e) {
+            console.error('Learning rate update failed:', e);
+        }
+    };
+
     // --- Computed values ---
     const wordCountByFolder = {};
     words.forEach(w => {
@@ -493,29 +523,35 @@ function App() {
         wordCountByFolder[fId] = (wordCountByFolder[fId] || 0) + 1;
     });
 
-    const filteredWords = selectedFolderId
+    const filteredWordsBase = selectedFolderId
         ? words.filter(w => w.folderId === selectedFolderId)
         : words;
 
-    const renderMasonryLayout = () => {
-        if (filteredWords.length === 0) {
-            if (selectedFolderId && words.length > 0) {
-                return (
-                    <div className="text-center py-12 px-4">
-                        <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Folder className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">이 폴더는 비어있습니다</h3>
-                        <p className="text-gray-500">단어 카드의 폴더 버튼으로 단어를 이동할 수 있습니다.</p>
-                    </div>
-                );
-            }
-            return <EmptyState />;
+    // 정렬 적용
+    const filteredWords = (() => {
+        switch (sortMode) {
+            case 'learning-rate-asc':
+                return sortByLearningRate(filteredWordsBase, 'asc');
+            case 'learning-rate-desc':
+                return sortByLearningRate(filteredWordsBase, 'desc');
+            case 'status-group':
+                // 어려워요 → 학습 중 → 외웠어요 순서
+                return sortByLearningRate(filteredWordsBase, 'asc');
+            default: // 'newest'
+                return [...filteredWordsBase].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
+    })();
+
+    // 상태별 그룹핑 데이터
+    const wordStatusGroups = groupByStatus || sortMode === 'status-group'
+        ? groupWordsByStatus(filteredWords)
+        : null;
+
+    const renderWordCards = (wordList) => {
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {filteredWords.map((word, index) => (
+                    {wordList.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
                             <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
                         </div>
@@ -523,8 +559,8 @@ function App() {
                 </div>
             );
         }
-        const leftColumn = filteredWords.filter((_, i) => i % 2 === 0);
-        const rightColumn = filteredWords.filter((_, i) => i % 2 !== 0);
+        const leftColumn = wordList.filter((_, i) => i % 2 === 0);
+        const rightColumn = wordList.filter((_, i) => i % 2 !== 0);
 
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
@@ -544,6 +580,53 @@ function App() {
                 </div>
             </div>
         );
+    };
+
+    const renderMasonryLayout = () => {
+        if (filteredWords.length === 0) {
+            if (selectedFolderId && words.length > 0) {
+                return (
+                    <div className="text-center py-12 px-4">
+                        <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Folder className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">이 폴더는 비어있습니다</h3>
+                        <p className="text-gray-500">단어 카드의 폴더 버튼으로 단어를 이동할 수 있습니다.</p>
+                    </div>
+                );
+            }
+            return <EmptyState />;
+        }
+
+        // 상태별 그룹 뷰
+        if (wordStatusGroups) {
+            const statusOrder = [LEARNING_STATUS.DIFFICULT, LEARNING_STATUS.LEARNING, LEARNING_STATUS.MEMORIZED];
+            return (
+                <div className="space-y-8">
+                    {statusOrder.map(status => {
+                        const groupWords = wordStatusGroups[status];
+                        if (groupWords.length === 0) return null;
+                        const config = LEARNING_STATUS_CONFIG[status];
+                        return (
+                            <div key={status}>
+                                <div className={`flex items-center gap-2 mb-3 px-1`}>
+                                    <span className={`w-2.5 h-2.5 rounded-full ${config.dotColor}`} />
+                                    <h3 className={`text-sm font-bold uppercase tracking-wider ${config.textColor}`}>
+                                        {config.label}
+                                    </h3>
+                                    <span className="text-xs text-gray-400 font-medium">
+                                        {groupWords.length}개
+                                    </span>
+                                </div>
+                                {renderWordCards(groupWords)}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        return renderWordCards(filteredWords);
     };
 
     // 알림 컴포넌트 (모든 상태에서 표시)
@@ -694,18 +777,59 @@ function App() {
                             wordCountByFolder={wordCountByFolder}
                             totalWordCount={words.length}
                         />
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                             <h2 className="text-xl font-bold text-gray-900">
                                 {selectedFolderId
                                     ? `${folders.find(f => f.id === selectedFolderId)?.name || '폴더'} (${filteredWords.length})`
                                     : `My Vocabulary (${words.length})`
                                 }
                             </h2>
-                            <select className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-gray-600">
-                                <option>Newest First</option>
-                                <option>Needs Review</option>
-                            </select>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        const next = sortMode === 'status-group' ? 'newest' : 'status-group';
+                                        setSortMode(next);
+                                    }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                                        sortMode === 'status-group'
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                    }`}
+                                    title="학습 상태별 그룹 보기"
+                                >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                    </svg>
+                                    그룹
+                                </button>
+                                <select
+                                    value={sortMode}
+                                    onChange={(e) => setSortMode(e.target.value)}
+                                    className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-gray-600"
+                                >
+                                    <option value="newest">최신순</option>
+                                    <option value="learning-rate-asc">학습률 낮은 순</option>
+                                    <option value="learning-rate-desc">학습률 높은 순</option>
+                                    <option value="status-group">상태별 그룹</option>
+                                </select>
+                            </div>
                         </div>
+                        {/* 학습 상태 요약 바 */}
+                        {filteredWords.length > 0 && (
+                            <div className="flex items-center gap-3 mt-3 px-1">
+                                {[LEARNING_STATUS.MEMORIZED, LEARNING_STATUS.LEARNING, LEARNING_STATUS.DIFFICULT].map(status => {
+                                    const config = LEARNING_STATUS_CONFIG[status];
+                                    const count = filteredWords.filter(w => getLearningStatus(w.learningRate) === status).length;
+                                    return (
+                                        <div key={status} className="flex items-center gap-1.5">
+                                            <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+                                            <span className="text-xs text-gray-500">{config.label}</span>
+                                            <span className={`text-xs font-bold ${config.textColor}`}>{count}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                         {renderMasonryLayout()}
                     </div>
                 )}
@@ -721,6 +845,7 @@ function App() {
                         folders={folders}
                         selectedFolderId={selectedFolderId}
                         onSelectFolder={setSelectedFolderId}
+                        onUpdateLearningRate={handleUpdateLearningRate}
                     />
                 )}
             </main>
