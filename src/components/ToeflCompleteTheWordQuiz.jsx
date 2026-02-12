@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Settings, X } from './Icons';
+import { Sparkles, Settings, X, Save, Check } from './Icons';
 import {
   generateCompleteTheWordSet,
   generateCompleteTheWordFeedback,
   generateCompleteTheWordSummary
 } from '../services/toeflService';
+import { generateWordData } from '../services/geminiService';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
@@ -230,7 +232,9 @@ export default function ToeflCompleteTheWordQuiz({
   apiKey,
   questionCount,
   targetScore,
-  onExit
+  onExit,
+  db,
+  user
 }) {
   const [status, setStatus] = useState('loading'); // loading | ready | feedback | summary | error
   const [error, setError] = useState('');
@@ -248,6 +252,9 @@ export default function ToeflCompleteTheWordQuiz({
     return Math.max(1, Math.min(5, Math.round(saved)));
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [incorrectWords, setIncorrectWords] = useState(new Set());
+  const [savingWords, setSavingWords] = useState(new Set()); // Words currently being saved
+  const [savedWords, setSavedWords] = useState(new Set()); // Words successfully saved
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -485,6 +492,23 @@ export default function ToeflCompleteTheWordQuiz({
     setChecked(true);
     setFeedback('');
     setStatus('feedback');
+
+    // Collect incorrect words for vocabulary saving
+    const newIncorrectWords = new Set(incorrectWords);
+    currentQuestion.blanks.forEach((blank, index) => {
+      const blankAnswers = currentAnswers[index] || [];
+      const editableIndices = getEditableIndices(blank);
+      const isCorrect = editableIndices.every((inputIndex) => {
+        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+        return userAnswer === targetAnswer;
+      });
+
+      if (!isCorrect && blank.answer) {
+        newIncorrectWords.add(blank.answer.toLowerCase().trim());
+      }
+    });
+    setIncorrectWords(newIncorrectWords);
   };
 
   const handleGenerateFeedback = async () => {
@@ -565,6 +589,53 @@ export default function ToeflCompleteTheWordQuiz({
     } finally {
       setIsGeneratingSummary(false);
       setStatus('summary');
+    }
+  };
+
+  const getStorageKeyFromEmail = (email) => {
+    if (!email) return null;
+    return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
+  };
+
+  const handleSaveWordToVocabulary = async (word) => {
+    if (!db || !user || !user.email) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    if (savedWords.has(word)) {
+      alert('이미 저장된 단어입니다.');
+      return;
+    }
+
+    const appId = 'vocaloop-default';
+    const userStorageKey = getStorageKeyFromEmail(user.email);
+
+    // Mark as saving
+    setSavingWords(prev => new Set([...prev, word]));
+
+    try {
+      const wordData = await generateWordData(word, apiKey);
+      await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
+        ...wordData,
+        createdAt: serverTimestamp(),
+        status: 'NEW',
+        stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
+      });
+
+      // Mark as saved
+      setSavedWords(prev => new Set([...prev, word]));
+      alert(`'${word}' 단어를 단어장에 저장했습니다!`);
+    } catch (error) {
+      console.error(`Failed to save word: ${word}`, error);
+      alert(`'${word}' 저장에 실패했습니다: ${error.message}`);
+    } finally {
+      // Remove from saving
+      setSavingWords(prev => {
+        const updated = new Set(prev);
+        updated.delete(word);
+        return updated;
+      });
     }
   };
 
@@ -746,6 +817,66 @@ export default function ToeflCompleteTheWordQuiz({
               {feedback || '버튼을 눌러 오답 기반 AI 피드백을 생성할 수 있습니다.'}
             </p>
           </div>
+
+          {incorrectWords.size > 0 && (
+            <div className="pt-3 border-t border-gray-200">
+              <div className="mb-3">
+                <span className="font-semibold">틀린 단어 ({incorrectWords.size}개)</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  저장이 필요한 단어만 선택해서 단어장에 추가하세요.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Array.from(incorrectWords).map((word) => {
+                  const isSaving = savingWords.has(word);
+                  const isSaved = savedWords.has(word);
+
+                  return (
+                    <div
+                      key={word}
+                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all ${
+                        isSaved
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`font-medium ${isSaved ? 'text-green-700' : 'text-gray-700'}`}>
+                        {word}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveWordToVocabulary(word)}
+                        disabled={isSaving || isSaved || !db || !user}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold transition-all ${
+                          isSaved
+                            ? 'bg-green-100 text-green-700 cursor-default'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed'
+                        }`}
+                        title={isSaved ? '저장 완료' : '단어장에 저장'}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Save className="w-3 h-3 animate-pulse" />
+                            <span>저장 중...</span>
+                          </>
+                        ) : isSaved ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>저장됨</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3 h-3" />
+                            <span>저장</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
