@@ -145,8 +145,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                 transition: 'height 0.7s cubic-bezier(0.25, 1, 0.5, 1)'
             }}
             onClick={() => {
-                // Prevent flipping when loading or regenerating
-                if (item.isLoading || isRegenerating) return;
+                // Prevent flipping when regenerating
+                if (isRegenerating) return;
                 setIsFlipped(!isFlipped);
             }}
             onMouseMove={handleMouseMove}
@@ -230,13 +230,11 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                 inset: '0.5px'
                             }}
                         />
-                        {/* Regeneration / Loading Overlay */}
-                        {(isRegenerating || item.isLoading) && (
+                        {/* Regeneration Overlay */}
+                        {isRegenerating && (
                             <div className="absolute inset-0 rounded-xl bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center pointer-events-none">
                                 <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-3" />
-                                <p className="text-lg font-semibold text-blue-700">
-                                    {item.isLoading ? '단어 생성 중...' : '재생성 중...'}
-                                </p>
+                                <p className="text-lg font-semibold text-blue-700">재생성 중...</p>
                                 <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>
                             </div>
                         )}
