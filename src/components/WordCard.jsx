@@ -161,7 +161,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                             </span>
                         )}
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
-                        <h3 className="text-3xl font-bold text-gray-900 font-serif mb-3">{item.word}</h3>
+                        <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
                         <button
                             className="text-gray-500 font-serif italic hover:text-blue-600 transition-colors cursor-pointer mb-3 z-30"
                             onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
