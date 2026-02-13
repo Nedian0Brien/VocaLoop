@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder } from './Icons';
+import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw, Loader2 } from './Icons';
 import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
 
 const FOLDER_COLOR_MAP = {
@@ -11,7 +11,7 @@ const FOLDER_COLOR_MAP = {
     teal: { bg: 'bg-teal-100', text: 'text-teal-600', dot: 'bg-teal-500' },
 };
 
-const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
+const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenerateWord }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
     const cardRef = useRef(null);
@@ -31,6 +31,12 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
     const [showFolderMenu, setShowFolderMenu] = useState(false);
     const currentFolder = folders.find(f => f.id === item.folderId);
     const folderColor = currentFolder ? (FOLDER_COLOR_MAP[currentFolder.color] || FOLDER_COLOR_MAP.blue) : null;
+
+    // Word actions menu (regenerate, delete)
+    const [showWordMenu, setShowWordMenu] = useState(false);
+
+    // Regeneration loading state
+    const [isRegenerating, setIsRegenerating] = useState(false);
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
@@ -107,6 +113,23 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
         if (preferredVoice) utterance.voice = preferredVoice;
 
         window.speechSynthesis.speak(utterance);
+    };
+
+    // Regenerate word handler
+    const handleRegenerate = async (e) => {
+        e.stopPropagation();
+        if (!onRegenerateWord || isRegenerating) return;
+
+        setIsRegenerating(true);
+        setShowWordMenu(false);
+
+        try {
+            await onRegenerateWord(item.id);
+        } catch (error) {
+            console.error('Regeneration error:', error);
+        } finally {
+            setIsRegenerating(false);
+        }
     };
 
     // Conditional positioning
@@ -255,12 +278,43 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                         </div>
                                     )}
                                 </div>
-                                <button
-                                    className="text-gray-400 hover:text-red-500 p-1"
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteWord(item.id); }}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                {/* Word actions menu */}
+                                <div className="relative">
+                                    <button
+                                        className={`p-1 rounded transition-colors ${showWordMenu ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                                        onClick={(e) => { e.stopPropagation(); setShowWordMenu(!showWordMenu); }}
+                                        title="단어 메뉴"
+                                    >
+                                        <MoreVertical className="w-4 h-4" />
+                                    </button>
+                                    {showWordMenu && (
+                                        <div
+                                            className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <button
+                                                onClick={handleRegenerate}
+                                                disabled={isRegenerating}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isRegenerating ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <RotateCw className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>{isRegenerating ? '재생성 중...' : '단어 재생성'}</span>
+                                            </button>
+                                            <div className="border-t border-gray-200 my-1" />
+                                            <button
+                                                onClick={() => { handleDeleteWord(item.id); setShowWordMenu(false); }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 transition-colors text-red-600"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <span>단어 삭제</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -271,7 +325,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                     <FileText className="w-3.5 h-3.5 text-blue-400" />
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
                                 </div>
-                                <p className="text-sm text-gray-800 leading-relaxed">{item.definitions?.[0]}</p>
+                                <p className="text-sm text-gray-800 leading-relaxed mb-0.5">{item.definitions?.[0]}</p>
+                                <p className="text-xs text-gray-500">{item.meaning_ko}</p>
                             </div>
 
                             {/* Nuance */}

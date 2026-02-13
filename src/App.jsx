@@ -498,6 +498,48 @@ function App() {
         }
     };
 
+    const handleRegenerateWord = async (wordId) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+
+        // Find the existing word to get the word string
+        const existingWord = words.find(w => w.id === wordId);
+        if (!existingWord) {
+            showNotification('단어를 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        try {
+            showNotification(`'${existingWord.word}' 재생성 중...`, 'info');
+
+            // Generate new word data using Gemini API
+            const newWordData = await generateWordData(existingWord.word, apiKey);
+
+            // Update Firestore with new AI-generated data while preserving user data
+            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId), {
+                // Update AI-generated fields
+                meaning_ko: newWordData.meaning_ko,
+                pronunciation: newWordData.pronunciation,
+                pos: newWordData.pos,
+                definitions: newWordData.definitions,
+                examples: newWordData.examples,
+                synonyms: newWordData.synonyms,
+                nuance: newWordData.nuance
+                // Preserve: id, learningRate, status, stats, folderId, createdAt (not included in update)
+            });
+
+            showNotification(`'${existingWord.word}' 재생성 완료!`);
+        } catch (error) {
+            console.error('Regenerate Word Error:', error);
+            showNotification(
+                error.message.includes("403")
+                    ? "API Key Invalid or Expired"
+                    : "재생성 실패: " + error.message,
+                "error"
+            );
+        }
+    };
+
     // --- Learning Rate Update ---
     const handleUpdateLearningRate = async (wordId, newRate, statsUpdate = {}) => {
         if (!db || !user?.email) return;
@@ -553,7 +595,7 @@ function App() {
                 <div className="flex flex-col gap-4">
                     {wordList.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
                         </div>
                     ))}
                 </div>
@@ -567,14 +609,14 @@ function App() {
                 <div className="flex flex-col gap-4">
                     {leftColumn.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-col gap-4">
                     {rightColumn.map((word, index) => (
                         <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} />
+                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
                         </div>
                     ))}
                 </div>
