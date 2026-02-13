@@ -514,8 +514,6 @@ function App() {
         }
 
         try {
-            showNotification(`'${existingWord.word}' 재생성 중...`, 'info');
-
             // Generate new word data using Gemini API
             const newWordData = await generateWordData(existingWord.word, apiKey);
 
@@ -532,8 +530,6 @@ function App() {
                 nuance: newWordData.nuance
                 // Preserve: id, learningRate, status, stats, folderId, createdAt (not included in update)
             });
-
-            showNotification(`'${existingWord.word}' 재생성 완료!`);
         } catch (error) {
             console.error('Regenerate Word Error:', error);
             showNotification(
@@ -598,7 +594,12 @@ function App() {
                 id: '__loading__',
                 word: analyzingWord,
                 isLoading: true,
-                folderId: addToFolderId || null
+                folderId: addToFolderId || null,
+                pos: '...',
+                pronunciation: '생성 중...',
+                learningRate: 0,
+                definitions: [],
+                examples: []
             };
             // Only show loading card if it matches current folder filter
             if (!selectedFolderId || loadingCard.folderId === selectedFolderId) {
