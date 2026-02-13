@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder } from './Icons';
+import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw } from './Icons';
 import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
 
 const FOLDER_COLOR_MAP = {
@@ -31,6 +31,9 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
     const [showFolderMenu, setShowFolderMenu] = useState(false);
     const currentFolder = folders.find(f => f.id === item.folderId);
     const folderColor = currentFolder ? (FOLDER_COLOR_MAP[currentFolder.color] || FOLDER_COLOR_MAP.blue) : null;
+
+    // Word actions menu (regenerate, delete)
+    const [showWordMenu, setShowWordMenu] = useState(false);
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
@@ -255,12 +258,38 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                         </div>
                                     )}
                                 </div>
-                                <button
-                                    className="text-gray-400 hover:text-red-500 p-1"
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteWord(item.id); }}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                {/* Word actions menu */}
+                                <div className="relative">
+                                    <button
+                                        className={`p-1 rounded transition-colors ${showWordMenu ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                                        onClick={(e) => { e.stopPropagation(); setShowWordMenu(!showWordMenu); }}
+                                        title="단어 메뉴"
+                                    >
+                                        <MoreVertical className="w-4 h-4" />
+                                    </button>
+                                    {showWordMenu && (
+                                        <div
+                                            className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <button
+                                                onClick={() => { /* TODO: Implement regenerate */; setShowWordMenu(false); }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-gray-700"
+                                            >
+                                                <RotateCw className="w-3.5 h-3.5" />
+                                                <span>단어 재생성</span>
+                                            </button>
+                                            <div className="border-t border-gray-200 my-1" />
+                                            <button
+                                                onClick={() => { handleDeleteWord(item.id); setShowWordMenu(false); }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 transition-colors text-red-600"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <span>단어 삭제</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -271,7 +300,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                     <FileText className="w-3.5 h-3.5 text-blue-400" />
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
                                 </div>
-                                <p className="text-sm text-gray-800 leading-relaxed">{item.definitions?.[0]}</p>
+                                <p className="text-sm text-gray-800 leading-relaxed mb-0.5">{item.definitions?.[0]}</p>
+                                <p className="text-xs text-gray-500">{item.meaning_ko}</p>
                             </div>
 
                             {/* Nuance */}
