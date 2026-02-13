@@ -33,41 +33,47 @@ jobs:
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{"content": "🚨 **빌드 실패**\n프로젝트: VocaLoop\n브랜치: main\nGitHub Actions 탭에서 로그를 확인해주세요."}' \
+          -d '{
+            "content": "🚨 **빌드 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ github.sha }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\nGitHub Actions 탭에서 로그를 확인해주세요."
+          }' \
           "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
 
-  deploy:
-    name: Deploy to Server
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          script: |
-            set -e
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use 20 || nvm install 20
-            cd ~/project/voca-loop/VocaLoop
-            git pull origin main
-            npm install
-            npm run build:clean
-            pm2 restart voca-loop --update-env
+deploy:
+  name: Deploy to Server
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.KEY }}
+        script: |
+          set -e
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use 20 || nvm install 20
+          cd ~/project/voca-loop/VocaLoop
+          git pull origin main
+          npm install
+          npm run build:clean
+          pm2 restart voca-loop --update-env
 
-      - name: Notify Discord on Deploy Success
-        if: success()
-        run: |
-          curl -H "Content-Type: application/json" \
-          -d '{"content": "✅ **배포 성공!**\n프로젝트: VocaLoop\n브랜치: main\n서버에 성공적으로 배포되었습니다."}' \
-          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
+    - name: Notify Discord on Deploy Success
+      if: success()
+      run: |
+        curl -H "Content-Type: application/json" \
+        -d '{
+          "content": "✅ **배포 성공!**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ github.sha }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n서버에 성공적으로 배포되었습니다."
+        }' \
+        "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
 
-      - name: Notify Discord on Deploy Failure
-        if: failure()
-        run: |
-          curl -H "Content-Type: application/json" \
-          -d '{"content": "🔥 **배포 실패**\n프로젝트: VocaLoop\n브랜치: main\n서버 연결 또는 배포 스크립트를 확인해주세요."}' \
-          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
+    - name: Notify Discord on Deploy Failure
+      if: failure()
+      run: |
+        curl -H "Content-Type: application/json" \
+        -d '{
+          "content": "🔥 **배포 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ github.sha }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n서버 연결 또는 배포 스크립트를 확인해주세요."
+        }' \
+        "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
