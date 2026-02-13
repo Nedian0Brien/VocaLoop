@@ -1,8 +1,7 @@
 name: Deploy
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
@@ -11,7 +10,6 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -30,6 +28,13 @@ jobs:
 
       # - name: Run Tests (Optional)
       #   run: npm test
+
+      - name: Notify Discord on Build Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"content": "🚨 **빌드 실패**\n프로젝트: VocaLoop\n브랜치: main\nGitHub Actions 탭에서 로그를 확인해주세요."}' \
+          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
 
   deploy:
     name: Deploy to Server
@@ -52,3 +57,17 @@ jobs:
             npm install
             npm run build:clean
             pm2 restart voca-loop --update-env
+
+      - name: Notify Discord on Deploy Success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"content": "✅ **배포 성공!**\n프로젝트: VocaLoop\n브랜치: main\n서버에 성공적으로 배포되었습니다."}' \
+          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
+
+      - name: Notify Discord on Deploy Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"content": "🔥 **배포 실패**\n프로젝트: VocaLoop\n브랜치: main\n서버 연결 또는 배포 스크립트를 확인해주세요."}' \
+          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
