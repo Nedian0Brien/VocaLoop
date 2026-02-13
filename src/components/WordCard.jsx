@@ -160,19 +160,21 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                 {currentFolder.name}
                             </span>
                         )}
-                        {/* Learning Rate Donut - top right */}
-                        <div className="absolute top-2.5 right-2.5 z-30">
-                            <LearningRateDonut rate={item.learningRate || 0} size={40} strokeWidth={3.5} />
-                        </div>
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
                         <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
-                        <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
-                        <button
-                            className="mt-1 p-2 text-gray-400 hover:text-blue-600 transition-colors z-30"
-                            onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
-                        >
-                            <Volume2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-2 mb-4">
+                            <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
+                            <button
+                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors z-30"
+                                onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
+                            >
+                                <Volume2 className="w-5 h-5" />
+                            </button>
+                        </div>
+                        {/* Learning Rate Donut - center bottom */}
+                        <div className="mt-auto z-30">
+                            <LearningRateDonut rate={item.learningRate || 0} size={40} strokeWidth={3.5} />
+                        </div>
                     </div>
 
                     {/* Back */}
