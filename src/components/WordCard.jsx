@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw } from './Icons';
+import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw, Loader2 } from './Icons';
 import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
 
 const FOLDER_COLOR_MAP = {
@@ -11,7 +11,7 @@ const FOLDER_COLOR_MAP = {
     teal: { bg: 'bg-teal-100', text: 'text-teal-600', dot: 'bg-teal-500' },
 };
 
-const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
+const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenerateWord }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
     const cardRef = useRef(null);
@@ -34,6 +34,9 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
 
     // Word actions menu (regenerate, delete)
     const [showWordMenu, setShowWordMenu] = useState(false);
+
+    // Regeneration loading state
+    const [isRegenerating, setIsRegenerating] = useState(false);
 
     // 마우스 위치 기반 3D Tilt + Spotlight 효과
     const handleMouseMove = (e) => {
@@ -110,6 +113,23 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
         if (preferredVoice) utterance.voice = preferredVoice;
 
         window.speechSynthesis.speak(utterance);
+    };
+
+    // Regenerate word handler
+    const handleRegenerate = async (e) => {
+        e.stopPropagation();
+        if (!onRegenerateWord || isRegenerating) return;
+
+        setIsRegenerating(true);
+        setShowWordMenu(false);
+
+        try {
+            await onRegenerateWord(item.id);
+        } catch (error) {
+            console.error('Regeneration error:', error);
+        } finally {
+            setIsRegenerating(false);
+        }
     };
 
     // Conditional positioning
@@ -273,11 +293,16 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <button
-                                                onClick={() => { /* TODO: Implement regenerate */; setShowWordMenu(false); }}
-                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-gray-700"
+                                                onClick={handleRegenerate}
+                                                disabled={isRegenerating}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                <RotateCw className="w-3.5 h-3.5" />
-                                                <span>단어 재생성</span>
+                                                {isRegenerating ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <RotateCw className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>{isRegenerating ? '재생성 중...' : '단어 재생성'}</span>
                                             </button>
                                             <div className="border-t border-gray-200 my-1" />
                                             <button
