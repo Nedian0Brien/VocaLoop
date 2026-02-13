@@ -1,6 +1,6 @@
 export const generateWordData = async (word, apiKey) => {
     const prompt = `
-    Analyze the English word '${word}'. 
+    Analyze the English word '${word}'.
     Return a JSON object with the following structure (do not include markdown formatting, just raw JSON):
     {
         "word": "${word}",
@@ -8,12 +8,15 @@ export const generateWordData = async (word, apiKey) => {
         "pronunciation": "IPA pronunciation (string)",
         "pos": "Part of speech (e.g., Noun, Verb)",
         "definitions": ["English definition 1", "English definition 2"],
+        "definitions_ko": ["Korean translation of definition 1", "Korean translation of definition 2"],
         "examples": [
             {"en": "English example sentence using the word", "ko": "Korean translation"}
         ],
         "synonyms": ["synonym1", "synonym2"],
         "nuance": "Brief explanation of nuance or usage context in Korean"
     }
+
+    IMPORTANT: The "definitions_ko" array must have the same length as "definitions" array, with each element being the Korean translation of the corresponding English definition.
     `;
 
     try {

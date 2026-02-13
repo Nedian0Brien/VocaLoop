@@ -138,6 +138,7 @@ function App() {
     const [loginLoading, setLoginLoading] = useState(false);
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analyzingWord, setAnalyzingWord] = useState(null); // Track word being analyzed for loading card
     const [notification, setNotification] = useState(null);
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
     const [folders, setFolders] = useState([]);
@@ -406,10 +407,12 @@ function App() {
         e.preventDefault();
         if (!inputWord.trim() || !user || !db || !user.email) return;
 
+        const wordToAnalyze = inputWord.trim();
         setIsAnalyzing(true);
+        setAnalyzingWord(wordToAnalyze);
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
-            const analysisResult = await generateWordData(inputWord, apiKey);
+            const analysisResult = await generateWordData(wordToAnalyze, apiKey);
             await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
@@ -426,6 +429,7 @@ function App() {
             showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
         } finally {
             setIsAnalyzing(false);
+            setAnalyzingWord(null);
         }
     };
 
@@ -522,6 +526,7 @@ function App() {
                 pronunciation: newWordData.pronunciation,
                 pos: newWordData.pos,
                 definitions: newWordData.definitions,
+                definitions_ko: newWordData.definitions_ko,
                 examples: newWordData.examples,
                 synonyms: newWordData.synonyms,
                 nuance: newWordData.nuance
@@ -571,17 +576,37 @@ function App() {
 
     // 정렬 적용
     const filteredWords = (() => {
+        let sorted;
         switch (sortMode) {
             case 'learning-rate-asc':
-                return sortByLearningRate(filteredWordsBase, 'asc');
+                sorted = sortByLearningRate(filteredWordsBase, 'asc');
+                break;
             case 'learning-rate-desc':
-                return sortByLearningRate(filteredWordsBase, 'desc');
+                sorted = sortByLearningRate(filteredWordsBase, 'desc');
+                break;
             case 'status-group':
                 // 어려워요 → 학습 중 → 외웠어요 순서
-                return sortByLearningRate(filteredWordsBase, 'asc');
+                sorted = sortByLearningRate(filteredWordsBase, 'asc');
+                break;
             default: // 'newest'
-                return [...filteredWordsBase].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                sorted = [...filteredWordsBase].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
+
+        // Add loading card at the beginning if analyzing
+        if (analyzingWord) {
+            const loadingCard = {
+                id: '__loading__',
+                word: analyzingWord,
+                isLoading: true,
+                folderId: addToFolderId || null
+            };
+            // Only show loading card if it matches current folder filter
+            if (!selectedFolderId || loadingCard.folderId === selectedFolderId) {
+                return [loadingCard, ...sorted];
+            }
+        }
+
+        return sorted;
     })();
 
     // 상태별 그룹핑 데이터
