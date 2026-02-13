@@ -139,7 +139,16 @@ function App() {
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [pendingWordId, setPendingWordId] = useState(null);
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
+
+    // 새 단어가 Firestore 리스너(onSnapshot)를 통해 로드되었는지 확인 후 로딩 상태 해제
+    useEffect(() => {
+        if (pendingWordId && words.some(w => w.id === pendingWordId)) {
+            setIsAnalyzing(false);
+            setPendingWordId(null);
+        }
+    }, [words, pendingWordId]);
     const [folders, setFolders] = useState([]);
     const [selectedFolderId, setSelectedFolderId] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
@@ -410,7 +419,7 @@ function App() {
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
             const analysisResult = await generateWordData(inputWord, apiKey);
-            await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
+            const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
                 status: 'NEW',
@@ -418,13 +427,16 @@ function App() {
                 stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 },
                 folderId: addToFolderId || null
             });
+
+            // Firestore 데이터가 실제 로드될 때까지 로딩 상태 유지
+            setPendingWordId(docRef.id);
+
             setInputWord("");
             const folderName = addToFolderId ? folders.find(f => f.id === addToFolderId)?.name : null;
             showNotification(`'${analysisResult.word}' ${folderName ? `→ ${folderName}` : ''} 추가 완료!`);
         } catch (error) {
             console.error("Add Word Error:", error);
             showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
-        } finally {
             setIsAnalyzing(false);
         }
     };
