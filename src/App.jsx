@@ -591,43 +591,69 @@ function App() {
         ? groupWordsByStatus(filteredWords)
         : null;
 
-    const renderWordCards = (wordList) => {
+    const renderWordCards = (wordList, includeLoading = false) => {
+        const loadingCard = (
+            <div className="w-full h-64 relative animate-in fade-in zoom-in duration-300">
+                <div className="w-full h-full rounded-xl bg-white shadow-sm border border-blue-200 overflow-hidden relative">
+                    <div className="p-6 flex flex-col items-center justify-center text-center h-full opacity-40 blur-[2px]">
+                        <span className="text-xs font-bold text-blue-300 uppercase tracking-wider mb-2">Generating</span>
+                        <h3 className="text-3xl font-bold text-gray-400 font-serif mb-2">{inputWord || 'New Word'}</h3>
+                        <div className="w-8 h-8 rounded-full border-4 border-gray-100 mt-4"></div>
+                    </div>
+                    <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center">
+                        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-3" />
+                        <p className="text-lg font-semibold text-blue-700">단어 생성 중...</p>
+                        <p className="text-sm text-gray-600 mt-1">AI가 분석하고 있습니다</p>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const renderItem = (word, index) => (
+            <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
+            </div>
+        );
+
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {wordList.map((word, index) => (
-                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
-                        </div>
-                    ))}
+                    {includeLoading && loadingCard}
+                    {wordList.map((word, index) => renderItem(word, index))}
                 </div>
             );
         }
-        const leftColumn = wordList.filter((_, i) => i % 2 === 0);
-        const rightColumn = wordList.filter((_, i) => i % 2 !== 0);
+
+        const leftColumn = [];
+        const rightColumn = [];
+
+        if (includeLoading) {
+            leftColumn.push(loadingCard);
+            wordList.forEach((word, index) => {
+                if (index % 2 === 0) rightColumn.push(renderItem(word, index)); // 0번이 오른쪽
+                else leftColumn.push(renderItem(word, index)); // 1번이 왼쪽
+            });
+        } else {
+            wordList.forEach((word, index) => {
+                if (index % 2 === 0) leftColumn.push(renderItem(word, index));
+                else rightColumn.push(renderItem(word, index));
+            });
+        }
 
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="flex flex-col gap-4">
-                    {leftColumn.map((word, index) => (
-                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
-                        </div>
-                    ))}
+                    {leftColumn}
                 </div>
                 <div className="flex flex-col gap-4">
-                    {rightColumn.map((word, index) => (
-                        <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-                            <WordCard item={word} handleDeleteWord={handleDeleteWord} folders={folders} onMoveWord={handleMoveWord} onRegenerateWord={handleRegenerateWord} />
-                        </div>
-                    ))}
+                    {rightColumn}
                 </div>
             </div>
         );
     };
 
     const renderMasonryLayout = () => {
-        if (filteredWords.length === 0) {
+        if (filteredWords.length === 0 && !isAnalyzing) {
             if (selectedFolderId && words.length > 0) {
                 return (
                     <div className="text-center py-12 px-4">
@@ -647,6 +673,17 @@ function App() {
             const statusOrder = [LEARNING_STATUS.DIFFICULT, LEARNING_STATUS.LEARNING, LEARNING_STATUS.MEMORIZED];
             return (
                 <div className="space-y-8">
+                    {isAnalyzing && (
+                        <div className="mb-8">
+                             <div className="flex items-center gap-2 mb-3 px-1">
+                                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-blue-600">
+                                    Creating New Word
+                                </h3>
+                            </div>
+                            {renderWordCards([], true)}
+                        </div>
+                    )}
                     {statusOrder.map(status => {
                         const groupWords = wordStatusGroups[status];
                         if (groupWords.length === 0) return null;
@@ -662,7 +699,7 @@ function App() {
                                         {groupWords.length}개
                                     </span>
                                 </div>
-                                {renderWordCards(groupWords)}
+                                {renderWordCards(groupWords, false)}
                             </div>
                         );
                     })}
@@ -670,7 +707,7 @@ function App() {
             );
         }
 
-        return renderWordCards(filteredWords);
+        return renderWordCards(filteredWords, isAnalyzing);
     };
 
     // 알림 컴포넌트 (모든 상태에서 표시)
@@ -716,14 +753,7 @@ function App() {
             <Header view={view} setView={setView} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
 
-            {/* Full-screen Loading Overlay for Word Generation */}
-            {isAnalyzing && (
-                <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center pointer-events-none">
-                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-3" />
-                    <p className="text-lg font-semibold text-blue-700">단어 생성 중...</p>
-                    <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>
-                </div>
-            )}
+
 
             {showSettings && (
                 <AccountSettings
