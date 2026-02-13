@@ -36,7 +36,7 @@ jobs:
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{ "content": "🚨 **빌드 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\nGitHub Actions 탭에서 로그를 확인해주세요." }' \
+          -d '{ "content": "🚨 **빌드 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n실행 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nGitHub Actions 탭에서 로그를 확인해주세요." }' \
           "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
 
   deploy:
@@ -71,12 +71,12 @@ jobs:
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{ "content": "✅ **배포 성공!**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n서버에 성공적으로 배포되었습니다." }' \
+          -d '{ "content": "✅ **배포 성공!**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n실행 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n서버에 성공적으로 배포되었습니다." }' \
           "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
 
       - name: Notify Discord on Deploy Failure
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{ "content": "🔥 **배포 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n서버 연결 또는 배포 스크립트를 확인해주세요." }' \
-          "https://discord.com/api/webhooks/1471922958036504764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
+          -d '{ "content": "🔥 **배포 실패**\n**프로젝트:** VocaLoop\n**브랜치:** `${{ github.ref_name }}`\n**커밋:** `${{ env.SHORT_SHA }}`\n**메시지:** ${{ github.event.head_commit.message }}\n\n실행 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n서버 연결 또는 배포 스크립트를 확인해주세요." }' \
+          "https://discord.com/api/webhooks/1471922958036514764/SLQ519CdjSLQ6gZAPrq2rZnej7rWL_hXCDbR1tvsbJs7WdZYmq6F-0KLdaLoJUfhOoEF"
