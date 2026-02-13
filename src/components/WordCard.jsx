@@ -161,16 +161,13 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                             </span>
                         )}
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">{item.pos}</span>
-                        <h3 className="text-3xl font-bold text-gray-900 font-serif mb-2">{item.word}</h3>
-                        <div className="flex items-center gap-2">
-                            <p className="text-gray-500 font-serif italic">{item.pronunciation}</p>
-                            <button
-                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors z-30"
-                                onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
-                            >
-                                <Volume2 className="w-5 h-5" />
-                            </button>
-                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 font-serif mb-3">{item.word}</h3>
+                        <button
+                            className="text-gray-500 font-serif italic hover:text-blue-600 transition-colors cursor-pointer mb-3 z-30"
+                            onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
+                        >
+                            {item.pronunciation}
+                        </button>
                         {/* Learning Rate Donut - fixed at bottom center */}
                         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30">
                             <LearningRateDonut rate={item.learningRate || 0} size={30} strokeWidth={3} />
