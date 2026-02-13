@@ -522,6 +522,7 @@ function App() {
                 pronunciation: newWordData.pronunciation,
                 pos: newWordData.pos,
                 definitions: newWordData.definitions,
+                definitions_ko: newWordData.definitions_ko,
                 examples: newWordData.examples,
                 synonyms: newWordData.synonyms,
                 nuance: newWordData.nuance

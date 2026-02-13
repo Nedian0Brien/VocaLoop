@@ -226,6 +226,14 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                 inset: '0.5px'
                             }}
                         />
+                        {/* Regeneration Overlay */}
+                        {isRegenerating && (
+                            <div className="absolute inset-0 rounded-xl bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center pointer-events-none">
+                                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-3" />
+                                <p className="text-lg font-semibold text-blue-700">재생성 중...</p>
+                                <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>
+                            </div>
+                        )}
                         {/* Header Row: Word + TTS & Delete */}
                         <div className="flex justify-between items-start mb-4 pb-3 border-b border-blue-200">
                             <div className="flex flex-col">
@@ -326,7 +334,9 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
                                 </div>
                                 <p className="text-sm text-gray-800 leading-relaxed mb-0.5">{item.definitions?.[0]}</p>
-                                <p className="text-xs text-gray-500">{item.meaning_ko}</p>
+                                {item.definitions_ko?.[0] && (
+                                    <p className="text-xs text-gray-500">{item.definitions_ko[0]}</p>
+                                )}
                             </div>
 
                             {/* Nuance */}
