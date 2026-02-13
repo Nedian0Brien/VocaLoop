@@ -138,7 +138,6 @@ function App() {
     const [loginLoading, setLoginLoading] = useState(false);
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analyzingWord, setAnalyzingWord] = useState(null); // Track word being analyzed for loading card
     const [notification, setNotification] = useState(null);
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
     const [folders, setFolders] = useState([]);
@@ -407,12 +406,10 @@ function App() {
         e.preventDefault();
         if (!inputWord.trim() || !user || !db || !user.email) return;
 
-        const wordToAnalyze = inputWord.trim();
         setIsAnalyzing(true);
-        setAnalyzingWord(wordToAnalyze);
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
-            const analysisResult = await generateWordData(wordToAnalyze, apiKey);
+            const analysisResult = await generateWordData(inputWord, apiKey);
             await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
@@ -429,7 +426,6 @@ function App() {
             showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
         } finally {
             setIsAnalyzing(false);
-            setAnalyzingWord(null);
         }
     };
 
@@ -587,26 +583,6 @@ function App() {
             default: // 'newest'
                 sorted = [...filteredWordsBase].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
-
-        // Add loading card at the beginning if analyzing
-        if (analyzingWord) {
-            const loadingCard = {
-                id: '__loading__',
-                word: analyzingWord,
-                isLoading: true,
-                folderId: addToFolderId || null,
-                pos: '...',
-                pronunciation: '생성 중...',
-                learningRate: 0,
-                definitions: [],
-                examples: []
-            };
-            // Only show loading card if it matches current folder filter
-            if (!selectedFolderId || loadingCard.folderId === selectedFolderId) {
-                return [loadingCard, ...sorted];
-            }
-        }
-
         return sorted;
     })();
 
@@ -739,6 +715,15 @@ function App() {
         <div className="min-h-screen pb-20">
             <Header view={view} setView={setView} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
+
+            {/* Full-screen Loading Overlay for Word Generation */}
+            {isAnalyzing && (
+                <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center pointer-events-none">
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-3" />
+                    <p className="text-lg font-semibold text-blue-700">단어 생성 중...</p>
+                    <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>
+                </div>
+            )}
 
             {showSettings && (
                 <AccountSettings
