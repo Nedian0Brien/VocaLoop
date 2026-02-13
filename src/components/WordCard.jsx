@@ -173,7 +173,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord }) => {
                         </div>
                         {/* Learning Rate Donut - center bottom */}
                         <div className="mt-auto z-30">
-                            <LearningRateDonut rate={item.learningRate || 0} size={40} strokeWidth={3.5} />
+                            <LearningRateDonut rate={item.learningRate || 0} size={30} strokeWidth={3} />
                         </div>
                     </div>
 
