@@ -94,36 +94,6 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
           />
         )}
       </svg>
-
-      {/* 중앙 콘텐츠 */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        {isComplete ? (
-          // 100% 달성: 초록색 체크 아이콘
-          <svg
-            width={size * 0.4}
-            height={size * 0.4}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#22C55E"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          // 학습률 숫자 표시
-          <span
-            className="font-bold leading-none"
-            style={{
-              fontSize: size * 0.24,
-              color: color,
-            }}
-          >
-            {Math.round(animatedRate)}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
