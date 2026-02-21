@@ -6,10 +6,13 @@ const SetupScreen = () => {
 
     const handleSave = () => {
         try {
-            if (!localApiKey.trim()) return alert("API Key is required");
             const fbJson = JSON.parse(localFbConfig);
 
-            localStorage.setItem('__api_key', localApiKey);
+            if (localApiKey.trim()) {
+                localStorage.setItem('__api_key', localApiKey.trim());
+            } else {
+                localStorage.removeItem('__api_key');
+            }
             localStorage.setItem('__firebase_config', JSON.stringify(fbJson));
             localStorage.setItem('__app_id', 'vocaloop-local');
 
@@ -31,6 +34,7 @@ const SetupScreen = () => {
                 <div className="space-y-6">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Gemini API Key</label>
+                        <p className="text-xs text-gray-500 mb-2">옵션: 계정별 설정을 쓰기 전 사용할 기본 키(선택)</p>
                         <input
                             type="password"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"

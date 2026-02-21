@@ -63,7 +63,7 @@ const getStorageKeyFromEmail = (email) => {
     return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
 };
 
-const apiKey = loadConfig('VITE_GEMINI_API_KEY', '__api_key') || "";
+const DEFAULT_GEMINI_API_KEY = loadConfig('VITE_GEMINI_API_KEY', '__api_key') || "";
 const appId = "vocaloop-default";
 const firebaseConfigRaw = loadConfig('VITE_FIREBASE_CONFIG', '__firebase_config');
 let firebaseConfig = null;
@@ -155,16 +155,20 @@ function App() {
     const seededRef = useRef(false);
     const [sortMode, setSortMode] = useState('newest'); // 'newest', 'learning-rate-asc', 'learning-rate-desc', 'status-group'
     const [groupByStatus, setGroupByStatus] = useState(false);
+    const [accountGeminiApiKey, setAccountGeminiApiKey] = useState('');
 
     const windowSize = useWindowSize();
     const isMobile = windowSize.width < 640;
+    const resolvedGeminiApiKey = accountGeminiApiKey || DEFAULT_GEMINI_API_KEY;
 
     // 1. Check for Missing Config -> Show Setup Screen
-    if (!firebaseConfig || !apiKey) {
+    if (!firebaseConfig) {
         return <SetupScreen />;
     }
 
     useEffect(() => {
+        let profileSettingsUnsubscribe = () => {};
+
         try {
             const app = initializeApp(firebaseConfig);
             const authInstance = getAuth(app);
@@ -173,6 +177,8 @@ function App() {
             setDb(firestore);
 
             const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
+                profileSettingsUnsubscribe();
+                setAccountGeminiApiKey(DEFAULT_GEMINI_API_KEY);
                 setUser(currentUser);
                 if (currentUser && currentUser.email) {
                     // 이메일 기반 스토리지 키 사용 - 같은 이메일이면 Google/이메일 로그인 모두 같은 데이터 사용
@@ -229,12 +235,27 @@ function App() {
                         showNotification("Data loading error: " + error.message, "error");
                         setLoading(false);
                     });
+
+                    profileSettingsUnsubscribe = onSnapshot(
+                        doc(firestore, 'artifacts', appId, 'users', userStorageKey, 'profile', 'settings'),
+                        (profileSnapshot) => {
+                            const data = profileSnapshot.exists() ? profileSnapshot.data() : {};
+                            setAccountGeminiApiKey(data?.geminiApiKey || '');
+                        },
+                        (error) => {
+                            console.error("Profile settings load error:", error);
+                            setAccountGeminiApiKey(DEFAULT_GEMINI_API_KEY);
+                        }
+                    );
                 } else {
                     setLoading(false);
                 }
             });
 
-            return () => unsubscribe();
+            return () => {
+                unsubscribe();
+                profileSettingsUnsubscribe();
+            };
         } catch (err) {
             console.error("Firebase Init Error:", err);
             showNotification("System Init Error: " + err.message, "error");
@@ -414,11 +435,15 @@ function App() {
     const handleAddWord = async (e) => {
         e.preventDefault();
         if (!inputWord.trim() || !user || !db || !user.email) return;
+        if (!resolvedGeminiApiKey) {
+            showNotification('Gemini API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.', 'error');
+            return;
+        }
 
         setIsAnalyzing(true);
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
-            const analysisResult = await generateWordData(inputWord, apiKey);
+            const analysisResult = await generateWordData(inputWord, resolvedGeminiApiKey);
             const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
@@ -512,6 +537,11 @@ function App() {
 
     const handleRegenerateWord = async (wordId) => {
         if (!db || !user?.email) return;
+        if (!resolvedGeminiApiKey) {
+            showNotification('Gemini API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.', 'error');
+            return;
+        }
+
         const userStorageKey = getStorageKeyFromEmail(user.email);
 
         // Find the existing word to get the word string
@@ -523,7 +553,7 @@ function App() {
 
         try {
             // Generate new word data using Gemini API
-            const newWordData = await generateWordData(existingWord.word, apiKey);
+            const newWordData = await generateWordData(existingWord.word, resolvedGeminiApiKey);
 
             // Update Firestore with new AI-generated data while preserving user data
             await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId), {
@@ -934,9 +964,9 @@ function App() {
                         setView={setView}
                         db={db}
                         user={user}
-                        aiMode={aiMode}
-                        setAiMode={setAiMode}
-                        apiKey={apiKey}
+                    aiMode={aiMode}
+                    setAiMode={setAiMode}
+                    apiKey={resolvedGeminiApiKey}
                         folders={folders}
                         selectedFolderId={selectedFolderId}
                         onSelectFolder={setSelectedFolderId}

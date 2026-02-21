@@ -32,6 +32,7 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
     const [displayName, setDisplayName] = useState('');
     const [toeflTarget, setToeflTarget] = useState('');
     const [profilePhotoURL, setProfilePhotoURL] = useState('');
+    const [geminiApiKey, setGeminiApiKey] = useState('');
 
     // Delete account states
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -53,6 +54,8 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
 
         setDisplayName(user.displayName || '');
         setProfilePhotoURL(user.photoURL || '');
+        setToeflTarget('');
+        setGeminiApiKey('');
 
         const userStorageKey = getStorageKeyFromEmail(user.email);
         try {
@@ -61,6 +64,7 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
                 const data = profileDoc.data();
                 setUserProfile(data);
                 setToeflTarget(data.toeflTarget || '');
+                setGeminiApiKey(data.geminiApiKey || '');
             }
         } catch (error) {
             console.error('Failed to load profile:', error);
@@ -146,6 +150,7 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
             await setDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'profile', 'settings'), {
                 displayName,
                 toeflTarget: toeflTarget || null,
+                geminiApiKey: geminiApiKey.trim() || null,
                 updatedAt: new Date()
             }, { merge: true });
 
@@ -480,6 +485,23 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">TOEFL iBT 총점 (0-120)</p>
+                            </div>
+
+                            {/* Gemini API Key */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Gemini API Key
+                                </label>
+                                <input
+                                    type="password"
+                                    value={geminiApiKey}
+                                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                                    placeholder="AI 기능을 위한 개인 키 입력 (선택)"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    계정별 AI 생성/채점 기능에 사용됩니다.
+                                </p>
                             </div>
 
                             {/* Save Button */}
