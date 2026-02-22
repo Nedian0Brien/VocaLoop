@@ -490,18 +490,21 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
                             {/* Gemini API Key */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Gemini API Key
+                                    Gemini API Key <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="password"
                                     value={geminiApiKey}
                                     onChange={(e) => setGeminiApiKey(e.target.value)}
-                                    placeholder="AI 기능을 위한 개인 키 입력 (선택)"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="AI 기능을 위한 개인 키 입력 (필수)"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!geminiApiKey ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
-                                    계정별 AI 생성/채점 기능에 사용됩니다.
+                                    단어 추가 및 AI 채점 기능에 필수입니다. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Google AI Studio</a>에서 발급받으세요.
                                 </p>
+                                {!geminiApiKey && (
+                                    <p className="text-xs text-red-500 mt-1 font-medium">⚠ API Key가 없으면 AI 기능을 사용할 수 없습니다.</p>
+                                )}
                             </div>
 
                             {/* Save Button */}

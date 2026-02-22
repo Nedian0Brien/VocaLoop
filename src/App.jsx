@@ -159,7 +159,7 @@ function App() {
 
     const windowSize = useWindowSize();
     const isMobile = windowSize.width < 640;
-    const resolvedGeminiApiKey = accountGeminiApiKey || DEFAULT_GEMINI_API_KEY;
+    const resolvedGeminiApiKey = accountGeminiApiKey;
 
     // 1. Check for Missing Config -> Show Setup Screen
     if (!firebaseConfig) {
@@ -178,7 +178,7 @@ function App() {
 
             const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
                 profileSettingsUnsubscribe();
-                setAccountGeminiApiKey(DEFAULT_GEMINI_API_KEY);
+                setAccountGeminiApiKey('');
                 setUser(currentUser);
                 if (currentUser && currentUser.email) {
                     // 이메일 기반 스토리지 키 사용 - 같은 이메일이면 Google/이메일 로그인 모두 같은 데이터 사용
@@ -244,7 +244,7 @@ function App() {
                         },
                         (error) => {
                             console.error("Profile settings load error:", error);
-                            setAccountGeminiApiKey(DEFAULT_GEMINI_API_KEY);
+                            setAccountGeminiApiKey('');
                         }
                     );
                 } else {
