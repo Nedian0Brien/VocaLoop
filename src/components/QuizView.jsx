@@ -12,7 +12,7 @@ import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate'
 const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
 const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
 
-export default function QuizView({ words, setView, db, user, aiMode, setAiMode, apiKey, folders = [], selectedFolderId, onSelectFolder, onUpdateLearningRate }) {
+export default function QuizView({ words, setView, db, user, aiMode, setAiMode, aiConfig, folders = [], selectedFolderId, onSelectFolder, onUpdateLearningRate }) {
   const [quizState, setQuizState] = useState('select'); // 'select', 'quiz', 'result'
   const [selectedMode, setSelectedMode] = useState(null); // 'multiple', 'short'
   const [queue, setQueue] = useState([]);
@@ -331,11 +331,11 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               />
             </div>
           </div>
-          <div className="text-xs text-gray-600 bg-white rounded-lg p-3">
+            <div className="text-xs text-gray-600 bg-white rounded-lg p-3">
             <p className="font-medium mb-2">💡 모드별 차이점:</p>
             <ul className="space-y-1 ml-4 list-disc">
               <li><strong>AI OFF:</strong> 로컬 알고리즘으로 문제 생성, 정확한 문자열 매칭으로 채점</li>
-              <li><strong>AI ON:</strong> Gemini API로 지능형 오답 생성, 의미론적 채점</li>
+              <li><strong>AI ON:</strong> 설정된 모델로 지능형 오답 생성, 의미론적 채점</li>
             </ul>
           </div>
         </div>
@@ -461,7 +461,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
           progress={{ current: currentIndex + 1, total: queue.length }}
           stats={stats}
           aiMode={aiMode}
-          apiKey={apiKey}
+          aiConfig={aiConfig}
         />
       )}
 
@@ -472,13 +472,13 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
           progress={{ current: currentIndex + 1, total: queue.length }}
           stats={stats}
           aiMode={aiMode}
-          apiKey={apiKey}
+          aiConfig={aiConfig}
         />
       )}
 
       {quizState === 'quiz' && selectedMode === 'toefl-complete' && (
         <ToeflCompleteTheWordQuiz
-          apiKey={apiKey}
+          aiConfig={aiConfig}
           questionCount={toeflQuestionCount}
           targetScore={toeflTargetScore}
           onExit={handleBackToModeSelect}

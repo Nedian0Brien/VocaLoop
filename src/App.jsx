@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import {
     getAuth,
@@ -37,6 +37,7 @@ import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles, Folder } from 
 // Hooks & Services
 import useWindowSize from './hooks/useWindowSize';
 import { generateWordData } from './services/geminiService';
+import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig } from './services/aiModelService';
 import {
     getLearningStatus,
     LEARNING_STATUS,
@@ -64,6 +65,14 @@ const getStorageKeyFromEmail = (email) => {
 };
 
 const DEFAULT_GEMINI_API_KEY = loadConfig('VITE_GEMINI_API_KEY', '__api_key') || "";
+const DEFAULT_OPENAI_API_KEY = loadConfig('VITE_OPENAI_API_KEY', '__openai_api_key') || '';
+const DEFAULT_CLAUDE_API_KEY = loadConfig('VITE_CLAUDE_API_KEY', '__claude_api_key') || '';
+const DEFAULT_AI_SETTINGS_LOADED = {
+    ...DEFAULT_AI_SETTINGS,
+    geminiApiKey: DEFAULT_GEMINI_API_KEY,
+    openaiApiKey: DEFAULT_OPENAI_API_KEY,
+    claudeApiKey: DEFAULT_CLAUDE_API_KEY
+};
 const appId = "vocaloop-default";
 const firebaseConfigRaw = loadConfig('VITE_FIREBASE_CONFIG', '__firebase_config');
 let firebaseConfig = null;
@@ -155,11 +164,12 @@ function App() {
     const seededRef = useRef(false);
     const [sortMode, setSortMode] = useState('newest'); // 'newest', 'learning-rate-asc', 'learning-rate-desc', 'status-group'
     const [groupByStatus, setGroupByStatus] = useState(false);
-    const [accountGeminiApiKey, setAccountGeminiApiKey] = useState('');
+    const [accountAiSettings, setAccountAiSettings] = useState(DEFAULT_AI_SETTINGS_LOADED);
 
     const windowSize = useWindowSize();
+    const activeAiConfig = useMemo(() => getActiveAiConfig(accountAiSettings), [accountAiSettings]);
+    const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS.gemini;
     const isMobile = windowSize.width < 640;
-    const resolvedGeminiApiKey = accountGeminiApiKey;
 
     // 1. Check for Missing Config -> Show Setup Screen
     if (!firebaseConfig) {
@@ -178,7 +188,7 @@ function App() {
 
             const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
                 profileSettingsUnsubscribe();
-                setAccountGeminiApiKey('');
+                setAccountAiSettings(DEFAULT_AI_SETTINGS_LOADED);
                 setUser(currentUser);
                 if (currentUser && currentUser.email) {
                     // 이메일 기반 스토리지 키 사용 - 같은 이메일이면 Google/이메일 로그인 모두 같은 데이터 사용
@@ -240,11 +250,17 @@ function App() {
                         doc(firestore, 'artifacts', appId, 'users', userStorageKey, 'profile', 'settings'),
                         (profileSnapshot) => {
                             const data = profileSnapshot.exists() ? profileSnapshot.data() : {};
-                            setAccountGeminiApiKey(data?.geminiApiKey || '');
+                            setAccountAiSettings({
+                                provider: data?.aiProvider || DEFAULT_AI_SETTINGS_LOADED.provider,
+                                model: data?.aiModel || DEFAULT_AI_SETTINGS_LOADED.model,
+                                geminiApiKey: data?.geminiApiKey || DEFAULT_AI_SETTINGS_LOADED.geminiApiKey || '',
+                                openaiApiKey: data?.openaiApiKey || DEFAULT_AI_SETTINGS_LOADED.openaiApiKey || '',
+                                claudeApiKey: data?.claudeApiKey || DEFAULT_AI_SETTINGS_LOADED.claudeApiKey || ''
+                            });
                         },
                         (error) => {
                             console.error("Profile settings load error:", error);
-                            setAccountGeminiApiKey('');
+                            setAccountAiSettings(DEFAULT_AI_SETTINGS_LOADED);
                         }
                     );
                 } else {
@@ -435,15 +451,15 @@ function App() {
     const handleAddWord = async (e) => {
         e.preventDefault();
         if (!inputWord.trim() || !user || !db || !user.email) return;
-        if (!resolvedGeminiApiKey) {
-            showNotification('Gemini API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.', 'error');
+        if (!activeAiConfig.apiKey) {
+            showNotification(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`, 'error');
             return;
         }
 
         setIsAnalyzing(true);
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
-            const analysisResult = await generateWordData(inputWord, resolvedGeminiApiKey);
+            const analysisResult = await generateWordData(inputWord, activeAiConfig);
             const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
                 ...analysisResult,
                 createdAt: serverTimestamp(),
@@ -537,8 +553,8 @@ function App() {
 
     const handleRegenerateWord = async (wordId) => {
         if (!db || !user?.email) return;
-        if (!resolvedGeminiApiKey) {
-            showNotification('Gemini API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.', 'error');
+        if (!activeAiConfig.apiKey) {
+            showNotification(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`, 'error');
             return;
         }
 
@@ -552,8 +568,8 @@ function App() {
         }
 
         try {
-            // Generate new word data using Gemini API
-            const newWordData = await generateWordData(existingWord.word, resolvedGeminiApiKey);
+            // Generate new word data using selected AI provider/model
+            const newWordData = await generateWordData(existingWord.word, activeAiConfig);
 
             // Update Firestore with new AI-generated data while preserving user data
             await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'words', wordId), {
@@ -808,6 +824,8 @@ function App() {
                     showNotification={showNotification}
                     appId={appId}
                     getStorageKeyFromEmail={getStorageKeyFromEmail}
+                    aiSettings={accountAiSettings}
+                    onAiSettingsChange={setAccountAiSettings}
                     onCreateFolder={handleCreateFolder}
                     onRenameFolder={handleRenameFolder}
                     onDeleteFolder={handleDeleteFolder}
@@ -964,9 +982,9 @@ function App() {
                         setView={setView}
                         db={db}
                         user={user}
-                    aiMode={aiMode}
-                    setAiMode={setAiMode}
-                    apiKey={resolvedGeminiApiKey}
+                        aiMode={aiMode}
+                        setAiMode={setAiMode}
+                        aiConfig={activeAiConfig}
                         folders={folders}
                         selectedFolderId={selectedFolderId}
                         onSelectFolder={setSelectedFolderId}

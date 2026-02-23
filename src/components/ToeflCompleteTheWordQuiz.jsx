@@ -229,7 +229,7 @@ const renderParagraphWithInputs = ({
 };
 
 export default function ToeflCompleteTheWordQuiz({
-  apiKey,
+  aiConfig,
   questionCount,
   targetScore,
   onExit,
@@ -275,7 +275,7 @@ export default function ToeflCompleteTheWordQuiz({
     setSummary(null);
     try {
       const data = await generateCompleteTheWordSet({
-        apiKey,
+        aiConfig,
         questionCount,
         blanksPerQuestion,
         targetScore
@@ -301,7 +301,7 @@ export default function ToeflCompleteTheWordQuiz({
 
   useEffect(() => {
     loadQuestions();
-  }, [questionCount, targetScore, apiKey]);
+  }, [questionCount, targetScore, aiConfig]);
 
   useEffect(() => {
     localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel));
@@ -530,7 +530,7 @@ export default function ToeflCompleteTheWordQuiz({
       });
 
       const result = await generateCompleteTheWordFeedback({
-        apiKey,
+        aiConfig,
         question: currentQuestion,
         userAnswers
       });
@@ -574,7 +574,7 @@ export default function ToeflCompleteTheWordQuiz({
       .join(' | ');
     try {
       const summaryData = await generateCompleteTheWordSummary({
-        apiKey,
+        aiConfig,
         targetScore,
         results: resultPayload
       });
@@ -615,7 +615,7 @@ export default function ToeflCompleteTheWordQuiz({
     setSavingWords(prev => new Set([...prev, word]));
 
     try {
-      const wordData = await generateWordData(word, apiKey);
+      const wordData = await generateWordData(word, aiConfig);
       await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
         ...wordData,
         createdAt: serverTimestamp(),

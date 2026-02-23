@@ -2,7 +2,7 @@ import React, { useState, useLayoutEffect, useRef } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, HelpCircle } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 
-export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, apiKey }) {
+export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig }) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
@@ -22,10 +22,10 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     try {
       let result;
 
-      if (aiMode && apiKey) {
+      if (aiMode && aiConfig?.apiKey) {
         // AI 모드: 의미론적 채점
         try {
-          const aiResult = await gradeWithAI(userAnswer, word.meaning_ko, word, apiKey);
+          const aiResult = await gradeWithAI(userAnswer, word.meaning_ko, word, aiConfig);
           result = {
             isCorrect: aiResult.isCorrect,
             feedback: aiResult.feedback,

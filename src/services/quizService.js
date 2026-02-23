@@ -3,6 +3,8 @@
  * 로컬 모드와 AI 모드를 지원합니다.
  */
 
+import { callAiModel, parseJsonOutput } from './aiModelService';
+
 /**
  * 객관식 선택지 생성 (로컬 모드)
  * @param {Object} word - 정답 단어
@@ -48,18 +50,10 @@ function generateLocalMultipleChoice(word, allWords) {
 /**
  * 객관식 선택지 생성 (AI 모드)
  * @param {Object} word - 정답 단어
- * @param {String} apiKey - Gemini API 키
+ * @param {Object} aiConfig - AI 제공자/모델/키 설정
  * @returns {Promise<Array>} - 4개의 선택지 (정답 포함, 섞인 상태)
  */
-async function generateAIMultipleChoice(word, apiKey) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
-    generationConfig: {
-      responseMimeType: "application/json"
-    }
-  });
+async function generateAIMultipleChoice(word, aiConfig) {
 
   const prompt = `당신은 영어 단어 학습을 위한 객관식 문제 출제자입니다.
 
@@ -80,10 +74,12 @@ async function generateAIMultipleChoice(word, apiKey) {
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    const data = JSON.parse(text);
+    const text = await callAiModel({
+      ...aiConfig,
+      prompt,
+      jsonOutput: true
+    });
+    const data = parseJsonOutput(text);
 
     // 검증
     if (!data.correct || !Array.isArray(data.wrong) || data.wrong.length !== 3) {
@@ -104,13 +100,13 @@ async function generateAIMultipleChoice(word, apiKey) {
  * @param {Object} word - 정답 단어
  * @param {Array} allWords - 전체 단어 목록
  * @param {Boolean} useAI - AI 모드 사용 여부
- * @param {String} apiKey - Gemini API 키 (AI 모드 사용 시 필요)
+ * @param {Object} aiConfig - AI 제공자/모델/키 (AI 모드 사용 시 필요)
  * @returns {Promise<Array>} - 4개의 선택지
  */
-export async function generateMultipleChoiceOptions(word, allWords, useAI = false, apiKey = null) {
-  if (useAI && apiKey) {
+export async function generateMultipleChoiceOptions(word, allWords, useAI = false, aiConfig = null) {
+  if (useAI && aiConfig?.provider && aiConfig?.apiKey) {
     try {
-      return await generateAIMultipleChoice(word, apiKey);
+      return await generateAIMultipleChoice(word, aiConfig);
     } catch (error) {
       console.warn('AI 모드 실패, 로컬 모드로 폴백:', error);
       return generateLocalMultipleChoice(word, allWords);
@@ -188,18 +184,10 @@ function levenshteinDistance(a, b) {
  * @param {String} userAnswer - 사용자 답안
  * @param {String} correctAnswer - 정답
  * @param {Object} word - 단어 정보
- * @param {String} apiKey - Gemini API 키
+ * @param {Object} aiConfig - AI 제공자/모델/키
  * @returns {Promise<Object>} - { isCorrect: boolean, feedback: string }
  */
-export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
-    generationConfig: {
-      responseMimeType: "application/json"
-    }
-  });
+export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
 
   const prompt = `당신은 영어 단어 학습 채점 전문가입니다.
 
@@ -220,10 +208,12 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, apiKey) {
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    const data = JSON.parse(text);
+    const text = await callAiModel({
+      ...aiConfig,
+      prompt,
+      jsonOutput: true
+    });
+    const data = parseJsonOutput(text);
 
     return {
       isCorrect: data.isCorrect === true,

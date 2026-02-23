@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 
-export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, apiKey }) {
+export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, aiConfig }) {
   const [options, setOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -21,7 +21,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   useEffect(() => {
     async function generateQuestion() {
       try {
-        const generatedOptions = await generateMultipleChoiceOptions(word, allWords, aiMode, apiKey);
+        const generatedOptions = await generateMultipleChoiceOptions(word, allWords, aiMode, aiConfig);
         setOptions(generatedOptions);
       } catch (error) {
         console.error('문제 생성 실패:', error);
@@ -34,7 +34,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     }
 
     generateQuestion();
-  }, [word, allWords, aiMode, apiKey]);
+  }, [word, allWords, aiMode, aiConfig]);
 
   const handleSelectOption = (option) => {
     if (isAnswered) return;

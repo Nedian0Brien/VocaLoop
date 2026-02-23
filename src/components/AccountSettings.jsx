@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { updateProfile, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { collection, query, getDocs, writeBatch, doc, setDoc, getDoc } from 'firebase/firestore';
+import { AI_PROVIDERS, DEFAULT_AI_SETTINGS } from '../services/aiModelService';
 import {
     X,
     Camera,
@@ -22,7 +23,35 @@ import {
     MoreVertical
 } from './Icons';
 
-const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNotification, appId, getStorageKeyFromEmail, onCreateFolder, onRenameFolder, onDeleteFolder }) => {
+const normalizeAiSettings = (value = {}) => {
+    const provider = AI_PROVIDERS[value?.provider] ? value.provider : DEFAULT_AI_SETTINGS.provider;
+    const providerConfig = AI_PROVIDERS[provider] || AI_PROVIDERS.gemini;
+
+    return {
+        provider,
+        model: providerConfig.models.includes(value?.model) ? value.model : providerConfig.models[0],
+        geminiApiKey: value?.geminiApiKey || '',
+        openaiApiKey: value?.openaiApiKey || '',
+        claudeApiKey: value?.claudeApiKey || ''
+    };
+};
+
+const AccountSettings = ({
+    user,
+    db,
+    words,
+    folders,
+    onClose,
+    onLogout,
+    showNotification,
+    appId,
+    getStorageKeyFromEmail,
+    onCreateFolder,
+    onRenameFolder,
+    onDeleteFolder,
+    aiSettings,
+    onAiSettingsChange
+}) => {
     const [activeTab, setActiveTab] = useState('profile');
     const [isLoading, setIsLoading] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
@@ -32,7 +61,11 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
     const [displayName, setDisplayName] = useState('');
     const [toeflTarget, setToeflTarget] = useState('');
     const [profilePhotoURL, setProfilePhotoURL] = useState('');
+    const [aiProvider, setAiProvider] = useState(DEFAULT_AI_SETTINGS.provider);
+    const [aiModel, setAiModel] = useState(DEFAULT_AI_SETTINGS.model);
     const [geminiApiKey, setGeminiApiKey] = useState('');
+    const [openaiApiKey, setOpenaiApiKey] = useState('');
+    const [claudeApiKey, setClaudeApiKey] = useState('');
 
     // Delete account states
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -49,13 +82,27 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
         loadUserProfile();
     }, [user, db]);
 
+    useEffect(() => {
+        const nextAiSettings = normalizeAiSettings(aiSettings);
+        setAiProvider(nextAiSettings.provider);
+        setAiModel(nextAiSettings.model);
+        setGeminiApiKey(nextAiSettings.geminiApiKey);
+        setOpenaiApiKey(nextAiSettings.openaiApiKey);
+        setClaudeApiKey(nextAiSettings.claudeApiKey);
+    }, [aiSettings]);
+
     const loadUserProfile = async () => {
         if (!user || !db) return;
 
         setDisplayName(user.displayName || '');
         setProfilePhotoURL(user.photoURL || '');
         setToeflTarget('');
-        setGeminiApiKey('');
+        const normalized = normalizeAiSettings(aiSettings);
+        setAiProvider(normalized.provider);
+        setAiModel(normalized.model);
+        setGeminiApiKey(normalized.geminiApiKey);
+        setOpenaiApiKey(normalized.openaiApiKey);
+        setClaudeApiKey(normalized.claudeApiKey);
 
         const userStorageKey = getStorageKeyFromEmail(user.email);
         try {
@@ -64,7 +111,12 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
                 const data = profileDoc.data();
                 setUserProfile(data);
                 setToeflTarget(data.toeflTarget || '');
-                setGeminiApiKey(data.geminiApiKey || '');
+                const updatedAiSettings = normalizeAiSettings(data);
+                setAiProvider(updatedAiSettings.provider);
+                setAiModel(updatedAiSettings.model);
+                setGeminiApiKey(updatedAiSettings.geminiApiKey);
+                setOpenaiApiKey(updatedAiSettings.openaiApiKey);
+                setClaudeApiKey(updatedAiSettings.claudeApiKey);
             }
         } catch (error) {
             console.error('Failed to load profile:', error);
@@ -142,6 +194,13 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
         setIsLoading(true);
         try {
             const userStorageKey = getStorageKeyFromEmail(user.email);
+            const resolvedAiSettings = normalizeAiSettings({
+                provider: aiProvider,
+                model: aiModel,
+                geminiApiKey,
+                openaiApiKey,
+                claudeApiKey
+            });
 
             // Update Firebase Auth profile
             await updateProfile(user, { displayName });
@@ -150,9 +209,21 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
             await setDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'profile', 'settings'), {
                 displayName,
                 toeflTarget: toeflTarget || null,
-                geminiApiKey: geminiApiKey.trim() || null,
+                provider: resolvedAiSettings.provider,
+                model: resolvedAiSettings.model,
+                geminiApiKey: resolvedAiSettings.geminiApiKey || null,
+                openaiApiKey: resolvedAiSettings.openaiApiKey || null,
+                claudeApiKey: resolvedAiSettings.claudeApiKey || null,
                 updatedAt: new Date()
             }, { merge: true });
+
+            onAiSettingsChange?.({
+                provider: resolvedAiSettings.provider,
+                model: resolvedAiSettings.model,
+                geminiApiKey: resolvedAiSettings.geminiApiKey,
+                openaiApiKey: resolvedAiSettings.openaiApiKey,
+                claudeApiKey: resolvedAiSettings.claudeApiKey
+            });
 
             showNotification('프로필이 저장되었습니다.');
         } catch (error) {
@@ -162,6 +233,20 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
             setIsLoading(false);
         }
     };
+
+    const handleAiProviderChange = (providerId) => {
+        const provider = AI_PROVIDERS[providerId] || AI_PROVIDERS.gemini;
+        setAiProvider(provider.id);
+        setAiModel(provider.models[0]);
+    };
+
+    const activeAiProvider = AI_PROVIDERS[aiProvider] || AI_PROVIDERS.gemini;
+    const activeAiKeyValue = aiProvider === 'openai'
+        ? openaiApiKey
+        : aiProvider === 'claude'
+            ? claudeApiKey
+            : geminiApiKey;
+    const isActiveAiKeyMissing = !activeAiKeyValue.trim();
 
     const handleExportData = async () => {
         try {
@@ -487,25 +572,101 @@ const AccountSettings = ({ user, db, words, folders, onClose, onLogout, showNoti
                                 <p className="text-xs text-gray-500 mt-1">TOEFL iBT 총점 (0-120)</p>
                             </div>
 
-                            {/* Gemini API Key */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Gemini API Key <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="password"
-                                    value={geminiApiKey}
-                                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                                    placeholder="AI 기능을 위한 개인 키 입력 (필수)"
-                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!geminiApiKey ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    단어 추가 및 AI 채점 기능에 필수입니다. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Google AI Studio</a>에서 발급받으세요.
-                                </p>
-                                {!geminiApiKey && (
-                                    <p className="text-xs text-red-500 mt-1 font-medium">⚠ API Key가 없으면 AI 기능을 사용할 수 없습니다.</p>
-                                )}
+                            {/* AI Provider & Model */}
+                            <div className="space-y-4 border border-gray-200 rounded-xl p-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        AI Provider
+                                    </label>
+                                    <select
+                                        value={aiProvider}
+                                        onChange={(e) => handleAiProviderChange(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        {Object.values(AI_PROVIDERS).map(provider => (
+                                            <option key={provider.id} value={provider.id}>{provider.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        모델
+                                    </label>
+                                    <select
+                                        value={aiModel}
+                                        onChange={(e) => setAiModel(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        {activeAiProvider.models.map((model) => (
+                                            <option key={model} value={model}>{model}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
+
+                            {/* API Keys */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Google AI API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={geminiApiKey}
+                                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                                        placeholder="Google AI Studio에서 발급받은 키 입력"
+                                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${aiProvider === 'gemini' && !geminiApiKey.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        <a href={AI_PROVIDERS.gemini.keyHelpUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                            Google AI Studio
+                                        </a>에서 API 키 발급
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        OpenAI API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={openaiApiKey}
+                                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                                        placeholder="OpenAI API Keys에서 발급받은 키 입력"
+                                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${aiProvider === 'openai' && !openaiApiKey.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        <a href={AI_PROVIDERS.openai.keyHelpUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                            OpenAI API Keys
+                                        </a>에서 API 키 발급
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Claude API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={claudeApiKey}
+                                        onChange={(e) => setClaudeApiKey(e.target.value)}
+                                        placeholder="Anthropic Console에서 발급받은 키 입력"
+                                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${aiProvider === 'claude' && !claudeApiKey.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        <a href={AI_PROVIDERS.claude.keyHelpUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                            Anthropic Console
+                                        </a>에서 API 키 발급
+                                    </p>
+                                </div>
+                            </div>
+
+                            {isActiveAiKeyMissing && (
+                                <p className="text-xs text-red-500 font-medium">
+                                    ⚠ 현재 선택한 모델({activeAiProvider.name})을 사용하려면 해당 API Key를 입력해야 합니다.
+                                </p>
+                            )}
 
                             {/* Save Button */}
                             <button

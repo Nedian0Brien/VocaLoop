@@ -1,4 +1,6 @@
-export const generateWordData = async (word, apiKey) => {
+import { callAiModel, parseJsonOutput } from './aiModelService';
+
+export const generateWordData = async (word, aiConfig) => {
     const prompt = `
     Analyze the English word '${word}'.
     Return a JSON object with the following structure (do not include markdown formatting, just raw JSON):
@@ -20,26 +22,13 @@ export const generateWordData = async (word, apiKey) => {
     `;
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json" }
-            })
+        const text = await callAiModel({
+            ...aiConfig,
+            prompt,
+            jsonOutput: true
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        if (!data.candidates || data.candidates.length === 0) {
-            throw new Error("No response from AI.");
-        }
-        const text = data.candidates[0].content.parts[0].text;
-        return JSON.parse(text);
+        return parseJsonOutput(text);
     } catch (error) {
         console.error("Gemini Error:", error);
         throw error;

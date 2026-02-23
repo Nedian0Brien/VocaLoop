@@ -1,31 +1,12 @@
-const requestGeminiJson = async (prompt, apiKey) => {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    }
-  );
+import { callAiModel, parseJsonOutput } from './aiModelService';
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error('No response from AI.');
-  }
-  const text = data.candidates[0].content.parts[0].text;
-  return JSON.parse(text);
+const requestAiJson = async (prompt, aiConfig) => {
+  const text = await callAiModel({ ...aiConfig, prompt, jsonOutput: true });
+  return parseJsonOutput(text);
 };
 
 export const generateCompleteTheWordSet = async ({
-  apiKey,
+  aiConfig,
   questionCount,
   blanksPerQuestion,
   targetScore
@@ -57,11 +38,11 @@ Return ONLY valid JSON in this schema:
   ]
 }
 `;
-  return requestGeminiJson(prompt, apiKey);
+  return requestAiJson(prompt, aiConfig);
 };
 
 export const generateCompleteTheWordFeedback = async ({
-  apiKey,
+  aiConfig,
   question,
   userAnswers
 }) => {
@@ -76,11 +57,11 @@ Return JSON only:
   "feedback": "Korean feedback with why mistakes happened and tips."
 }
 `;
-  return requestGeminiJson(prompt, apiKey);
+  return requestAiJson(prompt, aiConfig);
 };
 
 export const generateCompleteTheWordSummary = async ({
-  apiKey,
+  aiConfig,
   targetScore,
   results
 }) => {
@@ -96,5 +77,5 @@ Return JSON only:
   "nextSteps": ["nextStep1", "nextStep2"]
 }
 `;
-  return requestGeminiJson(prompt, apiKey);
+  return requestAiJson(prompt, aiConfig);
 };
