@@ -31,6 +31,7 @@ import WordCard from './components/WordCard';
 import EmptyState from './components/EmptyState';
 import QuizView from './components/QuizView';
 import FolderSidebar from './components/FolderSidebar';
+import CompactFolderPicker from './components/CompactFolderPicker';
 import AccountSettings from './components/AccountSettings';
 import { Loader2, Plus, Search, Brain, Check, RotateCw, Sparkles, Folder } from './components/Icons';
 
@@ -148,16 +149,9 @@ function App() {
     const [inputWord, setInputWord] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
-    const [pendingWordId, setPendingWordId] = useState(null);
     const [aiMode, setAiMode] = useState(false); // AI 모드 토글
 
     // 새 단어가 Firestore 리스너(onSnapshot)를 통해 로드되었는지 확인 후 로딩 상태 해제
-    useEffect(() => {
-        if (pendingWordId && words.some(w => w.id === pendingWordId)) {
-            setIsAnalyzing(false);
-            setPendingWordId(null);
-        }
-    }, [words, pendingWordId]);
     const [folders, setFolders] = useState([]);
     const [selectedFolderId, setSelectedFolderId] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
@@ -169,7 +163,7 @@ function App() {
     const windowSize = useWindowSize();
     const activeAiConfig = useMemo(() => getActiveAiConfig(accountAiSettings), [accountAiSettings]);
     const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS.gemini;
-    const isMobile = windowSize.width < 640;
+    const isMobile = windowSize.width < 768;
 
     // 1. Check for Missing Config -> Show Setup Screen
     if (!firebaseConfig) {
@@ -204,7 +198,11 @@ function App() {
                     );
                     onSnapshot(foldersQuery, (fSnap) => {
                         const foldersData = fSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        foldersData.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                        foldersData.sort((a, b) => {
+                            const timeA = a.createdAt?.seconds || (Date.now() / 1000);
+                            const timeB = b.createdAt?.seconds || (Date.now() / 1000);
+                            return timeA - timeB;
+                        });
                         setFolders(foldersData);
                     });
 
@@ -237,7 +235,11 @@ function App() {
                             id: doc.id,
                             ...doc.data()
                         }));
-                        wordsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                        wordsData.sort((a, b) => {
+                            const timeA = a.createdAt?.seconds || (Date.now() / 1000);
+                            const timeB = b.createdAt?.seconds || (Date.now() / 1000);
+                            return timeB - timeA;
+                        });
                         setWords(wordsData);
                         setLoading(false);
                     }, (error) => {
@@ -469,8 +471,22 @@ function App() {
                 folderId: addToFolderId || null
             });
 
-            // Firestore 데이터가 실제 로드될 때까지 로딩 상태 유지
-            setPendingWordId(docRef.id);
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const optimisticWord = {
+                id: docRef.id,
+                ...analysisResult,
+                createdAt: { seconds: nowSeconds, nanoseconds: 0 },
+                status: 'NEW',
+                learningRate: 0,
+                stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 },
+                folderId: addToFolderId || null
+            };
+
+            setWords((prevWords) =>
+                prevWords.some(word => word.id === docRef.id)
+                    ? prevWords
+                    : [optimisticWord, ...prevWords]
+            );
 
             setInputWord("");
             const folderName = addToFolderId ? folders.find(f => f.id === addToFolderId)?.name : null;
@@ -478,7 +494,9 @@ function App() {
         } catch (error) {
             console.error("Add Word Error:", error);
             showNotification(error.message.includes("403") ? "API Key Invalid or Expired" : "Analysis failed: " + error.message, "error");
+        } finally {
             setIsAnalyzing(false);
+            // Fallback in case Firestore snapshot event is delayed
         }
     };
 
@@ -639,7 +657,11 @@ function App() {
                 sorted = sortByLearningRate(filteredWordsBase, 'asc');
                 break;
             default: // 'newest'
-                sorted = [...filteredWordsBase].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                sorted = [...filteredWordsBase].sort((a, b) => {
+                    const timeA = a.createdAt?.seconds || (Date.now() / 1000);
+                    const timeB = b.createdAt?.seconds || (Date.now() / 1000);
+                    return timeB - timeA;
+                });
         }
         return sorted;
     })();
@@ -811,8 +833,6 @@ function App() {
             <Header view={view} setView={setView} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
 
-
-
             {showSettings && (
                 <AccountSettings
                     user={user}
@@ -832,165 +852,185 @@ function App() {
                 />
             )}
 
-            <main className="max-w-3xl mx-auto px-4 pt-8">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 opacity-20"></div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Plus className="w-5 h-5 text-blue-600" />
-                        Add New Word
-                    </h2>
-                    <form onSubmit={handleAddWord} className="relative">
-                        <div className="flex gap-3">
-                            <div className="relative flex-1 group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors">
-                                    <Search className="h-5 w-5 text-gray-400" />
+            <main className="max-w-6xl mx-auto px-4 pt-8">
+                <div className="flex flex-col md:flex-row gap-8 items-start">
+                    {/* Sidebar Column (Desktop) */}
+                    {view === 'dashboard' && !isMobile && (
+                        <aside className="hidden md:block w-64 flex-shrink-0 sticky top-8">
+                            <FolderSidebar
+                                folders={folders}
+                                selectedFolderId={selectedFolderId}
+                                onSelectFolder={setSelectedFolderId}
+                                onCreateFolder={handleCreateFolder}
+                                onRenameFolder={handleRenameFolder}
+                                onDeleteFolder={handleDeleteFolder}
+                                wordCountByFolder={wordCountByFolder}
+                                totalWordCount={words.length}
+                            />
+                        </aside>
+                    )}
+
+                    {/* Content Column */}
+                    <div className="flex-1 min-w-0 w-full">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 opacity-20"></div>
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <Plus className="w-5 h-5 text-blue-600" />
+                                Add New Word
+                            </h2>
+                            <form onSubmit={handleAddWord} className="relative">
+                                <div className="flex gap-3">
+                                    <div className="relative flex-1 group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors">
+                                            <Search className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={inputWord}
+                                            onChange={(e) => setInputWord(e.target.value)}
+                                            placeholder="Enter an English word (e.g., Epiphany)"
+                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                            disabled={isAnalyzing}
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={isAnalyzing || !inputWord.trim()}
+                                        className={`
+                                            relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white shadow-md transition-all duration-300
+                                            ${isAnalyzing ? 'cursor-wait pl-10' : 'hover:shadow-lg hover:-translate-y-0.5'}
+                                            bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-[length:200%_auto]
+                                            disabled:opacity-70 disabled:cursor-not-allowed
+                                            group
+                                        `}
+                                        style={{
+                                            backgroundPosition: isAnalyzing ? 'right center' : 'left center',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2 relative z-10">
+                                            {isAnalyzing ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    <span>Crafting...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span>Generate</span>
+                                                    <Sparkles className="w-4 h-4 opacity-80 group-hover:scale-110 transition-transform" />
+                                                </>
+                                            )}
+                                        </div>
+                                        {/* Shimmer Overlay */}
+                                        {!isAnalyzing && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>}
+                                    </button>
                                 </div>
-                                <input
-                                    type="text"
-                                    value={inputWord}
-                                    onChange={(e) => setInputWord(e.target.value)}
-                                    placeholder="Enter an English word (e.g., Epiphany)"
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                    disabled={isAnalyzing}
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={isAnalyzing || !inputWord.trim()}
-                                className={`
-                                    relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white shadow-md transition-all duration-300
-                                    ${isAnalyzing ? 'cursor-wait pl-10' : 'hover:shadow-lg hover:-translate-y-0.5'}
-                                    bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-[length:200%_auto]
-                                    disabled:opacity-70 disabled:cursor-not-allowed
-                                    group
-                                `}
-                                style={{
-                                    backgroundPosition: isAnalyzing ? 'right center' : 'left center',
-                                }}
-                            >
-                                <div className="flex items-center gap-2 relative z-10">
-                                    {isAnalyzing ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                            <span>Crafting...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Generate</span>
-                                            <Sparkles className="w-4 h-4 opacity-80 group-hover:scale-110 transition-transform" />
-                                        </>
+                                <div className="flex items-center justify-between mt-2 ml-1">
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                        <span className="text-blue-600 font-medium">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
+                                    </p>
+                                    {folders.length > 0 && (
+                                        <div className="flex items-center gap-1.5">
+                                            <Folder className="w-3.5 h-3.5 text-gray-400" />
+                                            <select
+                                                value={addToFolderId || ''}
+                                                onChange={(e) => setAddToFolderId(e.target.value || null)}
+                                                className="text-xs border-gray-300 rounded-md py-0.5 px-1.5 text-gray-600 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                            >
+                                                <option value="">미분류</option>
+                                                {folders.map(f => (
+                                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     )}
                                 </div>
-                                {/* Shimmer Overlay */}
-                                {!isAnalyzing && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>}
-                            </button>
+                            </form>
                         </div>
-                        <div className="flex items-center justify-between mt-2 ml-1">
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                                <span className="text-blue-600 font-medium">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
-                            </p>
-                            {folders.length > 0 && (
-                                <div className="flex items-center gap-1.5">
-                                    <Folder className="w-3.5 h-3.5 text-gray-400" />
-                                    <select
-                                        value={addToFolderId || ''}
-                                        onChange={(e) => setAddToFolderId(e.target.value || null)}
-                                        className="text-xs border-gray-300 rounded-md py-0.5 px-1.5 text-gray-600 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                    >
-                                        <option value="">미분류</option>
-                                        {folders.map(f => (
-                                            <option key={f.id} value={f.id}>{f.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                    </form>
-                </div>
 
-                {view === 'dashboard' && (
-                    <div className="space-y-6">
-                        <FolderSidebar
-                            folders={folders}
-                            selectedFolderId={selectedFolderId}
-                            onSelectFolder={setSelectedFolderId}
-                            onCreateFolder={handleCreateFolder}
-                            onRenameFolder={handleRenameFolder}
-                            onDeleteFolder={handleDeleteFolder}
-                            wordCountByFolder={wordCountByFolder}
-                            totalWordCount={words.length}
-                        />
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {selectedFolderId
-                                    ? `${folders.find(f => f.id === selectedFolderId)?.name || '폴더'} (${filteredWords.length})`
-                                    : `My Vocabulary (${words.length})`
-                                }
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        const next = sortMode === 'status-group' ? 'newest' : 'status-group';
-                                        setSortMode(next);
-                                    }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                                        sortMode === 'status-group'
-                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                                    }`}
-                                    title="학습 상태별 그룹 보기"
-                                >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-                                    </svg>
-                                    그룹
-                                </button>
-                                <select
-                                    value={sortMode}
-                                    onChange={(e) => setSortMode(e.target.value)}
-                                    className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-gray-600"
-                                >
-                                    <option value="newest">최신순</option>
-                                    <option value="learning-rate-asc">학습률 낮은 순</option>
-                                    <option value="learning-rate-desc">학습률 높은 순</option>
-                                    <option value="status-group">상태별 그룹</option>
-                                </select>
-                            </div>
-                        </div>
-                        {/* 학습 상태 요약 바 */}
-                        {filteredWords.length > 0 && (
-                            <div className="flex items-center gap-3 mt-3 px-1">
-                                {[LEARNING_STATUS.MEMORIZED, LEARNING_STATUS.LEARNING, LEARNING_STATUS.DIFFICULT].map(status => {
-                                    const config = LEARNING_STATUS_CONFIG[status];
-                                    const count = filteredWords.filter(w => getLearningStatus(w.learningRate) === status).length;
-                                    return (
-                                        <div key={status} className="flex items-center gap-1.5">
-                                            <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-                                            <span className="text-xs text-gray-500">{config.label}</span>
-                                            <span className={`text-xs font-bold ${config.textColor}`}>{count}</span>
-                                        </div>
-                                    );
-                                })}
+                        {view === 'dashboard' && (
+                            <div className="space-y-6">
+                                {isMobile && (
+                                    <CompactFolderPicker
+                                        folders={folders}
+                                        selectedFolderId={selectedFolderId}
+                                        onSelectFolder={setSelectedFolderId}
+                                        wordCountByFolder={wordCountByFolder}
+                                        totalWordCount={words.length}
+                                    />
+                                )}
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <h2 className="text-xl font-bold text-gray-900">
+                                        {selectedFolderId
+                                            ? `${folders.find(f => f.id === selectedFolderId)?.name || '폴더'} (${filteredWords.length})`
+                                            : `My Vocabulary (${words.length})`
+                                        }
+                                    </h2>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                const next = sortMode === 'status-group' ? 'newest' : 'status-group';
+                                                setSortMode(next);
+                                            }}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                                                sortMode === 'status-group'
+                                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                            }`}
+                                            title="학습 상태별 그룹 보기"
+                                        >
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                            </svg>
+                                            그룹
+                                        </button>
+                                        <select
+                                            value={sortMode}
+                                            onChange={(e) => setSortMode(e.target.value)}
+                                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-gray-600"
+                                        >
+                                            <option value="newest">최신순</option>
+                                            <option value="learning-rate-asc">학습률 낮은 순</option>
+                                            <option value="learning-rate-desc">학습률 높은 순</option>
+                                            <option value="status-group">상태별 그룹</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                {/* 학습 상태 요약 바 */}
+                                {filteredWords.length > 0 && (
+                                    <div className="flex items-center gap-3 mt-3 px-1">
+                                        {[LEARNING_STATUS.MEMORIZED, LEARNING_STATUS.LEARNING, LEARNING_STATUS.DIFFICULT].map(status => {
+                                            const config = LEARNING_STATUS_CONFIG[status];
+                                            const count = filteredWords.filter(w => getLearningStatus(w.learningRate) === status).length;
+                                            return (
+                                                <div key={status} className="flex items-center gap-1.5">
+                                                    <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+                                                    <span className="text-xs text-gray-500">{config.label}</span>
+                                                    <span className={`text-xs font-bold ${config.textColor}`}>{count}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {renderMasonryLayout()}
                             </div>
                         )}
-                        {renderMasonryLayout()}
+                        {view === 'study' && (
+                            <QuizView
+                                words={words}
+                                setView={setView}
+                                db={db}
+                                user={user}
+                                aiMode={aiMode}
+                                setAiMode={setAiMode}
+                                aiConfig={activeAiConfig}
+                                folders={folders}
+                                selectedFolderId={selectedFolderId}
+                                onSelectFolder={setSelectedFolderId}
+                                onUpdateLearningRate={handleUpdateLearningRate}
+                            />
+                        )}
                     </div>
-                )}
-                {view === 'study' && (
-                    <QuizView
-                        words={words}
-                        setView={setView}
-                        db={db}
-                        user={user}
-                        aiMode={aiMode}
-                        setAiMode={setAiMode}
-                        aiConfig={activeAiConfig}
-                        folders={folders}
-                        selectedFolderId={selectedFolderId}
-                        onSelectFolder={setSelectedFolderId}
-                        onUpdateLearningRate={handleUpdateLearningRate}
-                    />
-                )}
+                </div>
             </main>
         </div>
     );
