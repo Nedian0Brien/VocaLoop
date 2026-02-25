@@ -42,12 +42,17 @@ const ModeCard = ({ mode, onSelect, isDisabled, wordCount }) => {
       onClick={() => !isDisabled && !mode.disabled && onSelect(mode.id)}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`group relative bg-white rounded-3xl border-2 p-8 text-left transition-all duration-300 overflow-hidden ${
+      className={`group relative bg-white rounded-3xl border-2 p-8 text-left transition-all duration-300 overflow-hidden hover-border-pulse ${
         isDisabled || mode.disabled
           ? 'border-gray-100 opacity-60 cursor-not-allowed grayscale'
-          : 'border-gray-200 hover:border-blue-400 hover:shadow-2xl active:scale-[0.98]'
+          : mode.color === 'blue'
+            ? 'border-blue-200 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/20 active:scale-[0.98]'
+            : 'border-purple-200 hover:border-purple-500 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-[0.98]'
       }`}
-      style={tiltStyle}
+      style={{
+        ...tiltStyle,
+        '--pulse-color': mode.color === 'blue' ? '59, 130, 246' : '168, 85, 247'
+      }}
     >
       {/* Spotlight Effect */}
       {!isDisabled && !mode.disabled && (
