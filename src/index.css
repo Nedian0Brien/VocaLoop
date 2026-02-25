@@ -103,3 +103,19 @@ body {
 .animate-expand-from-icon {
     animation: expandFromIcon 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes skeletonPulse {
+    0% {
+        background-color: #f3f4f6;
+    }
+    50% {
+        background-color: #e5e7eb;
+    }
+    100% {
+        background-color: #f3f4f6;
+    }
+}
+
+.animate-skeleton {
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}

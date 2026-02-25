@@ -2,6 +2,30 @@ import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 
+const QuizSkeleton = () => (
+  <div className="max-w-3xl mx-auto animate-in fade-in duration-500">
+    <div className="mb-6">
+      <div className="h-4 w-32 bg-gray-200 rounded-md mb-2 animate-skeleton"></div>
+      <div className="w-full bg-gray-200 rounded-full h-2 animate-skeleton"></div>
+    </div>
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="h-48 bg-gradient-to-r from-gray-100 to-gray-200 p-6 flex flex-col justify-center animate-skeleton">
+        <div className="h-4 w-24 bg-white/30 rounded mb-4"></div>
+        <div className="h-12 w-48 bg-white/50 rounded"></div>
+      </div>
+      <div className="p-8">
+        <div className="h-6 w-64 bg-gray-100 rounded mb-8 animate-skeleton"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-16 bg-gray-50 rounded-xl border border-gray-100 animate-skeleton"></div>
+          ))}
+        </div>
+        <div className="h-14 bg-gray-100 rounded-xl animate-skeleton"></div>
+      </div>
+    </div>
+  </div>
+);
+
 export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, aiConfig }) {
   const [options, setOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -25,11 +49,10 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
         setOptions(generatedOptions);
       } catch (error) {
         console.error('문제 생성 실패:', error);
-        // 에러 시 로컬 모드로 폴백
         const generatedOptions = await generateMultipleChoiceOptions(word, allWords, false, null);
         setOptions(generatedOptions);
       } finally {
-        setLoading(false);
+        setTimeout(() => setLoading(false), 400); // 부드러운 전환을 위한 지연
       }
     }
 
@@ -38,7 +61,6 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
 
   const handleSelectOption = (option) => {
     if (isAnswered) return;
-
     setSelectedOption(option);
   };
 
@@ -46,9 +68,6 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     if (!selectedOption || isAnswered) return;
 
     scrollPositionRef.current = window.scrollY;
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
     const correct = selectedOption === word.meaning_ko;
     setIsCorrect(correct);
     setIsAnswered(true);
@@ -63,17 +82,8 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     if (loading) return;
 
     const handleKeyDown = (event) => {
-      if (loading) return;
-
       const target = event.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        target?.isContentEditable
-      ) {
-        return;
-      }
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
 
       if (event.key >= '1' && event.key <= '4' && !isAnswered) {
         const optionIndex = Number(event.key) - 1;
@@ -112,98 +122,100 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   };
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-500">
-            {aiMode ? 'AI가 문제를 생성하는 중...' : '문제를 준비하는 중...'}
-          </p>
-        </div>
-      </div>
-    );
+    return <QuizSkeleton />;
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto animate-in fade-in duration-500">
       {/* 진행 상황 */}
       <div className="mb-6">
         <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-          <span className="font-medium">
-            문제 {progress.current} / {progress.total}
+          <span className="font-bold tracking-tight">
+            문제 {progress.current} <span className="text-gray-300 mx-1">/</span> {progress.total}
           </span>
-          <span>
-            정답: <span className="text-green-600 font-bold">{stats.correct}</span> |
-            오답: <span className="text-red-600 font-bold">{stats.wrong}</span>
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 text-green-500" />
+              <span className="text-green-600 font-black">{stats.correct}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <X className="w-3.5 h-3.5 text-red-500" />
+              <span className="text-red-600 font-black">{stats.wrong}</span>
+            </span>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
           <div
-            className="bg-blue-600 h-full transition-all duration-300"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-700 ease-out"
             style={{ width: `${(progress.current / progress.total) * 100}%` }}
           />
         </div>
       </div>
 
       {/* 퀴즈 카드 */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden ring-1 ring-black/5">
         {/* 헤더 */}
-        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium opacity-90">객관식 문제</span>
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 text-white p-8 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)] pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <span className="text-xs font-black uppercase tracking-widest opacity-80 bg-white/10 px-3 py-1 rounded-full border border-white/10">Multiple Choice</span>
             {aiMode && (
-              <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+              <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-orange-900/20">
                 <Sparkles className="w-3 h-3" />
-                AI 모드
+                AI Powered
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <h2 className="text-4xl font-bold">{word.word}</h2>
+          <div className="flex items-center gap-5 relative z-10">
+            <h2 className="text-5xl font-black tracking-tight font-serif">{word.word}</h2>
             <button
               onClick={speakWord}
-              className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              className="p-3 bg-white/10 hover:bg-white/20 active:scale-90 rounded-2xl transition-all border border-white/10"
               title="발음 듣기"
             >
-              <Volume2 className="w-5 h-5" />
+              <Volume2 className="w-6 h-6" />
             </button>
           </div>
 
-          {word.pronunciation && (
-            <p className="text-lg opacity-90 mt-2">{word.pronunciation}</p>
-          )}
-
-          {word.pos && (
-            <span className="inline-block mt-3 px-3 py-1 bg-white/20 rounded-full text-sm">
-              {word.pos}
-            </span>
-          )}
+          <div className="flex items-center gap-3 mt-4 relative z-10">
+            {word.pronunciation && (
+              <p className="text-xl font-serif italic opacity-80">{word.pronunciation}</p>
+            )}
+            {word.pos && (
+              <span className="px-3 py-0.5 bg-white/10 rounded-full text-xs font-bold uppercase tracking-wider border border-white/5">
+                {word.pos}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 질문 */}
-        <div className="p-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">
+        <div className="p-8 sm:p-10">
+          <h3 className="text-xl font-black text-gray-900 mb-8 flex items-center gap-2">
+            <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
             이 단어의 뜻을 고르세요
           </h3>
+          
           {/* 선택지 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             {options.map((option, index) => {
               const isSelected = selectedOption === option;
               const isCorrectOption = option === word.meaning_ko;
 
-              let buttonStyle = 'border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+              let buttonStyle = 'border-2 border-gray-100 hover:border-blue-400 hover:shadow-lg hover:-translate-y-0.5';
 
               if (isAnswered) {
                 if (isCorrectOption) {
-                  buttonStyle = 'border-2 border-green-500 bg-green-50';
+                  buttonStyle = 'border-2 border-green-500 bg-green-50 scale-[1.02] shadow-md';
                 } else if (isSelected && !isCorrectOption) {
-                  buttonStyle = 'border-2 border-red-500 bg-red-50';
+                  buttonStyle = 'border-2 border-red-500 bg-red-50 scale-[0.98] opacity-80';
                 } else {
-                  buttonStyle = 'border-2 border-gray-200 bg-gray-50';
+                  buttonStyle = 'border-2 border-gray-100 bg-gray-50 opacity-40';
                 }
               } else if (isSelected) {
-                buttonStyle = 'border-2 border-blue-500 bg-blue-50';
+                buttonStyle = 'border-2 border-blue-600 bg-blue-50/50 shadow-md scale-[1.02]';
               }
 
               return (
@@ -211,20 +223,30 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                   key={index}
                   onClick={() => handleSelectOption(option)}
                   disabled={isAnswered}
-                  className={`w-full text-left p-4 rounded-xl transition-all ${buttonStyle} ${
+                  className={`group w-full text-left p-5 rounded-2xl transition-all duration-300 active:scale-[0.98] ${buttonStyle} ${
                     isAnswered ? 'cursor-not-allowed' : 'cursor-pointer'
-                  } h-full flex`}
+                  } h-full flex items-center`}
                 >
-                  <div className="flex items-center gap-3 w-full">
-                    <span className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm">
+                  <div className="flex items-center gap-4 w-full">
+                    <span className={`flex-shrink-0 w-9 h-9 rounded-xl border-2 flex items-center justify-center font-black text-sm transition-colors ${
+                      isSelected || (isAnswered && isCorrectOption) 
+                        ? 'bg-current border-transparent text-white' 
+                        : 'border-gray-200 text-gray-400 group-hover:border-blue-400 group-hover:text-blue-600'
+                    }`}
+                    style={ (isSelected || (isAnswered && isCorrectOption)) ? { color: isAnswered && isCorrectOption ? '#10b981' : '#2563eb' } : {} }
+                    >
                       {index + 1}
                     </span>
-                    <span className="flex-1 font-medium text-gray-900">{option}</span>
+                    <span className={`flex-1 font-bold text-gray-800 transition-colors ${isSelected ? 'text-blue-700' : ''}`}>{option}</span>
                     {isAnswered && isCorrectOption && (
-                      <Check className="w-6 h-6 text-green-600 flex-shrink-0" />
+                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white animate-in zoom-in duration-300">
+                        <Check className="w-5 h-5 stroke-[3px]" />
+                      </div>
                     )}
                     {isAnswered && isSelected && !isCorrectOption && (
-                      <X className="w-6 h-6 text-red-600 flex-shrink-0" />
+                      <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white animate-in zoom-in duration-300">
+                        <X className="w-5 h-5 stroke-[3px]" />
+                      </div>
                     )}
                   </div>
                 </button>
@@ -233,106 +255,105 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
           </div>
 
           <div
-            className={`transition-all duration-500 ease-in-out overflow-hidden ${
-              isAnswered ? 'max-h-[1200px] opacity-100 mb-6' : 'max-h-0 opacity-0'
+            className={`transition-all duration-700 ease-in-out overflow-hidden ${
+              isAnswered ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
             }`}
           >
             {/* 피드백 */}
-            <div className={`p-4 rounded-xl mb-6 ${
-              isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            <div className={`p-6 rounded-2xl mb-8 flex items-start gap-4 border-2 ${
+              isCorrect ? 'bg-green-50/50 border-green-100 text-green-900' : 'bg-red-50/50 border-red-100 text-red-900'
             }`}>
-              <div className="flex items-start gap-3">
-                {isCorrect ? (
-                  <Check className="w-6 h-6 text-green-600 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                {isCorrect ? <Check className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xl font-black mb-1">
+                  {isCorrect ? '정답입니다! 🎉' : '아쉽네요 😢'}
+                </h4>
+                {!isCorrect && (
+                  <p className="text-base font-medium opacity-80">
+                    정답: <strong className="text-red-700">{word.meaning_ko}</strong>
+                  </p>
                 )}
-                <div className="flex-1">
-                  <h4 className={`font-bold mb-1 ${
-                    isCorrect ? 'text-green-900' : 'text-red-900'
-                  }`}>
-                    {isCorrect ? '정답입니다! 🎉' : '아쉽네요 😢'}
-                  </h4>
-                  {!isCorrect && (
-                    <p className="text-sm text-gray-700">
-                      정답: <strong>{word.meaning_ko}</strong>
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
 
             {isAnswered && (
               <button
                 onClick={handleNextQuestion}
-                className="w-full py-4 rounded-xl font-bold transition-all bg-blue-600 text-white hover:bg-blue-700 mb-6"
+                className="w-full py-5 rounded-2xl font-black text-lg transition-all bg-gray-900 text-white hover:bg-black active:scale-[0.98] shadow-xl hover:shadow-2xl mb-10 flex items-center justify-center gap-3 group"
               >
-                다음 문제
+                <span>다음 문제</span>
+                <span className="text-2xl transition-transform group-hover:translate-x-1">→</span>
               </button>
             )}
 
             {/* 단어 정보 */}
-            <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 space-y-4">
+            <div className="rounded-3xl border border-blue-100 bg-gradient-to-b from-blue-50/30 to-white p-8 space-y-8 shadow-sm">
               <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Definition</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Definition</p>
                 </div>
                 {word.definitions?.length ? (
-                  <ul className="text-sm text-gray-800 leading-relaxed list-disc list-inside space-y-1">
+                  <ul className="text-base text-gray-800 leading-relaxed list-disc list-inside space-y-2 font-medium">
                     {word.definitions.map((definition, idx) => (
-                      <li key={`definition-${idx}`}>{definition}</li>
+                      <li key={`definition-${idx}`} className="pl-1">{definition}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-gray-500">등록된 정의가 없습니다.</p>
+                  <p className="text-sm text-gray-400 italic">등록된 정의가 없습니다.</p>
                 )}
               </div>
 
-              <div className="pt-3 border-t border-blue-200">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Brain className="w-3.5 h-3.5 text-purple-500" />
-                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Nuance</p>
+              <div className="pt-6 border-t border-blue-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Brain className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <p className="text-sm font-black text-purple-600 uppercase tracking-widest">Nuance</p>
                 </div>
                 {word.nuance ? (
-                  <p className="text-xs text-gray-700 leading-relaxed">{word.nuance}</p>
+                  <p className="text-base text-gray-700 leading-relaxed font-medium bg-purple-50/30 p-4 rounded-2xl border border-purple-50">{word.nuance}</p>
                 ) : (
-                  <p className="text-xs text-gray-500">등록된 뉘앙스 설명이 없습니다.</p>
+                  <p className="text-sm text-gray-400 italic">등록된 뉘앙스 설명이 없습니다.</p>
                 )}
               </div>
 
-              <div className="pt-3 border-t border-blue-200">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
-                  <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">Synonyms</p>
-                </div>
-                {word.synonyms?.length ? (
-                  <p className="text-sm text-gray-800 leading-relaxed italic">
+              {word.synonyms?.length > 0 && (
+                <div className="pt-6 border-t border-blue-50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                      <ArrowRightLeft className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <p className="text-sm font-black text-orange-600 uppercase tracking-widest">Synonyms</p>
+                  </div>
+                  <p className="text-base text-gray-800 leading-relaxed italic font-serif tracking-tight">
                     {word.synonyms.join(', ')}
                   </p>
-                ) : (
-                  <p className="text-sm text-gray-500">등록된 유의어가 없습니다.</p>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-blue-200">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Quote className="w-3.5 h-3.5 text-blue-400" />
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Examples</p>
                 </div>
-                {word.examples?.length ? (
-                  <div className="space-y-2">
+              )}
+
+              {word.examples?.length > 0 && (
+                <div className="pt-6 border-t border-blue-50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Quote className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Usage Examples</p>
+                  </div>
+                  <div className="space-y-4">
                     {word.examples.map((example, idx) => (
-                      <div key={`example-${idx}`}>
-                        <p className="text-sm text-blue-900 font-medium mb-0.5 leading-snug">"{example.en}"</p>
-                        <p className="text-xs text-gray-500">{example.ko}</p>
+                      <div key={idx} className="bg-white p-4 rounded-2xl border border-indigo-50 shadow-sm">
+                        <p className="text-lg text-indigo-950 font-bold mb-1.5 leading-snug">"{example.en}"</p>
+                        <p className="text-sm text-gray-500 font-medium">{example.ko}</p>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-500">등록된 예문이 없습니다.</p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -341,24 +362,22 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
             <button
               onClick={handleSubmit}
               disabled={!selectedOption}
-              className={`w-full py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+              className={`w-full py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-xl ${
                 selectedOption
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] hover:shadow-2xl'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
               }`}
             >
               {selectedOption ? (
                 <>
-                  <span>정답 확인</span>
-                  <span className="flex items-center gap-1 text-sm font-semibold text-blue-100">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-white/20 text-white text-xs">
-                      ↵
-                    </span>
-                    Enter
-                  </span>
+                  <span>정답 확인하기</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-white/20 rounded-lg text-xs font-black">
+                    <span className="text-sm">↵</span>
+                    <span>ENTER</span>
+                  </div>
                 </>
               ) : (
-                '선택지를 골라주세요'
+                '정답을 선택해주세요'
               )}
             </button>
           )}
