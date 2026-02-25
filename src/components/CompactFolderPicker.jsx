@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus } from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600' },
@@ -18,12 +18,20 @@ export default function CompactFolderPicker({
     folders,
     selectedFolderId,
     onSelectFolder,
+    onCreateFolder,
     wordCountByFolder,
     totalWordCount
 }) {
     const scrollRef = useRef(null);
     const [showLeftArrow, setShowLeftArrow] = useState(false);
     const [showRightArrow, setShowRightArrow] = useState(true);
+
+    const handleAddFolder = () => {
+        const name = window.prompt('새 폴더 이름을 입력하세요:');
+        if (name && name.trim()) {
+            onCreateFolder(name.trim(), 'blue');
+        }
+    };
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -82,6 +90,15 @@ export default function CompactFolderPicker({
                     }`}>
                         {totalWordCount}
                     </span>
+                </button>
+
+                {/* Add Folder Button */}
+                <button
+                    onClick={handleAddFolder}
+                    className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-blue-600 transition-all border border-gray-200"
+                    title="새 폴더 추가"
+                >
+                    <Plus className="w-5 h-5" />
                 </button>
 
                 {folders.map((folder) => {

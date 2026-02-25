@@ -954,6 +954,7 @@ function App() {
                                         folders={folders}
                                         selectedFolderId={selectedFolderId}
                                         onSelectFolder={setSelectedFolderId}
+                                        onCreateFolder={handleCreateFolder}
                                         wordCountByFolder={wordCountByFolder}
                                         totalWordCount={words.length}
                                     />
