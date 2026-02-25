@@ -233,7 +233,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                         ? 'bg-current border-transparent text-white' 
                         : 'border-gray-200 text-gray-400 group-hover:border-blue-400 group-hover:text-blue-600'
                     }`}
-                    style={ (isSelected || (isAnswered && isCorrectOption)) ? { color: isAnswered && isCorrectOption ? '#10b981' : '#2563eb' } : {} }
+                    style={ (isSelected || (isAnswered && isCorrectOption)) ? { color: 'white', backgroundColor: isAnswered && isCorrectOption ? '#10b981' : '#2563eb' } : {} }
                     >
                       {index + 1}
                     </span>
