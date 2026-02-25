@@ -1,5 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3 } from './Icons';
+import { 
+    Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3,
+    BookOpen, Brain, Trophy, Target, FileText, TrendingUp, Shield, Star, Heart
+} from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600', ring: 'ring-blue-500' },
@@ -10,8 +13,24 @@ const FOLDER_COLORS = [
     { name: 'teal', bg: 'bg-teal-100', text: 'text-teal-600', border: 'border-teal-200', dot: 'bg-teal-500', activeBg: 'bg-teal-600', ring: 'ring-teal-500' },
 ];
 
+const FOLDER_ICONS = [
+    { id: 'book', component: BookOpen },
+    { id: 'brain', component: Brain },
+    { id: 'trophy', component: Trophy },
+    { id: 'target', component: Target },
+    { id: 'sparkles', component: Sparkles },
+    { id: 'file', component: FileText },
+    { id: 'trend', component: TrendingUp },
+    { id: 'shield', component: Shield },
+];
+
 const getColorClasses = (colorName) => {
     return FOLDER_COLORS.find(c => c.name === colorName) || FOLDER_COLORS[0];
+};
+
+const getIconComponent = (iconId) => {
+    const icon = FOLDER_ICONS.find(i => i.id === iconId);
+    return icon ? icon.component : null;
 };
 
 export default function CompactFolderPicker({
@@ -33,6 +52,7 @@ export default function CompactFolderPicker({
     const [isCreating, setIsCreating] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [newFolderColor, setNewFolderColor] = useState('blue');
+    const [newFolderIcon, setNewFolderIcon] = useState('book');
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -40,6 +60,7 @@ export default function CompactFolderPicker({
     const [managingFolder, setManagingFolder] = useState(null); // id
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('blue');
+    const [editIcon, setEditIcon] = useState('book');
     
     const longPressTimer = useRef(null);
     const isLongPressActive = useRef(false);
@@ -88,10 +109,11 @@ export default function CompactFolderPicker({
         setIsSuccess(true);
         
         setTimeout(() => {
-            onCreateFolder(trimmed, newFolderColor);
+            onCreateFolder(trimmed, newFolderColor, newFolderIcon);
             setIsCreating(false);
             setNewFolderName('');
             setNewFolderColor('blue');
+            setNewFolderIcon('book');
             setIsSuccess(false);
         }, 800);
     };
@@ -107,6 +129,7 @@ export default function CompactFolderPicker({
             setManagingFolder(folder.id);
             setEditName(folder.name);
             setEditColor(folder.color || 'blue');
+            setEditIcon(folder.icon || 'book');
         }, 600);
     };
 
@@ -116,7 +139,6 @@ export default function CompactFolderPicker({
             longPressTimer.current = null;
         }
 
-        // 롱 프레스가 발동되지 않았을 때만 폴더 선택 (단순 클릭)
         if (!isLongPressActive.current) {
             onSelectFolder(folderId);
         }
@@ -135,7 +157,7 @@ export default function CompactFolderPicker({
             }
         }
 
-        onUpdateFolder(managingFolder, trimmed, editColor);
+        onUpdateFolder(managingFolder, trimmed, editColor, editIcon);
         setManagingFolder(null);
     };
 
@@ -145,6 +167,28 @@ export default function CompactFolderPicker({
             setManagingFolder(null);
         }
     };
+
+    const renderIconSelector = (selectedIcon, setSelectedIcon, activeColor) => (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
+            {FOLDER_ICONS.map((icon) => {
+                const IconComp = icon.component;
+                const isSelected = selectedIcon === icon.id;
+                return (
+                    <button
+                        key={icon.id}
+                        onClick={() => setSelectedIcon(icon.id)}
+                        className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                            isSelected 
+                                ? `${getColorClasses(activeColor).bg} ${getColorClasses(activeColor).text} ring-2 ${getColorClasses(activeColor).ring} ring-offset-2 scale-110` 
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                        }`}
+                    >
+                        <IconComp className="w-5 h-5" />
+                    </button>
+                );
+            })}
+        </div>
+    );
 
     return (
         <div className="relative group mb-6 -mx-4">
@@ -188,13 +232,16 @@ export default function CompactFolderPicker({
                         />
                         
                         {error && (
-                            <div className="flex items-center gap-1 mt-1 mb-3 text-red-500 text-[10px] font-bold animate-in fade-in slide-in-from-top-1">
+                            <div className="flex items-center gap-1 mt-1 mb-2 text-red-500 text-[10px] font-bold">
                                 <AlertCircle className="w-3 h-3" />
                                 {error}
                             </div>
                         )}
-                        {!error && <div className="h-5" />}
 
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 선택</p>
+                        {renderIconSelector(newFolderIcon, setNewFolderIcon, newFolderColor)}
+
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 선택</p>
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
                                 {FOLDER_COLORS.map((c) => (
@@ -261,8 +308,11 @@ export default function CompactFolderPicker({
                             maxLength={30}
                         />
 
-                        {/* Color Selector in Manage Modal */}
-                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 변경</p>
+                        {renderIconSelector(editIcon, setEditIcon, editColor)}
+
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 변경</p>
+                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-6">
                             {FOLDER_COLORS.map((c) => (
                                 <button
                                     key={c.name}
@@ -353,6 +403,7 @@ export default function CompactFolderPicker({
                     const isSelected = selectedFolderId === folder.id;
                     const count = wordCountByFolder[folder.id] || 0;
                     const color = getColorClasses(folder.color);
+                    const FolderIcon = getIconComponent(folder.icon);
                     
                     return (
                         <button
@@ -374,7 +425,11 @@ export default function CompactFolderPicker({
                                     : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
                             }`}
                         >
-                            <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
+                            {FolderIcon ? (
+                                <FolderIcon className="w-3.5 h-3.5" />
+                            ) : (
+                                <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
+                            )}
                             <span className="max-w-[100px] truncate">{folder.name}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                 isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'

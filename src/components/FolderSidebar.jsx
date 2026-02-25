@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, FolderPlus, FolderOpen, Trash2, Edit3, Check, X, ChevronDown, ChevronRight, MoreVertical } from './Icons';
+import { 
+    Folder, FolderPlus, FolderOpen, Trash2, Edit3, Check, X, ChevronDown, ChevronRight, MoreVertical,
+    BookOpen, Brain, Trophy, Target, Sparkles, FileText, TrendingUp, Shield
+} from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500' },
@@ -10,8 +13,24 @@ const FOLDER_COLORS = [
     { name: 'teal', bg: 'bg-teal-100', text: 'text-teal-600', border: 'border-teal-200', dot: 'bg-teal-500' },
 ];
 
+const FOLDER_ICONS = [
+    { id: 'book', component: BookOpen },
+    { id: 'brain', component: Brain },
+    { id: 'trophy', component: Trophy },
+    { id: 'target', component: Target },
+    { id: 'sparkles', component: Sparkles },
+    { id: 'file', component: FileText },
+    { id: 'trend', component: TrendingUp },
+    { id: 'shield', component: Shield },
+];
+
 const getColorClasses = (colorName) => {
     return FOLDER_COLORS.find(c => c.name === colorName) || FOLDER_COLORS[0];
+};
+
+const getIconComponent = (iconId) => {
+    const icon = FOLDER_ICONS.find(i => i.id === iconId);
+    return icon ? icon.component : null;
 };
 
 export default function FolderSidebar({
@@ -160,7 +179,11 @@ export default function FolderSidebar({
                                     }`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                                        {folder.icon && getIconComponent(folder.icon) ? (
+                                            React.createElement(getIconComponent(folder.icon), { className: "w-3.5 h-3.5" })
+                                        ) : (
+                                            <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                                        )}
                                         <span className="truncate max-w-[140px]">{folder.name}</span>
                                     </div>
                                     <div className="flex items-center gap-1">

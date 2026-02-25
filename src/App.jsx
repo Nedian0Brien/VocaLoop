@@ -516,13 +516,14 @@ function App() {
     };
 
     // --- Folder CRUD ---
-    const handleCreateFolder = async (name, color) => {
+    const handleCreateFolder = async (name, color, icon) => {
         if (!db || !user?.email) return;
         const userStorageKey = getStorageKeyFromEmail(user.email);
         try {
             await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'folders'), {
                 name,
                 color,
+                icon: icon || null,
                 createdAt: serverTimestamp()
             });
             showNotification(`'${name}' 폴더가 생성되었습니다.`);
@@ -531,13 +532,14 @@ function App() {
         }
     };
 
-    const handleUpdateFolder = async (folderId, newName, newColor) => {
+    const handleUpdateFolder = async (folderId, newName, newColor, newIcon) => {
         if (!db || !user?.email) return;
         const userStorageKey = getStorageKeyFromEmail(user.email);
         try {
             const updateData = {};
             if (newName) updateData.name = newName;
             if (newColor) updateData.color = newColor;
+            if (newIcon !== undefined) updateData.icon = newIcon;
             
             await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folderId), updateData);
             showNotification('폴더 정보가 업데이트되었습니다.');
