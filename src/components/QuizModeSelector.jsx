@@ -60,14 +60,10 @@ export default function QuizModeSelector({ onSelectMode, wordCount = 0 }) {
                 <button
                   key={mode.id}
                   onClick={() => !mode.disabled && onSelectMode(mode.id)}
-                  className={`relative bg-white rounded-2xl border-2 p-8 text-left transition-all ${
+                  className={`relative bg-white rounded-3xl border border-gray-100 p-8 text-left transition-all duration-300 ${
                     mode.disabled
-                      ? 'border-gray-200 opacity-60 cursor-not-allowed'
-                      : 'hover:scale-105 hover:shadow-xl'
-                  } ${
-                    mode.color === 'blue'
-                      ? 'border-blue-200 hover:border-blue-400'
-                      : 'border-purple-200 hover:border-purple-400'
+                      ? 'opacity-60 cursor-not-allowed grayscale'
+                      : 'hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-blue-500/10 active:scale-95'
                   }`}
                 >
                   {mode.recommended && (
@@ -109,14 +105,10 @@ export default function QuizModeSelector({ onSelectMode, wordCount = 0 }) {
                 <button
                   key={mode.id}
                   onClick={() => !isDisabled && onSelectMode(mode.id)}
-                  className={`relative bg-white rounded-2xl border-2 p-8 text-left transition-all ${
+                  className={`relative bg-white rounded-3xl border border-gray-100 p-8 text-left transition-all duration-300 ${
                     isDisabled
-                      ? 'border-gray-200 opacity-60 cursor-not-allowed'
-                      : 'hover:scale-105 hover:shadow-xl'
-                  } ${
-                    mode.color === 'blue'
-                      ? 'border-blue-200 hover:border-blue-400'
-                      : 'border-purple-200 hover:border-purple-400'
+                      ? 'opacity-60 cursor-not-allowed grayscale'
+                      : 'hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-indigo-500/10 active:scale-95'
                   }`}
                 >
                   {mode.recommended && (

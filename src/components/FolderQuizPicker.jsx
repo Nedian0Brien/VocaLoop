@@ -86,7 +86,7 @@ export default function FolderQuizPicker({ folders, words, quizFolderIds = [], o
                         group flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold
                         transition-all duration-300 border-2
                         ${isAllSelected
-                            ? 'bg-gray-900 text-white border-gray-900 shadow-lg scale-105'
+                            ? 'bg-gray-900 text-white border-gray-900 shadow-lg scale-[1.02]'
                             : 'bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:bg-gray-50'
                         }
                     `}
@@ -123,7 +123,7 @@ export default function FolderQuizPicker({ folders, words, quizFolderIds = [], o
                                 ${isEmpty
                                     ? 'bg-gray-50 text-gray-300 border-gray-50 cursor-not-allowed opacity-60'
                                     : isSelected
-                                        ? `${color.activeBg} text-white border-transparent shadow-lg scale-105`
+                                        ? `${color.activeBg} text-white border-transparent shadow-lg scale-[1.02]`
                                         : `bg-white ${color.text} border-gray-100 hover:border-gray-200 hover:bg-gray-50 hover:shadow-sm`
                                 }
                             `}

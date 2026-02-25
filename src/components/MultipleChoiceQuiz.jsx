@@ -187,7 +187,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
             이 단어의 뜻을 고르세요
           </h3>
           {/* 선택지 */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             {options.map((option, index) => {
               const isSelected = selectedOption === option;
               const isCorrectOption = option === word.meaning_ko;
