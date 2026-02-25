@@ -74,7 +74,7 @@ export default function CompactFolderPicker({
             {/* Create Folder Modal Overlay */}
             {isCreating && (
                 <div 
-                    className="absolute inset-x-4 top-0 z-30 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300 ease-out"
+                    className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon"
                     style={{ transformOrigin: '80px 20px' }}
                 >
                     <div className="bg-white rounded-3xl shadow-2xl border border-blue-100 p-5 mb-4 ring-1 ring-black/5">
