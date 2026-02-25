@@ -148,8 +148,8 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
       {/* 메인 퀴즈 카드 */}
       <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/[0.03]">
         {/* 헤더 */}
-        <div className="bg-[#0f172a] text-white p-8 sm:p-10 relative overflow-hidden">
-          <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] pointer-events-none" />
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 sm:p-10 relative overflow-hidden">
+          <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
           
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
@@ -289,7 +289,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
               </div>
 
               {word.nuance && (
-                <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div className="bg-slate-800 text-slate-100 rounded-2xl p-6 shadow-xl relative overflow-hidden border border-slate-700">
                   <div className="flex items-center gap-3 mb-3 relative z-10">
                     <Brain className="w-4 h-4 text-purple-400" />
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nuance</p>
@@ -336,7 +336,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
             {/* 다음 버튼 */}
             <button
               onClick={handleNextQuestion}
-              className="w-full py-5 rounded-2xl font-black text-lg tracking-tight transition-all bg-slate-900 text-white hover:bg-black active:scale-[0.98] shadow-lg mb-12 flex items-center justify-center gap-3 group"
+              className="w-full py-5 rounded-2xl font-black text-lg tracking-tight transition-all bg-slate-800 text-white hover:bg-slate-900 active:scale-[0.98] shadow-lg mb-12 flex items-center justify-center gap-3 group"
             >
               <span>Next Question</span>
               <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-1.5" />
