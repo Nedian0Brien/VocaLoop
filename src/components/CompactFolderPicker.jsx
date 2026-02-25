@@ -108,7 +108,7 @@ export default function CompactFolderPicker({
                         />
 
                         <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
                                 {FOLDER_COLORS.map((c) => (
                                     <button
                                         key={c.name}
