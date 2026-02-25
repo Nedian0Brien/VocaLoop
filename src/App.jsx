@@ -955,6 +955,8 @@ function App() {
                                         selectedFolderId={selectedFolderId}
                                         onSelectFolder={setSelectedFolderId}
                                         onCreateFolder={handleCreateFolder}
+                                        onRenameFolder={handleRenameFolder}
+                                        onDeleteFolder={handleDeleteFolder}
                                         wordCountByFolder={wordCountByFolder}
                                         totalWordCount={words.length}
                                     />

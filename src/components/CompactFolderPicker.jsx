@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3 } from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600' },
@@ -19,6 +19,8 @@ export default function CompactFolderPicker({
     selectedFolderId,
     onSelectFolder,
     onCreateFolder,
+    onRenameFolder,
+    onDeleteFolder,
     wordCountByFolder,
     totalWordCount
 }) {
@@ -33,6 +35,12 @@ export default function CompactFolderPicker({
     const [newFolderColor, setNewFolderColor] = useState('blue');
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
+
+    // Manage Folder (Edit/Delete) State
+    const [managingFolder, setManagingFolder] = useState(null); // id
+    const [editName, setEditName] = useState('');
+    const [editColor, setEditColor] = useState('blue');
+    const longPressTimer = useRef(null);
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -68,7 +76,6 @@ export default function CompactFolderPicker({
         const trimmed = newFolderName.trim();
         if (!trimmed) return;
         
-        // 중복 이름 검사
         const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase());
         if (isDuplicate) {
             setError('이미 존재하는 폴더 이름입니다.');
@@ -78,7 +85,6 @@ export default function CompactFolderPicker({
         setError('');
         setIsSuccess(true);
         
-        // 성공 애니메이션을 잠시 보여준 후 생성 및 모달 닫기
         setTimeout(() => {
             onCreateFolder(trimmed, newFolderColor);
             setIsCreating(false);
@@ -86,6 +92,50 @@ export default function CompactFolderPicker({
             setNewFolderColor('blue');
             setIsSuccess(false);
         }, 800);
+    };
+
+    // --- Long Press Handlers ---
+    const handleTouchStart = (folder) => {
+        longPressTimer.current = setTimeout(() => {
+            if (window.navigator.vibrate) window.navigator.vibrate(50);
+            setManagingFolder(folder.id);
+            setEditName(folder.name);
+            setEditColor(folder.color || 'blue');
+        }, 600);
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
+    const handleUpdateFolder = () => {
+        const trimmed = editName.trim();
+        if (!trimmed) return;
+        
+        // 이름이 변경된 경우만 중복 체크 (본인 제외)
+        const currentFolder = folders.find(f => f.id === managingFolder);
+        if (trimmed !== currentFolder.name) {
+            const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase() && f.id !== managingFolder);
+            if (isDuplicate) {
+                alert('이미 존재하는 폴더 이름입니다.');
+                return;
+            }
+        }
+
+        onRenameFolder(managingFolder, trimmed);
+        // 색상 변경 기능이 App.jsx의 onRenameFolder에 포함되어 있는지 확인 필요
+        // 현재 App.jsx의 handleRenameFolder는 이름만 지원하므로, 색상 변경 기능은 생략하거나 App.jsx 연동 필요
+        setManagingFolder(null);
+    };
+
+    const handleDeleteClick = () => {
+        if (window.confirm('이 폴더를 삭제하시겠습니까? 폴더 안의 단어는 미분류로 이동합니다.')) {
+            onDeleteFolder(managingFolder);
+            setManagingFolder(null);
+        }
     };
 
     return (
@@ -178,6 +228,60 @@ export default function CompactFolderPicker({
                 </div>
             )}
 
+            {/* Manage Folder Modal Overlay (Long Press) */}
+            {managingFolder && (
+                <div className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon" style={{ transformOrigin: '50% 20px' }}>
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-5 mb-4 ring-1 ring-black/5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <Edit3 className="w-4 h-4 text-gray-600" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-900">폴더 관리</h3>
+                            </div>
+                            <button onClick={() => setManagingFolder(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="폴더 이름"
+                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 bg-gray-50"
+                            maxLength={30}
+                        />
+
+                        <div className="flex items-center justify-between gap-2">
+                            <button
+                                onClick={handleDeleteClick}
+                                className="flex items-center gap-1.5 px-4 py-2 text-red-600 bg-red-50 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                삭제
+                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setManagingFolder(null)}
+                                    className="px-4 py-2 text-gray-500 bg-gray-100 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleUpdateFolder}
+                                    disabled={!editName.trim()}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    수정
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Left Arrow */}
             {showLeftArrow && (
                 <button
@@ -194,7 +298,7 @@ export default function CompactFolderPicker({
             <div 
                 ref={scrollRef}
                 onScroll={checkScroll}
-                className={`px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2 scroll-smooth transition-opacity duration-200 ${isCreating ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}
+                className={`px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2 scroll-smooth transition-opacity duration-200 ${(isCreating || managingFolder) ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}
             >
                 <button
                     onClick={() => onSelectFolder(null)}
@@ -231,7 +335,12 @@ export default function CompactFolderPicker({
                         <button
                             key={folder.id}
                             onClick={() => onSelectFolder(folder.id)}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                            onMouseDown={() => handleTouchStart(folder)}
+                            onMouseUp={handleTouchEnd}
+                            onMouseLeave={handleTouchEnd}
+                            onTouchStart={() => handleTouchStart(folder)}
+                            onTouchEnd={handleTouchEnd}
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border select-none ${
                                 isSelected
                                     ? `${color.activeBg} text-white shadow-md border-transparent`
                                     : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
