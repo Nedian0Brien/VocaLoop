@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle } from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600' },
@@ -31,6 +31,8 @@ export default function CompactFolderPicker({
     const [isCreating, setIsCreating] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [newFolderColor, setNewFolderColor] = useState('blue');
+    const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -48,6 +50,8 @@ export default function CompactFolderPicker({
     useEffect(() => {
         if (isCreating && inputRef.current) {
             inputRef.current.focus();
+            setError('');
+            setIsSuccess(false);
         }
     }, [isCreating]);
 
@@ -63,10 +67,25 @@ export default function CompactFolderPicker({
     const handleCreateSubmit = () => {
         const trimmed = newFolderName.trim();
         if (!trimmed) return;
-        onCreateFolder(trimmed, newFolderColor);
-        setIsCreating(false);
-        setNewFolderName('');
-        setNewFolderColor('blue');
+        
+        // 중복 이름 검사
+        const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase());
+        if (isDuplicate) {
+            setError('이미 존재하는 폴더 이름입니다.');
+            return;
+        }
+
+        setError('');
+        setIsSuccess(true);
+        
+        // 성공 애니메이션을 잠시 보여준 후 생성 및 모달 닫기
+        setTimeout(() => {
+            onCreateFolder(trimmed, newFolderColor);
+            setIsCreating(false);
+            setNewFolderName('');
+            setNewFolderColor('blue');
+            setIsSuccess(false);
+        }, 800);
     };
 
     return (
@@ -103,16 +122,28 @@ export default function CompactFolderPicker({
                                 if (e.key === 'Escape') setIsCreating(false);
                             }}
                             placeholder="폴더 이름을 입력하세요"
-                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 bg-gray-50"
+                            className={`w-full text-sm px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all mb-1 ${
+                                error ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' : 'border-gray-200 bg-gray-50 focus:ring-blue-500 focus:border-blue-500'
+                            }`}
                             maxLength={30}
+                            disabled={isSuccess}
                         />
+                        
+                        {error && (
+                            <div className="flex items-center gap-1 mt-1 mb-3 text-red-500 text-[10px] font-bold animate-in fade-in slide-in-from-top-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {error}
+                            </div>
+                        )}
+                        {!error && <div className="h-5" />}
 
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
                                 {FOLDER_COLORS.map((c) => (
                                     <button
                                         key={c.name}
-                                        onClick={() => setNewFolderColor(c.name)}
+                                        onClick={() => { setNewFolderColor(c.name); setError(''); }}
+                                        disabled={isSuccess}
                                         className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
                                             newFolderColor === c.name
                                                 ? 'ring-2 ring-offset-2 ring-blue-500 scale-110'
@@ -123,11 +154,24 @@ export default function CompactFolderPicker({
                             </div>
                             <button
                                 onClick={handleCreateSubmit}
-                                disabled={!newFolderName.trim()}
-                                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                disabled={!newFolderName.trim() || isSuccess}
+                                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-500 ${
+                                    isSuccess 
+                                        ? 'bg-green-500 text-white scale-105 shadow-lg shadow-green-200' 
+                                        : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                }`}
                             >
-                                <Check className="w-4 h-4" />
-                                생성
+                                {isSuccess ? (
+                                    <>
+                                        <Sparkles className="w-4 h-4 animate-bounce" />
+                                        <span>Success!</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="w-4 h-4" />
+                                        <span>생성</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
