@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
     Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3,
-    BookOpen, Brain, Trophy, Target, FileText, TrendingUp, Shield, Star, Heart
+    BookOpen, Brain, Trophy, Target, FileText, TrendingUp, Shield, Star, Heart, Smile
 } from './Icons';
 
 const FOLDER_COLORS = [
@@ -33,6 +33,13 @@ const getIconComponent = (iconId) => {
     return icon ? icon.component : null;
 };
 
+// 이모지 여부 확인 (간단한 정규식)
+const isEmoji = (str) => {
+    if (!str) return false;
+    const emojiRegex = /\p{Emoji}/u;
+    return emojiRegex.test(str);
+};
+
 export default function CompactFolderPicker({
     folders,
     selectedFolderId,
@@ -52,7 +59,8 @@ export default function CompactFolderPicker({
     const [isCreating, setIsCreating] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [newFolderColor, setNewFolderColor] = useState('blue');
-    const [newFolderIcon, setNewFolderIcon] = useState('book');
+    const [newFolderIcon, setNewFolderIcon] = useState(null);
+    const [customEmoji, setCustomEmoji] = useState('');
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -60,7 +68,8 @@ export default function CompactFolderPicker({
     const [managingFolder, setManagingFolder] = useState(null); // id
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('blue');
-    const [editIcon, setEditIcon] = useState('book');
+    const [editIcon, setEditIcon] = useState(null);
+    const [editCustomEmoji, setEditCustomEmoji] = useState('');
     
     const longPressTimer = useRef(null);
     const isLongPressActive = useRef(false);
@@ -108,12 +117,16 @@ export default function CompactFolderPicker({
         setError('');
         setIsSuccess(true);
         
+        // 커스텀 이모지가 있으면 아이콘으로 우선 사용
+        const iconToSave = customEmoji.trim() || newFolderIcon;
+        
         setTimeout(() => {
-            onCreateFolder(trimmed, newFolderColor, newFolderIcon);
+            onCreateFolder(trimmed, newFolderColor, iconToSave);
             setIsCreating(false);
             setNewFolderName('');
             setNewFolderColor('blue');
-            setNewFolderIcon('book');
+            setNewFolderIcon(null);
+            setCustomEmoji('');
             setIsSuccess(false);
         }, 800);
     };
@@ -129,7 +142,15 @@ export default function CompactFolderPicker({
             setManagingFolder(folder.id);
             setEditName(folder.name);
             setEditColor(folder.color || 'blue');
-            setEditIcon(folder.icon || 'book');
+            
+            const icon = folder.icon;
+            if (icon && isEmoji(icon)) {
+                setEditCustomEmoji(icon);
+                setEditIcon(null);
+            } else {
+                setEditIcon(icon || null);
+                setEditCustomEmoji('');
+            }
         }, 600);
     };
 
@@ -157,7 +178,8 @@ export default function CompactFolderPicker({
             }
         }
 
-        onUpdateFolder(managingFolder, trimmed, editColor, editIcon);
+        const iconToUpdate = editCustomEmoji.trim() || editIcon;
+        onUpdateFolder(managingFolder, trimmed, editColor, iconToUpdate);
         setManagingFolder(null);
     };
 
@@ -168,25 +190,56 @@ export default function CompactFolderPicker({
         }
     };
 
-    const renderIconSelector = (selectedIcon, setSelectedIcon, activeColor) => (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
-            {FOLDER_ICONS.map((icon) => {
-                const IconComp = icon.component;
-                const isSelected = selectedIcon === icon.id;
-                return (
-                    <button
-                        key={icon.id}
-                        onClick={() => setSelectedIcon(icon.id)}
-                        className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                            isSelected 
-                                ? `${getColorClasses(activeColor).bg} ${getColorClasses(activeColor).text} ring-2 ${getColorClasses(activeColor).ring} ring-offset-2 scale-110` 
-                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                        }`}
-                    >
-                        <IconComp className="w-5 h-5" />
-                    </button>
-                );
-            })}
+    const renderIconSelector = (selectedIcon, setSelectedIcon, activeEmoji, setEmoji, activeColor) => (
+        <div className="space-y-3 mb-4">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
+                {/* None Option */}
+                <button
+                    onClick={() => { setSelectedIcon(null); setEmoji(''); }}
+                    className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all border ${
+                        selectedIcon === null && !activeEmoji
+                            ? `bg-gray-100 border-gray-300 text-gray-900 ring-2 ring-offset-2 ring-gray-400` 
+                            : 'bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100'
+                    }`}
+                >
+                    <X className="w-4 h-4" />
+                </button>
+
+                {FOLDER_ICONS.map((icon) => {
+                    const IconComp = icon.component;
+                    const isSelected = selectedIcon === icon.id && !activeEmoji;
+                    return (
+                        <button
+                            key={icon.id}
+                            onClick={() => { setSelectedIcon(icon.id); setEmoji(''); }}
+                            className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                                isSelected 
+                                    ? `${getColorClasses(activeColor).bg} ${getColorClasses(activeColor).text} ring-2 ${getColorClasses(activeColor).ring} ring-offset-2 scale-110` 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                            }`}
+                        >
+                            <IconComp className="w-5 h-5" />
+                        </button>
+                    );
+                })}
+            </div>
+            
+            <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    <input
+                        type="text"
+                        value={activeEmoji}
+                        onChange={(e) => {
+                            setEmoji(e.target.value);
+                            if (e.target.value) setSelectedIcon(null);
+                        }}
+                        placeholder="이모지 직접 입력 (예: 🍎)"
+                        className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                        maxLength={5}
+                    />
+                    <Smile className="absolute right-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
+                </div>
+            </div>
         </div>
     );
 
@@ -238,8 +291,8 @@ export default function CompactFolderPicker({
                             </div>
                         )}
 
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 선택</p>
-                        {renderIconSelector(newFolderIcon, setNewFolderIcon, newFolderColor)}
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 & 이모지</p>
+                        {renderIconSelector(newFolderIcon, setNewFolderIcon, customEmoji, setCustomEmoji, newFolderColor)}
 
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 선택</p>
                         <div className="flex items-center justify-between gap-4">
@@ -308,8 +361,8 @@ export default function CompactFolderPicker({
                             maxLength={30}
                         />
 
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 변경</p>
-                        {renderIconSelector(editIcon, setEditIcon, editColor)}
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 & 이모지 변경</p>
+                        {renderIconSelector(editIcon, setEditIcon, editCustomEmoji, setEditCustomEmoji, editColor)}
 
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 변경</p>
                         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-6">
@@ -403,7 +456,10 @@ export default function CompactFolderPicker({
                     const isSelected = selectedFolderId === folder.id;
                     const count = wordCountByFolder[folder.id] || 0;
                     const color = getColorClasses(folder.color);
-                    const FolderIcon = getIconComponent(folder.icon);
+                    
+                    const icon = folder.icon;
+                    const isIconEmoji = isEmoji(icon);
+                    const FolderIcon = !isIconEmoji ? getIconComponent(icon) : null;
                     
                     return (
                         <button
@@ -425,7 +481,9 @@ export default function CompactFolderPicker({
                                     : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
                             }`}
                         >
-                            {FolderIcon ? (
+                            {isIconEmoji ? (
+                                <span className="text-sm">{icon}</span>
+                            ) : FolderIcon ? (
                                 <FolderIcon className="w-3.5 h-3.5" />
                             ) : (
                                 <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />

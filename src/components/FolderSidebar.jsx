@@ -33,6 +33,12 @@ const getIconComponent = (iconId) => {
     return icon ? icon.component : null;
 };
 
+const isEmoji = (str) => {
+    if (!str) return false;
+    const emojiRegex = /\p{Emoji}/u;
+    return emojiRegex.test(str);
+};
+
 export default function FolderSidebar({
     folders,
     selectedFolderId,
@@ -179,7 +185,9 @@ export default function FolderSidebar({
                                     }`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        {folder.icon && getIconComponent(folder.icon) ? (
+                                        {isEmoji(folder.icon) ? (
+                                            <span className="text-sm w-3.5 h-3.5 flex items-center justify-center">{folder.icon}</span>
+                                        ) : folder.icon && getIconComponent(folder.icon) ? (
                                             React.createElement(getIconComponent(folder.icon), { className: "w-3.5 h-3.5" })
                                         ) : (
                                             <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
