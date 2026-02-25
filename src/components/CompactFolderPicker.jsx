@@ -52,10 +52,12 @@ export default function CompactFolderPicker({
             {/* Left Arrow */}
             {showLeftArrow && (
                 <button
-                    onClick={() => scroll('left')}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/80 shadow-md border border-gray-100 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity md:flex hidden items-center justify-center hover:text-blue-600 hover:bg-white"
+                    onClick={(e) => { e.stopPropagation(); scroll('left'); }}
+                    className="absolute left-0 top-0 bottom-2 w-12 z-20 flex items-center justify-start pl-1 bg-gradient-to-r from-white via-white/70 to-transparent text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                    <ChevronLeft className="w-4 h-4" />
+                    <div className="p-1.5 rounded-full bg-white shadow-md border border-gray-100 hover:text-blue-600 hover:scale-110 transition-transform">
+                        <ChevronLeft className="w-4 h-4" />
+                    </div>
                 </button>
             )}
 
@@ -112,10 +114,12 @@ export default function CompactFolderPicker({
             {/* Right Arrow */}
             {showRightArrow && (
                 <button
-                    onClick={() => scroll('right')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/80 shadow-md border border-gray-100 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity md:flex hidden items-center justify-center hover:text-blue-600 hover:bg-white"
+                    onClick={(e) => { e.stopPropagation(); scroll('right'); }}
+                    className="absolute right-0 top-0 bottom-2 w-12 z-20 flex items-center justify-end pr-1 bg-gradient-to-l from-white via-white/70 to-transparent text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                    <ChevronRight className="w-4 h-4" />
+                    <div className="p-1.5 rounded-full bg-white shadow-md border border-gray-100 hover:text-blue-600 hover:scale-110 transition-transform">
+                        <ChevronRight className="w-4 h-4" />
+                    </div>
                 </button>
             )}
         </div>
