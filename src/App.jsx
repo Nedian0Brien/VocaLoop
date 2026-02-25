@@ -199,6 +199,9 @@ function App() {
                     onSnapshot(foldersQuery, (fSnap) => {
                         const foldersData = fSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                         foldersData.sort((a, b) => {
+                            if (a.order !== undefined && b.order !== undefined) {
+                                return a.order - b.order;
+                            }
                             const timeA = a.createdAt?.seconds || (Date.now() / 1000);
                             const timeB = b.createdAt?.seconds || (Date.now() / 1000);
                             return timeA - timeB;
@@ -528,14 +531,34 @@ function App() {
         }
     };
 
-    const handleRenameFolder = async (folderId, newName) => {
+    const handleUpdateFolder = async (folderId, newName, newColor) => {
         if (!db || !user?.email) return;
         const userStorageKey = getStorageKeyFromEmail(user.email);
         try {
-            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folderId), { name: newName });
-            showNotification('폴더 이름이 변경되었습니다.');
+            const updateData = {};
+            if (newName) updateData.name = newName;
+            if (newColor) updateData.color = newColor;
+            
+            await updateDoc(doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folderId), updateData);
+            showNotification('폴더 정보가 업데이트되었습니다.');
         } catch (e) {
-            showNotification('이름 변경 실패: ' + e.message, 'error');
+            showNotification('업데이트 실패: ' + e.message, 'error');
+        }
+    };
+
+    const handleReorderFolders = async (newFolders) => {
+        if (!db || !user?.email) return;
+        const userStorageKey = getStorageKeyFromEmail(user.email);
+        try {
+            const batch = writeBatch(db);
+            newFolders.forEach((folder, index) => {
+                const folderRef = doc(db, 'artifacts', appId, 'users', userStorageKey, 'folders', folder.id);
+                batch.update(folderRef, { order: index });
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error('Reorder failed:', e);
+            showNotification('순서 변경 실패', 'error');
         }
     };
 
@@ -862,7 +885,7 @@ function App() {
                                 selectedFolderId={selectedFolderId}
                                 onSelectFolder={setSelectedFolderId}
                                 onCreateFolder={handleCreateFolder}
-                                onRenameFolder={handleRenameFolder}
+                                onUpdateFolder={handleUpdateFolder}
                                 onDeleteFolder={handleDeleteFolder}
                                 wordCountByFolder={wordCountByFolder}
                                 totalWordCount={words.length}
@@ -955,8 +978,9 @@ function App() {
                                         selectedFolderId={selectedFolderId}
                                         onSelectFolder={setSelectedFolderId}
                                         onCreateFolder={handleCreateFolder}
-                                        onRenameFolder={handleRenameFolder}
+                                        onUpdateFolder={handleUpdateFolder}
                                         onDeleteFolder={handleDeleteFolder}
+                                        onReorderFolders={handleReorderFolders}
                                         wordCountByFolder={wordCountByFolder}
                                         totalWordCount={words.length}
                                     />

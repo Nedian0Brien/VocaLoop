@@ -1,13 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3 } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3, ArrowRightLeft } from './Icons';
 
 const FOLDER_COLORS = [
-    { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600' },
-    { name: 'purple', bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200', dot: 'bg-purple-500', activeBg: 'bg-purple-600' },
-    { name: 'green', bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200', dot: 'bg-green-500', activeBg: 'bg-green-600' },
-    { name: 'orange', bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200', dot: 'bg-orange-500', activeBg: 'bg-orange-600' },
-    { name: 'pink', bg: 'bg-pink-100', text: 'text-pink-600', border: 'border-pink-200', dot: 'bg-pink-500', activeBg: 'bg-pink-600' },
-    { name: 'teal', bg: 'bg-teal-100', text: 'text-teal-600', border: 'border-teal-200', dot: 'bg-teal-500', activeBg: 'bg-teal-600' },
+    { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600', ring: 'ring-blue-500' },
+    { name: 'purple', bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200', dot: 'bg-purple-500', activeBg: 'bg-purple-600', ring: 'ring-purple-500' },
+    { name: 'green', bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200', dot: 'bg-green-500', activeBg: 'bg-green-600', ring: 'ring-green-500' },
+    { name: 'orange', bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200', dot: 'bg-orange-500', activeBg: 'bg-orange-600', ring: 'ring-orange-500' },
+    { name: 'pink', bg: 'bg-pink-100', text: 'text-pink-600', border: 'border-pink-200', dot: 'bg-pink-500', activeBg: 'bg-pink-600', ring: 'ring-pink-500' },
+    { name: 'teal', bg: 'bg-teal-100', text: 'text-teal-600', border: 'border-teal-200', dot: 'bg-teal-500', activeBg: 'bg-teal-600', ring: 'ring-teal-500' },
 ];
 
 const getColorClasses = (colorName) => {
@@ -19,8 +19,9 @@ export default function CompactFolderPicker({
     selectedFolderId,
     onSelectFolder,
     onCreateFolder,
-    onRenameFolder,
+    onUpdateFolder,
     onDeleteFolder,
+    onReorderFolders,
     wordCountByFolder,
     totalWordCount
 }) {
@@ -40,7 +41,12 @@ export default function CompactFolderPicker({
     const [managingFolder, setManagingFolder] = useState(null); // id
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('blue');
+    
+    // Drag & Drop / Long Press State
+    const [draggedFolderId, setDraggedFolderId] = useState(null);
+    const [isReordering, setIsReordering] = useState(false);
     const longPressTimer = useRef(null);
+    const dragStarted = useRef(false);
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -94,28 +100,50 @@ export default function CompactFolderPicker({
         }, 800);
     };
 
-    // --- Long Press Handlers ---
+    // --- Long Press & Drag Handlers ---
     const handleTouchStart = (folder) => {
+        dragStarted.current = false;
         longPressTimer.current = setTimeout(() => {
             if (window.navigator.vibrate) window.navigator.vibrate(50);
-            setManagingFolder(folder.id);
-            setEditName(folder.name);
-            setEditColor(folder.color || 'blue');
+            
+            // 롱 프레스 시 관리 모달을 여는 대신 '순서 변경 모드' 또는 '관리 선택' 유도
+            // 사용자 요청: "롱 프레스 후 드래그로 순서 변경"
+            // 따라서 롱 프레스 시 드래그 모드 활성화
+            setDraggedFolderId(folder.id);
+            setIsReordering(true);
+            dragStarted.current = true;
         }, 600);
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (folder) => {
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
+
+        // 드래그가 시작되지 않은 상태에서 뗀 경우 (단순 클릭) -> 관리 모달 열기 고려?
+        // 사용자 피드백 반영: 롱 프레스만 하면 관리 모달, 드래그하면 순서 변경
+        if (!dragStarted.current && !isReordering) {
+            // 단순 클릭은 App에서 처리되지만, 여기서 관리 모달을 열고 싶다면:
+            // if (isLongPressed) setManagingFolder(folder.id)...
+        } else if (isReordering) {
+            // 순서 변경 종료
+            setIsReordering(false);
+            setDraggedFolderId(null);
+        }
+    };
+
+    // 관리 모달 열기 (기존 롱 프레스 로직 유지하되 드래그와 분리)
+    const openManageModal = (folder) => {
+        setManagingFolder(folder.id);
+        setEditName(folder.name);
+        setEditColor(folder.color || 'blue');
     };
 
     const handleUpdateFolder = () => {
         const trimmed = editName.trim();
         if (!trimmed) return;
         
-        // 이름이 변경된 경우만 중복 체크 (본인 제외)
         const currentFolder = folders.find(f => f.id === managingFolder);
         if (trimmed !== currentFolder.name) {
             const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase() && f.id !== managingFolder);
@@ -125,9 +153,7 @@ export default function CompactFolderPicker({
             }
         }
 
-        onRenameFolder(managingFolder, trimmed);
-        // 색상 변경 기능이 App.jsx의 onRenameFolder에 포함되어 있는지 확인 필요
-        // 현재 App.jsx의 handleRenameFolder는 이름만 지원하므로, 색상 변경 기능은 생략하거나 App.jsx 연동 필요
+        onUpdateFolder(managingFolder, trimmed, editColor);
         setManagingFolder(null);
     };
 
@@ -136,6 +162,21 @@ export default function CompactFolderPicker({
             onDeleteFolder(managingFolder);
             setManagingFolder(null);
         }
+    };
+
+    // Drag & Drop Logic
+    const onDragOver = (e, targetFolderId) => {
+        e.preventDefault();
+        if (!draggedFolderId || draggedFolderId === targetFolderId) return;
+
+        const draggedIndex = folders.findIndex(f => f.id === draggedFolderId);
+        const targetIndex = folders.findIndex(f => f.id === targetFolderId);
+        
+        const newFolders = [...folders];
+        const [removed] = newFolders.splice(draggedIndex, 1);
+        newFolders.splice(targetIndex, 0, removed);
+        
+        onReorderFolders(newFolders);
     };
 
     return (
@@ -196,7 +237,7 @@ export default function CompactFolderPicker({
                                         disabled={isSuccess}
                                         className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
                                             newFolderColor === c.name
-                                                ? 'ring-2 ring-offset-2 ring-blue-500 scale-110'
+                                                ? `ring-2 ring-offset-2 ${c.ring} scale-110`
                                                 : 'opacity-60 hover:opacity-100'
                                         }`}
                                     />
@@ -228,7 +269,7 @@ export default function CompactFolderPicker({
                 </div>
             )}
 
-            {/* Manage Folder Modal Overlay (Long Press) */}
+            {/* Manage Folder Modal Overlay (Long Press -> Clicked) */}
             {managingFolder && (
                 <div className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon" style={{ transformOrigin: '50% 20px' }}>
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-5 mb-4 ring-1 ring-black/5">
@@ -252,6 +293,21 @@ export default function CompactFolderPicker({
                             className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 bg-gray-50"
                             maxLength={30}
                         />
+
+                        {/* Color Selector in Manage Modal */}
+                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
+                            {FOLDER_COLORS.map((c) => (
+                                <button
+                                    key={c.name}
+                                    onClick={() => setEditColor(c.name)}
+                                    className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
+                                        editColor === c.name
+                                            ? `ring-2 ring-offset-2 ${c.ring} scale-110`
+                                            : 'opacity-60 hover:opacity-100'
+                                    }`}
+                                />
+                            ))}
+                        </div>
 
                         <div className="flex items-center justify-between gap-2">
                             <button
@@ -328,25 +384,40 @@ export default function CompactFolderPicker({
 
                 {folders.map((folder) => {
                     const isSelected = selectedFolderId === folder.id;
+                    const isDragged = draggedFolderId === folder.id;
                     const count = wordCountByFolder[folder.id] || 0;
                     const color = getColorClasses(folder.color);
                     
                     return (
                         <button
                             key={folder.id}
-                            onClick={() => onSelectFolder(folder.id)}
+                            draggable
+                            onDragStart={() => setDraggedFolderId(folder.id)}
+                            onDragOver={(e) => onDragOver(e, folder.id)}
+                            onDragEnd={() => setDraggedFolderId(null)}
+                            onClick={() => {
+                                if (!isReordering) onSelectFolder(folder.id);
+                            }}
+                            onContextMenu={(e) => {
+                                e.preventDefault();
+                                openManageModal(folder);
+                            }}
                             onMouseDown={() => handleTouchStart(folder)}
-                            onMouseUp={handleTouchEnd}
-                            onMouseLeave={handleTouchEnd}
+                            onMouseUp={() => handleTouchEnd(folder)}
+                            onMouseLeave={() => handleTouchEnd(folder)}
                             onTouchStart={() => handleTouchStart(folder)}
-                            onTouchEnd={handleTouchEnd}
+                            onTouchEnd={() => handleTouchEnd(folder)}
                             className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border select-none ${
                                 isSelected
                                     ? `${color.activeBg} text-white shadow-md border-transparent`
                                     : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
-                            }`}
+                            } ${isDragged ? 'opacity-40 scale-95 border-dashed border-blue-400' : ''} ${isReordering ? 'cursor-move animate-pulse' : ''}`}
                         >
-                            <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
+                            {isReordering ? (
+                                <ArrowRightLeft className="w-3 h-3 opacity-70" />
+                            ) : (
+                                <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
+                            )}
                             <span className="max-w-[100px] truncate">{folder.name}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                 isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
@@ -368,6 +439,13 @@ export default function CompactFolderPicker({
                         <ChevronRight className="w-4 h-4" />
                     </div>
                 </button>
+            )}
+
+            {/* Reorder Mode Indicator */}
+            {isReordering && (
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm animate-bounce">
+                    순서 변경 중
+                </div>
             )}
         </div>
     );

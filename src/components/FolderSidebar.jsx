@@ -19,7 +19,7 @@ export default function FolderSidebar({
     selectedFolderId,
     onSelectFolder,
     onCreateFolder,
-    onRenameFolder,
+    onUpdateFolder,
     onDeleteFolder,
     wordCountByFolder,
     totalWordCount,
@@ -66,7 +66,7 @@ export default function FolderSidebar({
     const handleRename = (id) => {
         const trimmed = editName.trim();
         if (!trimmed) return;
-        onRenameFolder(id, trimmed);
+        onUpdateFolder(id, trimmed);
         setEditingId(null);
         setEditName('');
     };
