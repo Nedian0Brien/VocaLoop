@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check } from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600' },
@@ -23,15 +23,14 @@ export default function CompactFolderPicker({
     totalWordCount
 }) {
     const scrollRef = useRef(null);
+    const inputRef = useRef(null);
     const [showLeftArrow, setShowLeftArrow] = useState(false);
     const [showRightArrow, setShowRightArrow] = useState(true);
-
-    const handleAddFolder = () => {
-        const name = window.prompt('새 폴더 이름을 입력하세요:');
-        if (name && name.trim()) {
-            onCreateFolder(name.trim(), 'blue');
-        }
-    };
+    
+    // Create Folder Modal State
+    const [isCreating, setIsCreating] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [newFolderColor, setNewFolderColor] = useState('blue');
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -46,6 +45,12 @@ export default function CompactFolderPicker({
         return () => window.removeEventListener('resize', checkScroll);
     }, [folders]);
 
+    useEffect(() => {
+        if (isCreating && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isCreating]);
+
     const scroll = (direction) => {
         if (!scrollRef.current) return;
         const scrollAmount = 200;
@@ -55,8 +60,69 @@ export default function CompactFolderPicker({
         });
     };
 
+    const handleCreateSubmit = () => {
+        const trimmed = newFolderName.trim();
+        if (!trimmed) return;
+        onCreateFolder(trimmed, newFolderColor);
+        setIsCreating(false);
+        setNewFolderName('');
+        setNewFolderColor('blue');
+    };
+
     return (
         <div className="relative group mb-6 -mx-4">
+            {/* Create Folder Modal Overlay */}
+            {isCreating && (
+                <div className="absolute inset-x-4 top-0 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl border border-blue-100 p-4 mb-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold text-gray-900">새 폴더 만들기</h3>
+                            <button onClick={() => setIsCreating(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={newFolderName}
+                            onChange={(e) => setNewFolderName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleCreateSubmit();
+                                if (e.key === 'Escape') setIsCreating(false);
+                            }}
+                            placeholder="폴더 이름을 입력하세요"
+                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 bg-gray-50"
+                            maxLength={30}
+                        />
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                                {FOLDER_COLORS.map((c) => (
+                                    <button
+                                        key={c.name}
+                                        onClick={() => setNewFolderColor(c.name)}
+                                        className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
+                                            newFolderColor === c.name
+                                                ? 'ring-2 ring-offset-2 ring-blue-500 scale-110'
+                                                : 'opacity-60 hover:opacity-100'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                            <button
+                                onClick={handleCreateSubmit}
+                                disabled={!newFolderName.trim()}
+                                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                <Check className="w-4 h-4" />
+                                생성
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Left Arrow */}
             {showLeftArrow && (
                 <button
@@ -73,7 +139,7 @@ export default function CompactFolderPicker({
             <div 
                 ref={scrollRef}
                 onScroll={checkScroll}
-                className="px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2 scroll-smooth"
+                className={`px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2 scroll-smooth transition-opacity duration-200 ${isCreating ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}
             >
                 <button
                     onClick={() => onSelectFolder(null)}
@@ -94,7 +160,7 @@ export default function CompactFolderPicker({
 
                 {/* Add Folder Button */}
                 <button
-                    onClick={handleAddFolder}
+                    onClick={() => setIsCreating(true)}
                     className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-blue-600 transition-all border border-gray-200"
                     title="새 폴더 추가"
                 >
