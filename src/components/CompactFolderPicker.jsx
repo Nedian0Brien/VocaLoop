@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3, ArrowRightLeft } from './Icons';
+import { Folder, FolderOpen, ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, AlertCircle, Trash2, Edit3 } from './Icons';
 
 const FOLDER_COLORS = [
     { name: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', activeBg: 'bg-blue-600', ring: 'ring-blue-500' },
@@ -21,7 +21,6 @@ export default function CompactFolderPicker({
     onCreateFolder,
     onUpdateFolder,
     onDeleteFolder,
-    onReorderFolders,
     wordCountByFolder,
     totalWordCount
 }) {
@@ -42,11 +41,8 @@ export default function CompactFolderPicker({
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('blue');
     
-    // Drag & Drop / Long Press State
-    const [draggedFolderId, setDraggedFolderId] = useState(null);
-    const [isReordering, setIsReordering] = useState(false);
     const longPressTimer = useRef(null);
-    const dragStarted = useRef(false);
+    const isLongPressActive = useRef(false);
 
     const checkScroll = () => {
         if (!scrollRef.current) return;
@@ -100,44 +96,30 @@ export default function CompactFolderPicker({
         }, 800);
     };
 
-    // --- Long Press & Drag Handlers ---
+    // --- Long Press Handlers ---
     const handleTouchStart = (folder) => {
-        dragStarted.current = false;
+        isLongPressActive.current = false;
         longPressTimer.current = setTimeout(() => {
+            isLongPressActive.current = true;
             if (window.navigator.vibrate) window.navigator.vibrate(50);
             
-            // 롱 프레스 시 관리 모달을 여는 대신 '순서 변경 모드' 또는 '관리 선택' 유도
-            // 사용자 요청: "롱 프레스 후 드래그로 순서 변경"
-            // 따라서 롱 프레스 시 드래그 모드 활성화
-            setDraggedFolderId(folder.id);
-            setIsReordering(true);
-            dragStarted.current = true;
+            // Open Manage Modal
+            setManagingFolder(folder.id);
+            setEditName(folder.name);
+            setEditColor(folder.color || 'blue');
         }, 600);
     };
 
-    const handleTouchEnd = (folder) => {
+    const handleTouchEnd = (e, folderId) => {
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
 
-        // 드래그가 시작되지 않은 상태에서 뗀 경우 (단순 클릭) -> 관리 모달 열기 고려?
-        // 사용자 피드백 반영: 롱 프레스만 하면 관리 모달, 드래그하면 순서 변경
-        if (!dragStarted.current && !isReordering) {
-            // 단순 클릭은 App에서 처리되지만, 여기서 관리 모달을 열고 싶다면:
-            // if (isLongPressed) setManagingFolder(folder.id)...
-        } else if (isReordering) {
-            // 순서 변경 종료
-            setIsReordering(false);
-            setDraggedFolderId(null);
+        // 롱 프레스가 발동되지 않았을 때만 폴더 선택 (단순 클릭)
+        if (!isLongPressActive.current) {
+            onSelectFolder(folderId);
         }
-    };
-
-    // 관리 모달 열기 (기존 롱 프레스 로직 유지하되 드래그와 분리)
-    const openManageModal = (folder) => {
-        setManagingFolder(folder.id);
-        setEditName(folder.name);
-        setEditColor(folder.color || 'blue');
     };
 
     const handleUpdateFolder = () => {
@@ -162,21 +144,6 @@ export default function CompactFolderPicker({
             onDeleteFolder(managingFolder);
             setManagingFolder(null);
         }
-    };
-
-    // Drag & Drop Logic
-    const onDragOver = (e, targetFolderId) => {
-        e.preventDefault();
-        if (!draggedFolderId || draggedFolderId === targetFolderId) return;
-
-        const draggedIndex = folders.findIndex(f => f.id === draggedFolderId);
-        const targetIndex = folders.findIndex(f => f.id === targetFolderId);
-        
-        const newFolders = [...folders];
-        const [removed] = newFolders.splice(draggedIndex, 1);
-        newFolders.splice(targetIndex, 0, removed);
-        
-        onReorderFolders(newFolders);
     };
 
     return (
@@ -269,7 +236,7 @@ export default function CompactFolderPicker({
                 </div>
             )}
 
-            {/* Manage Folder Modal Overlay (Long Press -> Clicked) */}
+            {/* Manage Folder Modal Overlay (Long Press) */}
             {managingFolder && (
                 <div className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon" style={{ transformOrigin: '50% 20px' }}>
                     <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-5 mb-4 ring-1 ring-black/5">
@@ -384,40 +351,30 @@ export default function CompactFolderPicker({
 
                 {folders.map((folder) => {
                     const isSelected = selectedFolderId === folder.id;
-                    const isDragged = draggedFolderId === folder.id;
                     const count = wordCountByFolder[folder.id] || 0;
                     const color = getColorClasses(folder.color);
                     
                     return (
                         <button
                             key={folder.id}
-                            draggable
-                            onDragStart={() => setDraggedFolderId(folder.id)}
-                            onDragOver={(e) => onDragOver(e, folder.id)}
-                            onDragEnd={() => setDraggedFolderId(null)}
-                            onClick={() => {
-                                if (!isReordering) onSelectFolder(folder.id);
-                            }}
-                            onContextMenu={(e) => {
-                                e.preventDefault();
-                                openManageModal(folder);
-                            }}
                             onMouseDown={() => handleTouchStart(folder)}
-                            onMouseUp={() => handleTouchEnd(folder)}
-                            onMouseLeave={() => handleTouchEnd(folder)}
+                            onMouseUp={(e) => handleTouchEnd(e, folder.id)}
+                            onMouseLeave={() => {
+                                if (longPressTimer.current) {
+                                    clearTimeout(longPressTimer.current);
+                                    longPressTimer.current = null;
+                                }
+                            }}
                             onTouchStart={() => handleTouchStart(folder)}
-                            onTouchEnd={() => handleTouchEnd(folder)}
+                            onTouchEnd={(e) => handleTouchEnd(e, folder.id)}
+                            onContextMenu={(e) => e.preventDefault()}
                             className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border select-none ${
                                 isSelected
                                     ? `${color.activeBg} text-white shadow-md border-transparent`
                                     : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
-                            } ${isDragged ? 'opacity-40 scale-95 border-dashed border-blue-400' : ''} ${isReordering ? 'cursor-move animate-pulse' : ''}`}
+                            }`}
                         >
-                            {isReordering ? (
-                                <ArrowRightLeft className="w-3 h-3 opacity-70" />
-                            ) : (
-                                <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
-                            )}
+                            <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
                             <span className="max-w-[100px] truncate">{folder.name}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                 isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
@@ -439,13 +396,6 @@ export default function CompactFolderPicker({
                         <ChevronRight className="w-4 h-4" />
                     </div>
                 </button>
-            )}
-
-            {/* Reorder Mode Indicator */}
-            {isReordering && (
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm animate-bounce">
-                    순서 변경 중
-                </div>
             )}
         </div>
     );
