@@ -73,11 +73,22 @@ export default function CompactFolderPicker({
         <div className="relative group mb-6 -mx-4">
             {/* Create Folder Modal Overlay */}
             {isCreating && (
-                <div className="absolute inset-x-4 top-0 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl border border-blue-100 p-4 mb-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-gray-900">새 폴더 만들기</h3>
-                            <button onClick={() => setIsCreating(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                <div 
+                    className="absolute inset-x-4 top-0 z-30 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300 ease-out"
+                    style={{ transformOrigin: '80px 20px' }}
+                >
+                    <div className="bg-white rounded-3xl shadow-2xl border border-blue-100 p-5 mb-4 ring-1 ring-black/5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                                    <Plus className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-900">새 폴더 만들기</h3>
+                            </div>
+                            <button 
+                                onClick={() => setIsCreating(false)} 
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                            >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
