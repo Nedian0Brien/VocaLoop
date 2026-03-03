@@ -78,7 +78,7 @@ export default function QuizConfigModal({
         {/* Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-10 sm:p-12 space-y-12 custom-scrollbar">
           
-          {/* Section: Scope (Folder Grid) */}
+          {/* Section: Scope (Compact Folder Picker) */}
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -87,73 +87,45 @@ export default function QuizConfigModal({
                 </div>
                 <div>
                   <h4 className="font-black text-slate-900 tracking-tight">출제 범위 설정</h4>
-                  <p className="text-[10px] font-bold text-slate-400">학습할 폴더를 모두 선택하세요</p>
+                  <p className="text-[10px] font-bold text-slate-400">학습할 폴더를 가로로 스크롤하며 선택하세요</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedFolderIds(folders.map(f => f.id))}
-                className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
-              >
-                Select All
-              </button>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setSelectedFolderIds([])}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+                >
+                  Clear All
+                </button>
+                <button 
+                  onClick={() => setSelectedFolderIds(folders.map(f => f.id))}
+                  className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                >
+                  Select All
+                </button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <button
-                onClick={() => setSelectedFolderIds([])}
-                className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
-                  selectedFolderIds.length === 0
-                    ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100'
-                    : 'bg-white border-slate-100 hover:border-slate-200'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  selectedFolderIds.length === 0 ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'
-                }`}>
-                  <Folder className="w-4 h-4" />
-                </div>
-                <div className="text-left overflow-hidden">
-                  <p className={`text-xs font-black truncate ${selectedFolderIds.length === 0 ? 'text-blue-900' : 'text-slate-700'}`}>전체 범위</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{words.length} Words</p>
-                </div>
-              </button>
-
-              {folders.map(folder => {
-                const isSelected = selectedFolderIds.includes(folder.id);
-                const wordCount = words.filter(w => w.folderId === folder.id).length;
-                return (
-                  <button
-                    key={folder.id}
-                    onClick={() => toggleFolder(folder.id)}
-                    className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
-                      isSelected
-                        ? 'bg-blue-50 border-blue-500 shadow-md shadow-blue-100'
-                        : 'bg-white border-slate-100 hover:border-slate-200'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center relative ${
-                      isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <Folder className="w-4 h-4" />
-                      {isSelected && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center ring-2 ring-white">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-left overflow-hidden">
-                      <p className={`text-xs font-black truncate ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>{folder.name}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{wordCount} Words</p>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100">
+              <CompactFolderPicker 
+                folders={folders}
+                words={words}
+                selectedFolderId={null} // Not used for single selection here
+                selectedFolderIds={selectedFolderIds} // We'll pass this for multi-select support
+                onSelectFolder={toggleFolder}
+                wordCountByFolder={folders.reduce((acc, f) => {
+                  acc[f.id] = words.filter(w => w.folderId === f.id).length;
+                  return acc;
+                }, {})}
+                totalWordCount={words.length}
+                isMultiSelect={true}
+              />
             </div>
-
-            <div className="flex items-center gap-3 px-5 py-3 bg-slate-50 rounded-2xl border border-slate-100 w-fit">
+            
+            <div className="flex items-center gap-3 px-5 py-3 bg-blue-50/50 rounded-2xl border border-blue-100/50 w-fit">
               <span className={`w-2 h-2 rounded-full ${filteredWords.length > 0 ? 'bg-blue-500 animate-pulse' : 'bg-slate-300'}`} />
               <p className="text-xs font-bold text-slate-600">
-                총 <span className="text-blue-600 font-black text-sm">{filteredWords.length}</span>개의 단어가 선택되었습니다.
+                선택된 범위: <span className="text-blue-600 font-black text-sm">{filteredWords.length}</span>개의 단어
               </p>
             </div>
           </section>

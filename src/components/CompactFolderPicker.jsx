@@ -33,7 +33,6 @@ const getIconComponent = (iconId) => {
     return icon ? icon.component : null;
 };
 
-// 이모지 여부 확인 (간단한 정규식)
 const isEmoji = (str) => {
     if (!str) return false;
     const emojiRegex = /\p{Emoji}/u;
@@ -43,19 +42,20 @@ const isEmoji = (str) => {
 export default function CompactFolderPicker({
     folders,
     selectedFolderId,
+    selectedFolderIds = [], // Multi-select support
     onSelectFolder,
     onCreateFolder,
     onUpdateFolder,
     onDeleteFolder,
     wordCountByFolder,
-    totalWordCount
+    totalWordCount,
+    isMultiSelect = false // Toggle for quiz config mode
 }) {
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
     const [showLeftArrow, setShowLeftArrow] = useState(false);
     const [showRightArrow, setShowRightArrow] = useState(true);
     
-    // Create Folder Modal State
     const [isCreating, setIsCreating] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [newFolderColor, setNewFolderColor] = useState('blue');
@@ -64,8 +64,7 @@ export default function CompactFolderPicker({
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
 
-    // Manage Folder (Edit/Delete) State
-    const [managingFolder, setManagingFolder] = useState(null); // id
+    const [managingFolder, setManagingFolder] = useState(null);
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('blue');
     const [editIcon, setEditIcon] = useState(null);
@@ -107,19 +106,14 @@ export default function CompactFolderPicker({
     const handleCreateSubmit = () => {
         const trimmed = newFolderName.trim();
         if (!trimmed) return;
-        
         const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase());
         if (isDuplicate) {
             setError('이미 존재하는 폴더 이름입니다.');
             return;
         }
-
         setError('');
         setIsSuccess(true);
-        
-        // 커스텀 이모지가 있으면 아이콘으로 우선 사용
         const iconToSave = customEmoji.trim() || newFolderIcon;
-        
         setTimeout(() => {
             onCreateFolder(trimmed, newFolderColor, iconToSave);
             setIsCreating(false);
@@ -131,18 +125,15 @@ export default function CompactFolderPicker({
         }, 800);
     };
 
-    // --- Long Press Handlers ---
     const handleTouchStart = (folder) => {
+        if (isMultiSelect) return;
         isLongPressActive.current = false;
         longPressTimer.current = setTimeout(() => {
             isLongPressActive.current = true;
             if (window.navigator.vibrate) window.navigator.vibrate(50);
-            
-            // Open Manage Modal
             setManagingFolder(folder.id);
             setEditName(folder.name);
             setEditColor(folder.color || 'blue');
-            
             const icon = folder.icon;
             if (icon && isEmoji(icon)) {
                 setEditCustomEmoji(icon);
@@ -159,7 +150,6 @@ export default function CompactFolderPicker({
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
-
         if (!isLongPressActive.current) {
             onSelectFolder(folderId);
         }
@@ -168,7 +158,6 @@ export default function CompactFolderPicker({
     const handleUpdateFolder = () => {
         const trimmed = editName.trim();
         if (!trimmed) return;
-        
         const currentFolder = folders.find(f => f.id === managingFolder);
         if (trimmed !== currentFolder.name) {
             const isDuplicate = folders.some(f => f.name.toLowerCase() === trimmed.toLowerCase() && f.id !== managingFolder);
@@ -177,7 +166,6 @@ export default function CompactFolderPicker({
                 return;
             }
         }
-
         const iconToUpdate = editCustomEmoji.trim() || editIcon;
         onUpdateFolder(managingFolder, trimmed, editColor, iconToUpdate);
         setManagingFolder(null);
@@ -193,7 +181,6 @@ export default function CompactFolderPicker({
     const renderIconSelector = (selectedIcon, setSelectedIcon, activeEmoji, setEmoji, activeColor) => (
         <div className="space-y-3 mb-4">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
-                {/* None Option */}
                 <button
                     onClick={() => { setSelectedIcon(null); setEmoji(''); }}
                     className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all border ${
@@ -204,7 +191,6 @@ export default function CompactFolderPicker({
                 >
                     <X className="w-4 h-4" />
                 </button>
-
                 {FOLDER_ICONS.map((icon) => {
                     const IconComp = icon.component;
                     const isSelected = selectedIcon === icon.id && !activeEmoji;
@@ -223,7 +209,6 @@ export default function CompactFolderPicker({
                     );
                 })}
             </div>
-            
             <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                     <input
@@ -244,13 +229,10 @@ export default function CompactFolderPicker({
     );
 
     return (
-        <div className="relative group mb-6 -mx-4">
-            {/* Create Folder Modal Overlay */}
+        <div className="relative group -mx-4 overflow-hidden">
+            {/* Create Folder Overlay */}
             {isCreating && (
-                <div 
-                    className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon"
-                    style={{ transformOrigin: '80px 20px' }}
-                >
+                <div className="absolute inset-x-4 top-0 z-30 animate-in zoom-in-95 duration-200 origin-top">
                     <div className="bg-white rounded-3xl shadow-2xl border border-blue-100 p-5 mb-4 ring-1 ring-black/5">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
@@ -259,150 +241,71 @@ export default function CompactFolderPicker({
                                 </div>
                                 <h3 className="text-sm font-bold text-gray-900">새 폴더 만들기</h3>
                             </div>
-                            <button 
-                                onClick={() => setIsCreating(false)} 
-                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => setIsCreating(false)} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                         </div>
-                        
                         <input
                             ref={inputRef}
                             type="text"
                             value={newFolderName}
                             onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleCreateSubmit();
-                                if (e.key === 'Escape') setIsCreating(false);
-                            }}
                             placeholder="폴더 이름을 입력하세요"
-                            className={`w-full text-sm px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all mb-1 ${
-                                error ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' : 'border-gray-200 bg-gray-50 focus:ring-blue-500 focus:border-blue-500'
-                            }`}
-                            maxLength={30}
-                            disabled={isSuccess}
+                            className={`w-full text-sm px-3 py-2.5 border rounded-xl mb-4 ${error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}
                         />
-                        
-                        {error && (
-                            <div className="flex items-center gap-1 mt-1 mb-2 text-red-500 text-[10px] font-bold">
-                                <AlertCircle className="w-3 h-3" />
-                                {error}
-                            </div>
-                        )}
-
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 & 이모지</p>
-                        {renderIconSelector(newFolderIcon, setNewFolderIcon, customEmoji, setCustomEmoji, newFolderColor)}
-
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 선택</p>
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2">
-                                {FOLDER_COLORS.map((c) => (
-                                    <button
-                                        key={c.name}
-                                        onClick={() => { setNewFolderColor(c.name); setError(''); }}
-                                        disabled={isSuccess}
-                                        className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
-                                            newFolderColor === c.name
-                                                ? `ring-2 ring-offset-2 ${c.ring} scale-110`
-                                                : 'opacity-60 hover:opacity-100'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                            <button
-                                onClick={handleCreateSubmit}
-                                disabled={!newFolderName.trim() || isSuccess}
-                                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-500 ${
-                                    isSuccess 
-                                        ? 'bg-green-500 text-white scale-105 shadow-lg shadow-green-200' 
-                                        : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                                }`}
-                            >
-                                {isSuccess ? (
-                                    <>
-                                        <Sparkles className="w-4 h-4 animate-bounce" />
-                                        <span>Success!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Check className="w-4 h-4" />
-                                        <span>생성</span>
-                                    </>
-                                )}
-                            </button>
+                        {error && <p className="text-red-500 text-[10px] font-bold mb-2">{error}</p>}
+                        <p className="text-[11px] font-bold text-gray-400 uppercase mb-2 ml-1">색상 & 아이콘</p>
+                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
+                            {FOLDER_COLORS.map((c) => (
+                                <button
+                                    key={c.name}
+                                    onClick={() => setNewFolderColor(c.name)}
+                                    className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${newFolderColor === c.name ? `ring-2 ring-offset-2 ${c.ring} scale-110` : 'opacity-60'}`}
+                                />
+                            ))}
                         </div>
+                        {renderIconSelector(newFolderIcon, setNewFolderIcon, customEmoji, setCustomEmoji, newFolderColor)}
+                        <button
+                            onClick={handleCreateSubmit}
+                            disabled={!newFolderName.trim() || isSuccess}
+                            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${isSuccess ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                            {isSuccess ? 'Success!' : '폴더 생성'}
+                        </button>
                     </div>
                 </div>
             )}
 
-            {/* Manage Folder Modal Overlay (Long Press) */}
+            {/* Manage Folder Overlay */}
             {managingFolder && (
-                <div className="absolute inset-x-4 top-0 z-30 animate-expand-from-icon" style={{ transformOrigin: '50% 20px' }}>
-                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-5 mb-4 ring-1 ring-black/5">
+                <div className="absolute inset-x-4 top-0 z-30 animate-in zoom-in-95 duration-200 origin-top">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-5 mb-4">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <Edit3 className="w-4 h-4 text-gray-600" />
-                                </div>
+                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><Edit3 className="w-4 h-4 text-gray-600" /></div>
                                 <h3 className="text-sm font-bold text-gray-900">폴더 관리</h3>
                             </div>
-                            <button onClick={() => setManagingFolder(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full">
-                                <X className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => setManagingFolder(null)} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                         </div>
-
                         <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             placeholder="폴더 이름"
-                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 bg-gray-50"
-                            maxLength={30}
+                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl mb-4 bg-gray-50"
                         />
-
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">아이콘 & 이모지 변경</p>
-                        {renderIconSelector(editIcon, setEditIcon, editCustomEmoji, setEditCustomEmoji, editColor)}
-
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">색상 변경</p>
-                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-6">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase mb-2">색상 & 아이콘 변경</p>
+                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-2 -mx-2 mb-4">
                             {FOLDER_COLORS.map((c) => (
                                 <button
                                     key={c.name}
                                     onClick={() => setEditColor(c.name)}
-                                    className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${
-                                        editColor === c.name
-                                            ? `ring-2 ring-offset-2 ${c.ring} scale-110`
-                                            : 'opacity-60 hover:opacity-100'
-                                    }`}
+                                    className={`flex-shrink-0 w-6 h-6 rounded-full ${c.dot} transition-all ${editColor === c.name ? `ring-2 ring-offset-2 ${c.ring} scale-110` : 'opacity-60'}`}
                                 />
                             ))}
                         </div>
-
-                        <div className="flex items-center justify-between gap-2">
-                            <button
-                                onClick={handleDeleteClick}
-                                className="flex items-center gap-1.5 px-4 py-2 text-red-600 bg-red-50 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                삭제
-                            </button>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setManagingFolder(null)}
-                                    className="px-4 py-2 text-gray-500 bg-gray-100 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={handleUpdateFolder}
-                                    disabled={!editName.trim()}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    수정
-                                </button>
-                            </div>
+                        {renderIconSelector(editIcon, setEditIcon, editCustomEmoji, setEditCustomEmoji, editColor)}
+                        <div className="flex gap-2">
+                            <button onClick={handleDeleteClick} className="flex-1 py-2 rounded-xl text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors">삭제</button>
+                            <button onClick={handleUpdateFolder} disabled={!editName.trim()} className="flex-1 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700">수정 완료</button>
                         </div>
                     </div>
                 </div>
@@ -426,34 +329,40 @@ export default function CompactFolderPicker({
                 onScroll={checkScroll}
                 className={`px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2 scroll-smooth transition-opacity duration-200 ${(isCreating || managingFolder) ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}
             >
-                <button
-                    onClick={() => onSelectFolder(null)}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        selectedFolderId === null
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                >
-                    <FolderOpen className={`w-3.5 h-3.5 ${selectedFolderId === null ? 'text-white' : 'text-blue-500'}`} />
-                    <span>전체</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                        selectedFolderId === null ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                        {totalWordCount}
-                    </span>
-                </button>
+                {!isMultiSelect && (
+                    <button
+                        onClick={() => onSelectFolder(null)}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                            selectedFolderId === null
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                        <FolderOpen className={`w-3.5 h-3.5 ${selectedFolderId === null ? 'text-white' : 'text-blue-500'}`} />
+                        <span>전체</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            selectedFolderId === null ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                            {totalWordCount}
+                        </span>
+                    </button>
+                )}
 
-                {/* Add Folder Button */}
-                <button
-                    onClick={() => setIsCreating(true)}
-                    className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-blue-600 transition-all border border-gray-200"
-                    title="새 폴더 추가"
-                >
-                    <Plus className="w-5 h-5" />
-                </button>
+                {/* Add Folder Button (Only in normal mode) */}
+                {!isMultiSelect && (
+                    <button
+                        onClick={() => setIsCreating(true)}
+                        className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-blue-600 transition-all border border-gray-200"
+                        title="새 폴더 추가"
+                    >
+                        <Plus className="w-5 h-5" />
+                    </button>
+                )}
 
                 {folders.map((folder) => {
-                    const isSelected = selectedFolderId === folder.id;
+                    const isSelected = isMultiSelect 
+                        ? selectedFolderIds.includes(folder.id) 
+                        : selectedFolderId === folder.id;
                     const count = wordCountByFolder[folder.id] || 0;
                     const color = getColorClasses(folder.color);
                     
@@ -465,7 +374,7 @@ export default function CompactFolderPicker({
                         <button
                             key={folder.id}
                             onMouseDown={() => handleTouchStart(folder)}
-                            onMouseUp={(e) => handleTouchEnd(e, folder.id)}
+                            onMouseUp={(e) => isMultiSelect ? onSelectFolder(folder.id) : handleTouchEnd(e, folder.id)}
                             onMouseLeave={() => {
                                 if (longPressTimer.current) {
                                     clearTimeout(longPressTimer.current);
@@ -473,12 +382,12 @@ export default function CompactFolderPicker({
                                 }
                             }}
                             onTouchStart={() => handleTouchStart(folder)}
-                            onTouchEnd={(e) => handleTouchEnd(e, folder.id)}
+                            onTouchEnd={(e) => isMultiSelect ? onSelectFolder(folder.id) : handleTouchEnd(e, folder.id)}
                             onContextMenu={(e) => e.preventDefault()}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border select-none ${
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all border select-none ${
                                 isSelected
-                                    ? `${color.activeBg} text-white shadow-md border-transparent`
-                                    : `bg-white border-gray-200 text-gray-600 hover:bg-gray-50`
+                                    ? `${color.activeBg} text-white shadow-lg border-transparent scale-105`
+                                    : `bg-white border-slate-200 text-slate-600 hover:bg-slate-50`
                             }`}
                         >
                             {isIconEmoji ? (
@@ -488,9 +397,9 @@ export default function CompactFolderPicker({
                             ) : (
                                 <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.dot}`} />
                             )}
-                            <span className="max-w-[100px] truncate">{folder.name}</span>
+                            <span className="max-w-[120px] truncate">{folder.name}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
                             }`}>
                                 {count}
                             </span>
