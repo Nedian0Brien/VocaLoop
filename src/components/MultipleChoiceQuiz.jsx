@@ -13,7 +13,7 @@ const QuizSkeleton = () => (
       <div className="w-full bg-gray-100 rounded-full h-2 animate-skeleton"></div>
     </div>
     <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="h-40 bg-slate-900 p-8 animate-skeleton opacity-10"></div>
+      <div className="h-40 bg-slate-50 p-8 animate-skeleton opacity-50"></div>
       <div className="p-8">
         <div className="h-5 w-40 bg-gray-100 rounded-lg mb-8 animate-skeleton"></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
