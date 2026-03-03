@@ -18,6 +18,9 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
+  
+  // TOEFL 전용 설정 상태
+  const [toeflConfig, setToeflConfig] = useState({ questionCount: 5, targetScore: 100 });
 
   // Dashboard Stats
   const dashboardStats = useMemo(() => {
@@ -62,7 +65,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   }, []);
 
   const startQuiz = (config) => {
-    const { questionCount, selectedFolderIds, aiMode: sessionAiMode } = config;
+    const { questionCount, selectedFolderIds, aiMode: sessionAiMode, targetScore } = config;
     
     if (sessionAiMode !== aiMode) {
       setAiMode(sessionAiMode);
@@ -71,8 +74,9 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
     if (!selectedMode) return;
     const modeId = selectedMode.id;
     
-    // TOEFL 모드는 별도 로직 (단어장 기반 아님)
+    // TOEFL 모드 설정 저장 및 시작
     if (modeId === 'toefl-complete') {
+      setToeflConfig({ questionCount, targetScore });
       setQuizState('quiz');
       setShowConfigModal(false);
       return;
@@ -256,8 +260,8 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               {selectedMode.id === 'toefl-complete' && (
                 <ToeflCompleteTheWordQuiz
                   aiConfig={aiConfig}
-                  questionCount={5} 
-                  targetScore={100}
+                  questionCount={toeflConfig.questionCount} 
+                  targetScore={toeflConfig.targetScore}
                   onExit={handleBackToModeSelect}
                   db={db}
                   user={user}
