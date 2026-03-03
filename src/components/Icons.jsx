@@ -262,7 +262,10 @@ export const Icons = {
     ),
     Hash: (props) => (
         <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+    ),
+    Clock: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     )
 };
 
-export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile, Zap, Play, Award, Layers, Hash } = Icons;
+export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile, Zap, Play, Award, Layers, Hash, Clock } = Icons;
