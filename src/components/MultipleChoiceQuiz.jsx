@@ -60,6 +60,9 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
 
   const speakWord = useCallback(() => {
     if (!word?.word) return;
+    // 이전 재생 중인 음성이 있다면 중지
+    window.speechSynthesis.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(word.word);
     utterance.lang = 'en-US';
     utterance.rate = 0.8;
