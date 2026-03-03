@@ -1,165 +1,188 @@
-import React from 'react';
-import { Trophy, RotateCw, ArrowLeft, TrendingUp } from './Icons';
+import React, { useEffect } from 'react';
+import { Trophy, RotateCw, ArrowLeft, TrendingUp, CheckCircle, XCircle, BarChart3, Zap, Star, Award, Heart } from './Icons';
 
-export default function QuizResult({ stats, onRestart, onBackToDashboard }) {
+const STAT_STORAGE_KEY = 'vocaloop_quiz_history';
+
+const StatBox = ({ title, value, subValue, icon: Icon, color }) => (
+  <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col items-center text-center gap-3 relative overflow-hidden group">
+    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} shadow-sm transition-transform duration-500 group-hover:scale-110`}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+      <div className="flex flex-col">
+        <h4 className="text-3xl font-black text-slate-900 tracking-tighter">{value}</h4>
+        {subValue && <span className="text-[10px] font-bold text-slate-400 mt-0.5">{subValue}</span>}
+      </div>
+    </div>
+    <div className={`absolute -right-2 -bottom-2 w-16 h-16 rounded-full blur-3xl opacity-10 ${color.split(' ')[1]}`} />
+  </div>
+);
+
+export default function QuizResult({ stats, onRestart, onBackToDashboard, modeTitle = "Quiz Session" }) {
   const { correct, wrong, total } = stats;
   const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-  // 성적에 따른 메시지와 색상
-  const getResultInfo = () => {
-    if (percentage >= 90) {
-      return {
-        grade: 'A+',
-        message: '완벽합니다! 🎉',
-        description: '이 단어들은 완전히 마스터했어요!',
-        color: 'green',
-        emoji: '🏆'
+  // Save history on mount
+  useEffect(() => {
+    try {
+      const history = JSON.parse(localStorage.getItem(STAT_STORAGE_KEY) || '[]');
+      const newEntry = {
+        date: new Date().toISOString(),
+        correct,
+        total,
+        percentage,
+        mode: modeTitle
       };
-    } else if (percentage >= 80) {
-      return {
-        grade: 'A',
-        message: '훌륭해요! 👏',
-        description: '조금만 더 연습하면 완벽해질 거예요.',
-        color: 'blue',
-        emoji: '🎯'
-      };
-    } else if (percentage >= 70) {
-      return {
-        grade: 'B',
-        message: '잘했어요! 💪',
-        description: '틀린 문제들을 다시 복습해보세요.',
-        color: 'yellow',
-        emoji: '📚'
-      };
-    } else if (percentage >= 60) {
-      return {
-        grade: 'C',
-        message: '괜찮아요! 🔥',
-        description: '조금 더 연습이 필요해요.',
-        color: 'orange',
-        emoji: '✍️'
-      };
-    } else {
-      return {
-        grade: 'D',
-        message: '다시 도전! 💡',
-        description: '포기하지 마세요. 반복이 중요해요!',
-        color: 'red',
-        emoji: '🎓'
-      };
+      const updatedHistory = [newEntry, ...history].slice(0, 20); // Keep last 20 entries
+      localStorage.setItem(STAT_STORAGE_KEY, JSON.stringify(updatedHistory));
+    } catch (e) {
+      console.error('Failed to save quiz history:', e);
     }
+  }, []);
+
+  const getResultInfo = () => {
+    if (percentage >= 90) return {
+      grade: 'Excellent', message: '완벽한 마스터! 🎉',
+      desc: '당신의 암기력은 정말 놀랍군요. 이제 다음 레벨로 넘어갈 시간입니다!',
+      color: 'bg-gradient-to-br from-green-500 to-emerald-600', text: 'text-green-600', icon: Trophy, emoji: '🏆'
+    };
+    if (percentage >= 80) return {
+      grade: 'Great', message: '훌륭한 실력이에요! 👏',
+      desc: '조금만 더 집중하면 완벽해질 수 있습니다. 틀린 단어들만 다시 훑어보세요.',
+      color: 'bg-gradient-to-br from-blue-500 to-indigo-600', text: 'text-blue-600', icon: Target, emoji: '🎯'
+    };
+    if (percentage >= 70) return {
+      grade: 'Good', message: '잘 해내셨어요! 💪',
+      desc: '안정적인 실력을 보여주고 계시네요. 꾸준함이 가장 큰 무기입니다.',
+      color: 'bg-gradient-to-br from-purple-500 to-indigo-600', text: 'text-purple-600', icon: Zap, emoji: '✨'
+    };
+    return {
+      grade: 'Practice', message: '좋은 시도였어요! 🔥',
+      desc: '실패는 성공의 어머니입니다. 오늘 배운 단어들이 내일의 실력이 될 거예요.',
+      color: 'bg-gradient-to-br from-orange-500 to-red-600', text: 'text-red-600', icon: Heart, emoji: '💡'
+    };
   };
 
-  const result = getResultInfo();
+  const res = getResultInfo();
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* 결과 카드 */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        {/* 헤더 */}
-        <div className={`bg-gradient-to-r ${
-          result.color === 'green' ? 'from-green-500 to-emerald-500' :
-          result.color === 'blue' ? 'from-blue-500 to-cyan-500' :
-          result.color === 'yellow' ? 'from-yellow-500 to-amber-500' :
-          result.color === 'orange' ? 'from-orange-500 to-red-400' :
-          'from-red-500 to-pink-500'
-        } text-white text-center py-12`}>
-          <div className="text-6xl mb-4">{result.emoji}</div>
-          <h2 className="text-4xl font-bold mb-2">{result.message}</h2>
-          <p className="text-lg opacity-90">{result.description}</p>
+    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+      {/* Hero Result Section */}
+      <div className="relative bg-white rounded-[3.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden ring-1 ring-black/[0.02]">
+        <div className={`${res.color} p-12 sm:p-16 text-white text-center relative overflow-hidden`}>
+          <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-white/10 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-64 h-64 bg-black/10 rounded-full blur-[80px] pointer-events-none" />
+          
+          <div className="relative z-10 space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
+              <res.icon className="w-4 h-4 text-white" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">{res.grade} Achievement</span>
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tight">{res.message}</h2>
+              <p className="text-white/80 font-bold text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
+                {res.desc}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center pt-4">
+              <div className="relative">
+                <div className="text-8xl sm:text-9xl font-black tracking-tighter opacity-20 absolute inset-0 blur-sm select-none">{percentage}%</div>
+                <div className="text-8xl sm:text-9xl font-black tracking-tighter relative z-10">{percentage}%</div>
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.4em] opacity-60 mt-2">Overall Accuracy</p>
+            </div>
+          </div>
         </div>
 
-        {/* 통계 */}
-        <div className="p-8">
-          {/* 점수 */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-baseline gap-2 mb-2">
-              <span className="text-7xl font-bold text-gray-900">{percentage}</span>
-              <span className="text-3xl text-gray-500">%</span>
-            </div>
-            <div className={`text-2xl font-bold ${
-              result.color === 'green' ? 'text-green-600' :
-              result.color === 'blue' ? 'text-blue-600' :
-              result.color === 'yellow' ? 'text-yellow-600' :
-              result.color === 'orange' ? 'text-orange-600' :
-              'text-red-600'
-            }`}>
-              {result.grade}
-            </div>
+        {/* Stats Grid */}
+        <div className="p-8 sm:p-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
+            <StatBox 
+              title="Total Questions" 
+              value={total} 
+              icon={BarChart3} 
+              color="bg-slate-50 text-slate-600"
+              subValue="Answered"
+            />
+            <StatBox 
+              title="Correct Items" 
+              value={correct} 
+              icon={CheckCircle} 
+              color="bg-green-50 text-green-600"
+              subValue="Great job!"
+            />
+            <StatBox 
+              title="Wrong Items" 
+              value={wrong} 
+              icon={XCircle} 
+              color="bg-red-50 text-red-600"
+              subValue="Needs review"
+            />
           </div>
 
-          {/* 상세 통계 */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-gray-900">{total}</div>
-              <div className="text-sm text-gray-500 mt-1">전체 문제</div>
+          {/* Detailed Progress Bar */}
+          <div className="bg-slate-50 rounded-[2rem] p-8 border border-slate-100 mb-12">
+            <div className="flex items-center justify-between mb-4 px-1">
+              <div className="flex items-center gap-2">
+                <Star className={`w-4 h-4 ${res.text}`} />
+                <span className="text-xs font-black text-slate-700 uppercase tracking-widest">Accuracy Level</span>
+              </div>
+              <span className={`text-sm font-black ${res.text}`}>{percentage}% Mastery</span>
             </div>
-            <div className="bg-green-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-green-600">{correct}</div>
-              <div className="text-sm text-gray-500 mt-1">정답</div>
-            </div>
-            <div className="bg-red-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-red-600">{wrong}</div>
-              <div className="text-sm text-gray-500 mt-1">오답</div>
-            </div>
-          </div>
-
-          {/* 진행 바 */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-              <span>정답률</span>
-              <span className="font-bold">{correct}/{total}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+            <div className="w-full bg-slate-200/50 rounded-full h-4 relative overflow-hidden border border-slate-100">
               <div
-                className={`h-full transition-all duration-1000 ${
-                  result.color === 'green' ? 'bg-green-500' :
-                  result.color === 'blue' ? 'bg-blue-500' :
-                  result.color === 'yellow' ? 'bg-yellow-500' :
-                  result.color === 'orange' ? 'bg-orange-500' :
-                  'bg-red-500'
-                }`}
+                className={`h-full rounded-full transition-all duration-[1500ms] ease-out relative ${res.color.replace('bg-gradient-to-br', 'bg-gradient-to-r')}`}
                 style={{ width: `${percentage}%` }}
-              />
+              >
+                <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.2)_50%,transparent_100%)] animate-[shimmer_2s_infinite]" />
+              </div>
+            </div>
+            <div className="flex justify-between mt-3 px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <span>Novice</span>
+              <span>Professional</span>
+              <span>Master</span>
             </div>
           </div>
 
-          {/* 버튼 */}
-          <div className="flex gap-4">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-5">
             <button
               onClick={onRestart}
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-colors"
+              className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-[0.98] group"
             >
-              <RotateCw className="w-5 h-5" />
-              다시 도전
+              <RotateCw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-700" />
+              <span className="text-lg tracking-tight">다시 도전하기</span>
             </button>
             <button
               onClick={onBackToDashboard}
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors"
+              className="flex-1 flex items-center justify-center gap-3 bg-white text-slate-600 font-black py-5 rounded-2xl border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-[0.98]"
             >
-              <ArrowLeft className="w-5 h-5" />
-              Dashboard
+              <ArrowLeft className="w-6 h-6" />
+              <span className="text-lg tracking-tight">대시보드로 이동</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 팁 */}
-      {percentage < 80 && (
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-start gap-3">
-            <TrendingUp className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-            <div>
-              <h4 className="font-bold text-blue-900 mb-2">💡 학습 팁</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• 틀린 단어는 Dashboard에서 다시 복습해보세요</li>
-                <li>• 발음 듣기와 예문을 함께 공부하면 더 효과적이에요</li>
-                <li>• 하루에 조금씩이라도 꾸준히 학습하는 것이 중요해요</li>
-              </ul>
-            </div>
+      {/* Pro Tip Section */}
+      <div className="bg-blue-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden group shadow-2xl shadow-blue-200/50">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[60px] pointer-events-none transition-transform duration-1000 group-hover:scale-150" />
+        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+          <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 shadow-lg group-hover:rotate-6 transition-transform">
+            <TrendingUp className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h4 className="text-xl font-black tracking-tight">Smart Review Tip</h4>
+            <p className="text-blue-100 font-bold leading-relaxed text-sm opacity-90">
+              오늘 틀린 <span className="text-white font-black underline underline-offset-4">{wrong}개</span>의 단어들은 학습 알고리즘에 의해 <span className="text-white">우선 순위</span>가 높아졌습니다. 
+              내일 다시 퀴즈를 풀면 자동으로 이 단어들이 먼저 출제되어 완벽한 암기를 도와드립니다.
+            </p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

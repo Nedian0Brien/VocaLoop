@@ -1,5 +1,7 @@
-import React from 'react';
-import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap } from './Icons';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap, ChevronRight, Clock, BarChart3 } from './Icons';
+
+const HIST_STORAGE_KEY = 'vocaloop_quiz_history';
 
 const ModeCard = ({ mode, onSelect, wordCount }) => {
   const Icon = mode.icon;
@@ -14,7 +16,6 @@ const ModeCard = ({ mode, onSelect, wordCount }) => {
           : 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 active:scale-[0.98]'
       }`}
     >
-      {/* Background Pattern */}
       <div className={`absolute -right-4 -bottom-4 w-24 h-24 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 ${
         mode.color === 'blue' ? 'text-blue-600' : 'text-purple-600'
       }`}>
@@ -58,9 +59,9 @@ const StatCard = ({ title, value, icon: Icon, color, subValue, trend }) => (
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} shadow-sm transition-transform duration-500 group-hover:scale-110`}>
         <Icon className="w-6 h-6" />
       </div>
-      {trend && (
-        <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${trend > 0 ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
-          {trend > 0 ? `+${trend}%` : 'Stable'}
+      {trend !== undefined && (
+        <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${trend > 0 ? 'bg-green-50 text-green-600' : trend < 0 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400'}`}>
+          {trend > 0 ? `↑ ${trend}%` : trend < 0 ? `↓ ${Math.abs(trend)}%` : 'Stable'}
         </span>
       )}
     </div>
@@ -71,48 +72,36 @@ const StatCard = ({ title, value, icon: Icon, color, subValue, trend }) => (
         {subValue && <span className="text-xs font-bold text-slate-400 opacity-70">{subValue}</span>}
       </div>
     </div>
-    {/* Decorative blur */}
     <div className={`absolute -right-4 -bottom-4 w-20 h-20 rounded-full blur-3xl opacity-10 ${color.split(' ')[1]}`} />
   </div>
 );
 
 export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
-  const vocabModes = [
-    {
-      id: 'multiple',
-      title: '객관식 퀴즈',
-      description: '가장 빠르고 효과적인 학습 방식입니다. 4가지 뜻 중 올바른 정답을 선택하세요.',
-      icon: CheckCircle,
-      color: 'blue',
-      recommended: true
-    },
-    {
-      id: 'short',
-      title: '주관식 퀴즈',
-      description: '단어의 철자와 뜻을 직접 입력하여 암기 수준을 완벽하게 검증합니다.',
-      icon: Edit3,
-      color: 'purple'
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    try {
+      const savedHistory = JSON.parse(localStorage.getItem(HIST_STORAGE_KEY) || '[]');
+      setHistory(savedHistory.slice(0, 5)); // Last 5 sessions
+    } catch (e) {
+      console.error('Failed to load history:', e);
     }
+  }, []);
+
+  const vocabModes = [
+    { id: 'multiple', title: '객관식 퀴즈', description: '4가지 뜻 중 올바른 정답을 선택하세요. 가장 빠르고 효과적인 학습 방식입니다.', icon: CheckCircle, color: 'blue', recommended: true },
+    { id: 'short', title: '주관식 퀴즈', description: '단어의 철자와 뜻을 직접 입력하여 암기 수준을 완벽하게 검증합니다.', icon: Edit3, color: 'purple' }
   ];
 
   const toeflModes = [
-    {
-      id: 'toefl-complete',
-      title: 'TOEFL 문단 완성',
-      description: '실제 TOEFL 학술 텍스트의 맥락을 이해하고 빈칸의 철자를 완성하는 고난도 모드입니다.',
-      icon: Sparkles,
-      color: 'blue',
-      recommended: true
-    },
-    {
-      id: 'toefl-build',
-      title: 'TOEFL 문장 구성',
-      description: '주어진 단어들을 문법적으로 올바르게 조합하여 완성된 문장을 구성합니다.',
-      icon: Zap,
-      color: 'purple',
-      disabled: true
-    }
+    { id: 'toefl-complete', title: 'TOEFL 문단 완성', description: '실제 TOEFL 학술 텍스트의 맥락을 이해하고 빈칸의 철자를 완성하는 고난도 모드입니다.', icon: Sparkles, color: 'blue', recommended: true },
+    { id: 'toefl-build', title: 'TOEFL 문장 구성', description: '주어진 단어들을 문법적으로 올바르게 조합하여 완성된 문장을 구성합니다.', icon: Zap, color: 'purple', disabled: true }
   ];
+
+  // Calculate Accuracy Trend from history
+  const accuracyTrend = history.length >= 2 
+    ? history[0].percentage - history[1].percentage 
+    : 0;
 
   return (
     <div className="max-w-5xl mx-auto space-y-14 animate-in fade-in slide-in-from-bottom-6 duration-1000">
@@ -156,11 +145,11 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
           />
           <StatCard 
             title="Session Accuracy" 
-            value={stats.recentAccuracy || '0%'} 
+            value={history.length > 0 ? `${history[0].percentage}%` : '0%'} 
             icon={Award} 
             color="bg-purple-50 text-purple-600"
-            subValue="Last 10 Quizzes"
-            trend={stats.accuracyTrend}
+            subValue="Last Session"
+            trend={accuracyTrend}
           />
           <StatCard 
             title="Studied This Week" 
@@ -172,49 +161,118 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
         </div>
       </section>
 
-      {/* Quiz Modes Grid */}
-      <div className="space-y-16">
-        {/* Vocabulary Power Section */}
-        <section>
-          <div className="flex items-center justify-between mb-8 px-2">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Vocabulary Training</h3>
-                <p className="text-sm font-bold text-slate-400">암기 수준에 맞춘 기초 단계 학습</p>
+      {/* Main Grid: Modes and Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-16">
+          {/* Vocabulary Power Section */}
+          <section>
+            <div className="flex items-center justify-between mb-8 px-2">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Vocabulary Training</h3>
+                  <p className="text-sm font-bold text-slate-400">암기 수준에 맞춘 기초 단계 학습</p>
+                </div>
               </div>
             </div>
-            <span className="hidden sm:inline-block text-[11px] font-black text-slate-300 uppercase tracking-[0.2em]">Essentials</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {vocabModes.map((mode) => (
-              <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
-            ))}
-          </div>
-        </section>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {vocabModes.map((mode) => (
+                <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
+              ))}
+            </div>
+          </section>
 
-        {/* TOEFL Mastery Section */}
-        <section>
-          <div className="flex items-center justify-between mb-8 px-2">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Academic TOEFL</h3>
-                <p className="text-sm font-bold text-slate-400">실전 대비 고난도 학술적 문해력 강화</p>
+          {/* TOEFL Mastery Section */}
+          <section>
+            <div className="flex items-center justify-between mb-8 px-2">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Academic TOEFL</h3>
+                  <p className="text-sm font-bold text-slate-400">실전 대비 고난도 학술적 문해력 강화</p>
+                </div>
               </div>
             </div>
-            <span className="hidden sm:inline-block text-[11px] font-black text-slate-300 uppercase tracking-[0.2em]">Academic</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {toeflModes.map((mode) => (
+                <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Sidebar: Recent Activity */}
+        <aside className="space-y-8">
+          <section>
+            <div className="flex items-center gap-3 mb-8 px-2">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shadow-sm">
+                <Clock className="w-5 h-5" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h3>
+            </div>
+            
+            <div className="space-y-4">
+              {history.length > 0 ? (
+                history.map((entry, idx) => (
+                  <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </span>
+                      <div className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${
+                        entry.percentage >= 80 ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                      }`}>
+                        {entry.percentage}% Accuracy
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          entry.percentage >= 80 ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'
+                        }`}>
+                          <BarChart3 className="w-4 h-4" />
+                        </div>
+                        <p className="text-sm font-black text-slate-700">{entry.mode}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-10 text-center">
+                  <p className="text-slate-400 text-sm font-bold leading-relaxed">
+                    아직 활동 기록이 없습니다.<br />첫 퀴즈를 시작해보세요!
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Goals Card */}
+          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <h4 className="text-lg font-black tracking-tight mb-4 relative z-10">Weekly Goal</h4>
+            <div className="space-y-4 relative z-10">
+              <div className="flex justify-between items-end mb-1">
+                <span className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Words Studied</span>
+                <span className="text-sm font-black text-white">{stats.studiedCount || 0} / 50</span>
+              </div>
+              <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="h-full bg-white rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                  style={{ width: `${Math.min((stats.studiedCount || 0) / 50 * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] font-bold text-blue-100 leading-relaxed opacity-80">
+                이번 주 목표의 {Math.round((stats.studiedCount || 0) / 50 * 100)}%를 달성했습니다! 조금만 더 힘내세요.
+              </p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {toeflModes.map((mode) => (
-              <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
-            ))}
-          </div>
-        </section>
+        </aside>
       </div>
 
       {/* Footer / Smart Tip */}
