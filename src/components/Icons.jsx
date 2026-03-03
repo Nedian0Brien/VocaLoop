@@ -247,7 +247,22 @@ export const Icons = {
     ),
     Smile: (props) => (
         <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
+    ),
+    Zap: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    ),
+    Play: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    ),
+    Award: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg>
+    ),
+    Layers: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    ),
+    Hash: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
     )
 };
 
-export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile } = Icons;
+export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile, Zap, Play, Award, Layers, Hash } = Icons;
