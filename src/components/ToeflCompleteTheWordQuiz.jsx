@@ -7,6 +7,7 @@ import {
 } from '../services/toeflService';
 import { generateWordData } from '../services/geminiService';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { playSound } from '../utils/soundEffects';
 
 const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
@@ -589,6 +590,7 @@ export default function ToeflCompleteTheWordQuiz({
     } finally {
       setIsGeneratingSummary(false);
       setStatus('summary');
+      playSound('COMPLETE');
     }
   };
 

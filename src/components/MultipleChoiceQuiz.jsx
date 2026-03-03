@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote, ChevronRight } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
+import { playSound } from '../utils/soundEffects';
 
 const QuizSkeleton = () => (
   <div className="max-w-2xl mx-auto animate-in fade-in duration-500">
@@ -57,6 +58,21 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     generateQuestion();
   }, [word, allWords, aiMode, aiConfig]);
 
+  const speakWord = useCallback(() => {
+    if (!word?.word) return;
+    const utterance = new SpeechSynthesisUtterance(word.word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.8;
+    window.speechSynthesis.speak(utterance);
+  }, [word?.word]);
+
+  // 단어 로딩 완료 시 자동 발음 재생
+  useEffect(() => {
+    if (!loading && word) {
+      speakWord();
+    }
+  }, [loading, word, speakWord]);
+
   const handleSelectOption = (option) => {
     if (isAnswered) return;
     setSelectedOption(option);
@@ -68,6 +84,9 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     const correct = selectedOption === word.meaning_ko;
     setIsCorrect(correct);
     setIsAnswered(true);
+    
+    // 정답/오답 효과음 재생
+    playSound(correct ? 'SUCCESS' : 'FAIL');
   }, [isAnswered, selectedOption, word.meaning_ko]);
 
   const handleNextQuestion = useCallback(() => {
@@ -101,13 +120,6 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   useLayoutEffect(() => {
     if (isAnswered) window.scrollTo({ top: scrollPositionRef.current });
   }, [isAnswered]);
-
-  const speakWord = () => {
-    const utterance = new SpeechSynthesisUtterance(word.word);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.8;
-    window.speechSynthesis.speak(utterance);
-  };
 
   if (loading) return <QuizSkeleton />;
 

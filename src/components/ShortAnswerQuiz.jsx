@@ -1,6 +1,7 @@
-import React, { useState, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, HelpCircle } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
+import { playSound } from '../utils/soundEffects';
 
 export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig }) {
   const [userAnswer, setUserAnswer] = useState('');
@@ -9,6 +10,25 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const scrollPositionRef = useRef(0);
+
+  const speakWord = useCallback(() => {
+    if (!word?.word) return;
+    const utterance = new SpeechSynthesisUtterance(word.word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.8;
+    window.speechSynthesis.speak(utterance);
+  }, [word?.word]);
+
+  // 단어가 바뀔 때마다 초기화 및 발음 재생
+  useEffect(() => {
+    setUserAnswer('');
+    setIsAnswered(false);
+    setGradeResult(null);
+    setShowHint(false);
+    if (word) {
+      speakWord();
+    }
+  }, [word, speakWord]);
 
   const handleSubmit = async () => {
     if (!userAnswer.trim() || isAnswered || loading) return;
@@ -53,6 +73,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
 
       setGradeResult(result);
       setIsAnswered(true);
+      
+      // 정답/오답 효과음 재생
+      playSound(result.isCorrect ? 'SUCCESS' : 'FAIL');
 
       // 1.5초 후 다음 문제로
       setTimeout(() => {
@@ -76,13 +99,6 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     if (e.key === 'Enter' && !isAnswered) {
       handleSubmit();
     }
-  };
-
-  const speakWord = () => {
-    const utterance = new SpeechSynthesisUtterance(word.word);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.8;
-    window.speechSynthesis.speak(utterance);
   };
 
   const getHint = () => {

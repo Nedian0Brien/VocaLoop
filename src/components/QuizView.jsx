@@ -8,6 +8,7 @@ import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentencePlaceholder from './ToeflBuildSentencePlaceholder';
 import FolderQuizPicker from './FolderQuizPicker';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
+import { playSound } from '../utils/soundEffects';
 
 const TOEFL_QUESTION_STORAGE_KEY = 'vocaloop_toefl_question_count';
 const TOEFL_TARGET_STORAGE_KEY = 'vocaloop_toefl_target_score';
@@ -167,6 +168,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
       } else {
         // 퀴즈 종료
         setQuizState('result');
+        playSound('COMPLETE');
       }
     } else {
       // 오답: 현재 단어를 큐 뒤로 보내기
