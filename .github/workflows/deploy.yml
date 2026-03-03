@@ -20,11 +20,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
+      - name: Build project
+        run: npm run build
 
       # - name: Run Linter (Optional)
       #   run: npm run lint
@@ -61,11 +64,19 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 20 || nvm install 20
+            
             cd ~/project/voca-loop/VocaLoop
-            git pull origin main
+            
+            # 충돌 방지를 위해 강제 동기화
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # 의존성 설치 및 빌드
             npm install
             npm run build:clean
-            pm2 restart voca-loop --update-env
+            
+            # PM2 재시작
+            pm2 restart voca-loop --update-env || pm2 start server.js --name voca-loop
 
       - name: Notify Discord on Deploy Success
         if: success()
