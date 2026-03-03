@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Volume2, Check, X, Sparkles, AlertCircle, HelpCircle } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 import { playSound } from '../utils/soundEffects';
 
-export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig }) {
+export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true }) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
@@ -12,7 +12,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
   const scrollPositionRef = useRef(0);
 
   const speakWord = useCallback(() => {
-    if (!word?.word) return;
+    if (!word?.word || !soundEnabled) return;
     // 이전 재생 중인 음성이 있다면 중지
     window.speechSynthesis.cancel();
 
@@ -20,7 +20,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     utterance.lang = 'en-US';
     utterance.rate = 0.8;
     window.speechSynthesis.speak(utterance);
-  }, [word?.word]);
+  }, [word?.word, soundEnabled]);
 
   // 단어가 바뀔 때마다 초기화 및 발음 재생
   useEffect(() => {
@@ -28,10 +28,10 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     setIsAnswered(false);
     setGradeResult(null);
     setShowHint(false);
-    if (word) {
+    if (word && soundEnabled) {
       speakWord();
     }
-  }, [word, speakWord]);
+  }, [word, speakWord, soundEnabled]);
 
   const handleSubmit = async () => {
     if (!userAnswer.trim() || isAnswered || loading) return;
@@ -78,9 +78,11 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
       setIsAnswered(true);
       
       // 정답/오답 효과음 재생
-      playSound(result.isCorrect ? 'SUCCESS' : 'FAIL');
+      if (soundEnabled) {
+        playSound(result.isCorrect ? 'SUCCESS' : 'FAIL');
+      }
 
-      // 1.5초 후 다음 문제로
+      // 2초 후 다음 문제로
       setTimeout(() => {
         onAnswer(result.isCorrect);
       }, 2000);
@@ -92,12 +94,6 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     }
   };
 
-  useLayoutEffect(() => {
-    if (isAnswered) {
-      window.scrollTo({ top: scrollPositionRef.current });
-    }
-  }, [isAnswered]);
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !isAnswered) {
       handleSubmit();
@@ -106,218 +102,180 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
 
   const getHint = () => {
     const answer = word.meaning_ko;
-    // 첫 글자와 글자 수 힌트
     const firstChar = answer.charAt(0);
     const length = answer.length;
-    return `"${firstChar}"로 시작하는 ${length}글자`;
+    return `${firstChar}${'*'.repeat(length - 1)} (${length}글자)`;
   };
 
+  useLayoutEffect(() => {
+    if (isAnswered) {
+      window.scrollTo({ top: scrollPositionRef.current });
+    }
+  }, [isAnswered]);
+
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-2xl mx-auto animate-in fade-in duration-700">
       {/* 진행 상황 */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-          <span className="font-medium">
-            문제 {progress.current} / {progress.total}
-          </span>
-          <span>
-            정답: <span className="text-green-600 font-bold">{stats.correct}</span> |
-            오답: <span className="text-red-600 font-bold">{stats.wrong}</span>
-          </span>
+      <div className="mb-8 px-1">
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Quiz Session</p>
+            <h4 className="text-xl font-black text-gray-900 tracking-tight">
+              Q. <span className="text-blue-600">{progress.current}</span>
+              <span className="text-gray-300 mx-1.5 font-light">/</span>
+              <span className="text-gray-400 text-sm font-bold">{progress.total}</span>
+            </h4>
+          </div>
+          <div className="flex gap-4">
+            <div className="text-right">
+              <p className="text-[9px] font-bold text-green-500 uppercase tracking-widest mb-0.5">Correct</p>
+              <p className="text-lg font-black text-green-600 leading-none">{stats.correct}</p>
+            </div>
+            <div className="text-right border-l border-gray-100 pl-4">
+              <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest mb-1">Wrong</p>
+              <p className="text-lg font-black text-red-500 leading-none">{stats.wrong}</p>
+            </div>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-gray-100 rounded-full h-2 relative overflow-hidden">
           <div
-            className="bg-purple-600 h-full transition-all duration-300"
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000 ease-out relative"
             style={{ width: `${(progress.current / progress.total) * 100}%` }}
-          />
+          >
+            <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.2)_50%,transparent_100%)] animate-[shimmer_2s_infinite]" />
+          </div>
         </div>
       </div>
 
-      {/* 퀴즈 카드 */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        {/* 헤더 */}
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium opacity-90">주관식 문제</span>
-            <div className="flex items-center gap-2">
-              {aiMode && (
-                <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
-                  <Sparkles className="w-3 h-3" />
-                  AI 채점
-                </div>
-              )}
+      <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/[0.03]">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 sm:p-10 relative overflow-hidden">
+          <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
+              <span className="text-[9px] font-black uppercase tracking-wider text-blue-200/70">Short Answer</span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <h2 className="text-4xl font-bold">{word.word}</h2>
-            <button
-              onClick={speakWord}
-              className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-              title="발음 듣기"
-            >
-              <Volume2 className="w-5 h-5" />
-            </button>
-          </div>
-
-          {word.pronunciation && (
-            <p className="text-lg opacity-90 mt-2">{word.pronunciation}</p>
-          )}
-
-          {word.pos && (
-            <span className="inline-block mt-3 px-3 py-1 bg-white/20 rounded-full text-sm">
-              {word.pos}
-            </span>
-          )}
-        </div>
-
-        {/* 질문 */}
-        <div className="p-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">
-            이 단어의 뜻을 한글로 입력하세요
-          </h3>
-
-          {/* 입력창 */}
-          <div className="mb-6">
-            <input
-              type="text"
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={isAnswered || loading}
-              placeholder="예: 뜻밖의 행운"
-              className={`w-full px-6 py-4 text-lg border-2 rounded-xl transition-all ${
-                isAnswered
-                  ? gradeResult?.isCorrect
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-red-500 bg-red-50'
-                  : 'border-gray-300 focus:border-purple-500 focus:outline-none'
-              } ${isAnswered || loading ? 'cursor-not-allowed' : ''}`}
-              autoFocus
-            />
-
-            {/* 힌트 */}
-            {!isAnswered && (
-              <div className="mt-3">
-                {showHint ? (
-                  <div className="flex items-center gap-2 text-sm text-purple-600">
-                    <HelpCircle className="w-4 h-4" />
-                    <span>힌트: {getHint()}</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowHint(true)}
-                    className="text-sm text-gray-500 hover:text-purple-600 transition-colors"
-                  >
-                    💡 힌트 보기
-                  </button>
-                )}
+            {aiMode && (
+              <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase shadow-lg shadow-orange-900/20">
+                <Sparkles className="w-3 h-3" />
+                AI Grading
               </div>
             )}
           </div>
 
-          {/* 피드백 */}
-          {isAnswered && gradeResult && (
-            <div className={`p-4 rounded-xl mb-6 ${
-              gradeResult.isCorrect
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex items-start gap-3">
-                {gradeResult.isCorrect ? (
-                  <Check className="w-6 h-6 text-green-600 flex-shrink-0" />
-                ) : (
-                  <X className="w-6 h-6 text-red-600 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <h4 className={`font-bold mb-1 ${
-                    gradeResult.isCorrect ? 'text-green-900' : 'text-red-900'
-                  }`}>
-                    {gradeResult.isCorrect ? '정답입니다! 🎉' : '아쉽네요 😢'}
-                  </h4>
+          <div className="flex items-center gap-6 relative z-10">
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight font-serif">{word.word}</h2>
+            <button
+              onClick={speakWord}
+              disabled={!soundEnabled}
+              className={`w-11 h-11 bg-white/5 hover:bg-white/10 active:scale-90 rounded-xl transition-all border border-white/10 flex items-center justify-center group/btn ${!soundEnabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+            >
+              <Volume2 className="w-5 h-5 text-white/80 group-hover/btn:text-white transition-colors" />
+            </button>
+          </div>
 
-                  <div className="text-sm space-y-2">
-                    <p className="text-gray-700">
-                      정답: <strong>{word.meaning_ko}</strong>
-                    </p>
-                    <p className="text-gray-700">
-                      입력한 답: <strong>{userAnswer}</strong>
-                    </p>
+          <div className="flex items-center gap-3 mt-5 relative z-10">
+            {word.pronunciation && (
+              <p className="text-lg font-serif italic text-blue-200/50">{word.pronunciation}</p>
+            )}
+            {word.pos && (
+              <span className="px-2.5 py-0.5 bg-blue-500/10 rounded-md text-[9px] font-black uppercase tracking-wider border border-blue-400/10 text-blue-400/80">
+                {word.pos}
+              </span>
+            )}
+          </div>
+        </div>
 
-                    {gradeResult.feedback && (
-                      <p className="text-gray-600 mt-2">
-                        💬 {gradeResult.feedback}
-                      </p>
-                    )}
-
-                    {!aiMode && gradeResult.similarity && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                          <span>유사도</span>
-                          <span className="font-bold">{Math.round(gradeResult.similarity * 100)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${
-                              gradeResult.similarity >= 0.8 ? 'bg-green-500' :
-                              gradeResult.similarity >= 0.6 ? 'bg-yellow-500' :
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${gradeResult.similarity * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {word.definitions && word.definitions.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-200">
-                      💡 {word.definitions[0]}
-                    </p>
-                  )}
+        {/* Input Area */}
+        <div className="p-8 sm:p-10">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-7 bg-blue-600 rounded-full shadow-sm shadow-blue-200" />
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">한국어 뜻을 입력하세요</h3>
+              </div>
+              <button 
+                onClick={() => setShowHint(true)}
+                disabled={isAnswered || showHint}
+                className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline disabled:opacity-30 disabled:no-underline"
+              >
+                Get Hint
+              </button>
+            </div>
+            
+            <div className="relative group">
+              <input
+                type="text"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onKeyDown={handleKeyPress}
+                disabled={isAnswered || loading}
+                placeholder={showHint ? getHint() : "뜻을 입력하세요..."}
+                className={`w-full p-6 text-xl font-bold bg-slate-50 border-2 rounded-2xl transition-all outline-none ${
+                  isAnswered 
+                    ? gradeResult?.isCorrect 
+                      ? 'border-green-500 bg-green-50 text-green-900' 
+                      : 'border-red-500 bg-red-50 text-red-900'
+                    : 'border-slate-100 focus:border-blue-500 focus:bg-white focus:shadow-xl focus:shadow-blue-500/5'
+                }`}
+                autoFocus
+              />
+              {loading && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <div className="w-6 h-6 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback Section */}
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAnswered ? 'max-h-96 opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
+            <div className={`p-6 rounded-2xl flex items-center gap-5 border-2 ${
+              gradeResult?.isCorrect ? 'bg-green-100/50 border-green-200 text-green-900' : 'bg-red-100/50 border-red-200 text-red-900'
+            }`}>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                gradeResult?.isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              }`}>
+                {gradeResult?.isCorrect ? <Check className="w-8 h-8 stroke-[3px]" /> : <X className="w-8 h-8 stroke-[3px]" />}
+              </div>
+              <div>
+                <h4 className="text-xl font-black tracking-tight mb-0.5">
+                  {gradeResult?.isCorrect ? 'Great Job! 🎉' : 'Incorrect 📚'}
+                </h4>
+                <p className="text-base font-bold opacity-70">
+                  {gradeResult?.isCorrect ? gradeResult.feedback : <>정답은 <span className="text-red-700 font-black">{word.meaning_ko}</span> 입니다.</>}
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* 버튼 */}
+          {/* Main Action Button */}
           {!isAnswered && (
             <button
               onClick={handleSubmit}
               disabled={!userAnswer.trim() || loading}
-              className={`w-full py-4 rounded-xl font-bold transition-all ${
+              className={`w-full py-5 rounded-2xl font-black text-lg tracking-tight transition-all flex items-center justify-center gap-3 shadow-lg ${
                 userAnswer.trim() && !loading
-                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-slate-800 text-white hover:bg-slate-900 active:scale-[0.98]'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none'
               }`}
             >
               {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  <span>채점 중...</span>
-                </div>
+                '채점 중...'
               ) : (
-                userAnswer.trim() ? '정답 확인' : '답을 입력해주세요'
+                <>
+                  <span>정답 확인</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/20 rounded-lg text-[10px] font-black">
+                    <span className="text-sm leading-none">↵</span>
+                    <span>ENTER</span>
+                  </div>
+                </>
               )}
             </button>
           )}
         </div>
       </div>
-
-      {/* 안내 메시지 */}
-      {!isAnswered && aiMode && (
-        <div className="mt-6 bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-purple-900">
-              <p className="font-medium mb-1">AI 채점 모드</p>
-              <p className="text-purple-700">
-                의미가 유사하면 정답으로 인정됩니다. (예: "일시적인", "잠깐 동안의")
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -27,7 +27,7 @@ const QuizSkeleton = () => (
   </div>
 );
 
-export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, aiConfig }) {
+export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true }) {
   const [options, setOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -59,7 +59,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   }, [word, allWords, aiMode, aiConfig]);
 
   const speakWord = useCallback(() => {
-    if (!word?.word) return;
+    if (!word?.word || !soundEnabled) return;
     // 이전 재생 중인 음성이 있다면 중지
     window.speechSynthesis.cancel();
     
@@ -67,14 +67,14 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     utterance.lang = 'en-US';
     utterance.rate = 0.8;
     window.speechSynthesis.speak(utterance);
-  }, [word?.word]);
+  }, [word?.word, soundEnabled]);
 
   // 단어 로딩 완료 시 자동 발음 재생
   useEffect(() => {
-    if (!loading && word) {
+    if (!loading && word && soundEnabled) {
       speakWord();
     }
-  }, [loading, word, speakWord]);
+  }, [loading, word, speakWord, soundEnabled]);
 
   const handleSelectOption = (option) => {
     if (isAnswered) return;
@@ -89,8 +89,10 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
     setIsAnswered(true);
     
     // 정답/오답 효과음 재생
-    playSound(correct ? 'SUCCESS' : 'FAIL');
-  }, [isAnswered, selectedOption, word.meaning_ko]);
+    if (soundEnabled) {
+      playSound(correct ? 'SUCCESS' : 'FAIL');
+    }
+  }, [isAnswered, selectedOption, word.meaning_ko, soundEnabled]);
 
   const handleNextQuestion = useCallback(() => {
     if (!isAnswered) return;
@@ -145,7 +147,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
               <p className="text-lg font-black text-green-600 leading-none">{stats.correct}</p>
             </div>
             <div className="text-right border-l border-gray-100 pl-4">
-              <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest mb-0.5">Wrong</p>
+              <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest mb-1">Wrong</p>
               <p className="text-lg font-black text-red-500 leading-none">{stats.wrong}</p>
             </div>
           </div>
@@ -182,7 +184,8 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
             <h2 className="text-4xl sm:text-5xl font-black tracking-tight font-serif">{word.word}</h2>
             <button
               onClick={speakWord}
-              className="w-11 h-11 bg-white/5 hover:bg-white/10 active:scale-90 rounded-xl transition-all border border-white/10 flex items-center justify-center group/btn"
+              disabled={!soundEnabled}
+              className={`w-11 h-11 bg-white/5 hover:bg-white/10 active:scale-90 rounded-xl transition-all border border-white/10 flex items-center justify-center group/btn ${!soundEnabled ? 'opacity-20 cursor-not-allowed' : ''}`}
             >
               <Volume2 className="w-5 h-5 text-white/80 group-hover/btn:text-white transition-colors" />
             </button>

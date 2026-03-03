@@ -19,8 +19,9 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   
-  // TOEFL 전용 설정 상태
+  // 퀴즈 설정 상태
   const [toeflConfig, setToeflConfig] = useState({ questionCount: 5, targetScore: 100 });
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Dashboard Stats
   const dashboardStats = useMemo(() => {
@@ -65,11 +66,13 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
   }, []);
 
   const startQuiz = (config) => {
-    const { questionCount, selectedFolderIds, aiMode: sessionAiMode, targetScore } = config;
+    const { questionCount, selectedFolderIds, aiMode: sessionAiMode, targetScore, soundEnabled: sessionSoundEnabled } = config;
     
     if (sessionAiMode !== aiMode) {
       setAiMode(sessionAiMode);
     }
+    
+    setSoundEnabled(sessionSoundEnabled);
 
     if (!selectedMode) return;
     const modeId = selectedMode.id;
@@ -155,7 +158,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
         setCurrentIndex(currentIndex + 1);
       } else {
         setQuizState('result');
-        playSound('COMPLETE');
+        if (soundEnabled) playSound('COMPLETE');
       }
     } else {
       const newQueue = [...queue];
@@ -206,11 +209,19 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
               <span className="text-sm">종료하기</span>
             </button>
 
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
-              <span className={`w-2.5 h-2.5 rounded-full ${aiMode ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-300'}`} />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                AI Mode: {aiMode ? 'Active' : 'Off'}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
+                <Volume2 className={`w-3.5 h-3.5 ${soundEnabled ? 'text-blue-600' : 'text-slate-300'}`} />
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Sound: {soundEnabled ? 'On' : 'Off'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
+                <span className={`w-2.5 h-2.5 rounded-full ${aiMode ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-300'}`} />
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  AI: {aiMode ? 'On' : 'Off'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -243,6 +254,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
                   stats={stats}
                   aiMode={aiMode}
                   aiConfig={aiConfig}
+                  soundEnabled={soundEnabled}
                 />
               )}
 
@@ -254,6 +266,7 @@ export default function QuizView({ words, setView, db, user, aiMode, setAiMode, 
                   stats={stats}
                   aiMode={aiMode}
                   aiConfig={aiConfig}
+                  soundEnabled={soundEnabled}
                 />
               )}
 
