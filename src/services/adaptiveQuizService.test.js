@@ -3,6 +3,7 @@ import {
   buildAdaptiveQueue,
   createAdaptiveSession,
   getAdaptiveProgress,
+  startNextAdaptiveSet,
   resolveAdaptiveAnswer,
 } from './adaptiveQuizService';
 
@@ -60,5 +61,61 @@ describe('adaptiveQuizService', () => {
       total: 4,
       completed: 1,
     });
+  });
+
+  test('groups words into adjustable study sets and cycles modes inside the active set', () => {
+    const sixWords = Array.from({ length: 6 }, (_, index) => ({
+      id: `w${index + 1}`,
+      word: `word-${index + 1}`,
+      meaning_ko: `뜻 ${index + 1}`,
+    }));
+
+    const session = createAdaptiveSession(
+      sixWords,
+      ['multiple', 'short', 'complete-word'],
+      { setSize: 5, randomize: false }
+    );
+
+    expect(session.totalSets).toBe(2);
+    expect(session.currentSetIndex).toBe(0);
+    expect(session.currentSetWords).toHaveLength(5);
+    expect(session.queue).toHaveLength(15);
+    expect(session.queue.slice(0, 6).map((task) => task.mode)).toEqual([
+      'multiple',
+      'short',
+      'complete-word',
+      'multiple',
+      'short',
+      'complete-word',
+    ]);
+    expect(new Set(session.queue.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(15);
+  });
+
+  test('pauses at each study set boundary and starts the next set on request', () => {
+    const sixWords = Array.from({ length: 6 }, (_, index) => ({
+      id: `w${index + 1}`,
+      word: `word-${index + 1}`,
+      meaning_ko: `뜻 ${index + 1}`,
+    }));
+
+    let session = createAdaptiveSession(
+      sixWords,
+      ['multiple', 'short', 'complete-word'],
+      { setSize: 5, randomize: false }
+    );
+
+    for (let i = 0; i < 15; i += 1) {
+      session = resolveAdaptiveAnswer(session, true);
+    }
+
+    expect(session.isSetComplete).toBe(true);
+    expect(session.isComplete).toBe(false);
+    expect(session.queue).toEqual([]);
+
+    const nextSet = startNextAdaptiveSet(session);
+    expect(nextSet.currentSetIndex).toBe(1);
+    expect(nextSet.currentSetWords).toHaveLength(1);
+    expect(nextSet.queue).toHaveLength(3);
+    expect(nextSet.isSetComplete).toBe(false);
   });
 });

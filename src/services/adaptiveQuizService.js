@@ -1,4 +1,5 @@
 export const ADAPTIVE_MODE_ORDER = ['multiple', 'short', 'complete-word'];
+const DEFAULT_SET_SIZE = 5;
 
 const getWordKey = (word) => String(word?.id ?? word?.word ?? '');
 
@@ -17,15 +18,96 @@ export function buildAdaptiveQueue(words = [], modes = ADAPTIVE_MODE_ORDER) {
   }));
 }
 
-export function createAdaptiveSession(words = [], modes = ADAPTIVE_MODE_ORDER) {
+function clampSetSize(setSize, wordCount) {
+  const n = Number(setSize);
+  if (!Number.isFinite(n)) return Math.min(DEFAULT_SET_SIZE, Math.max(1, wordCount));
+  return Math.max(1, Math.min(Math.round(n), Math.max(1, wordCount)));
+}
+
+function chunkWords(words, setSize) {
+  const chunks = [];
+  for (let i = 0; i < words.length; i += setSize) {
+    chunks.push(words.slice(i, i + setSize));
+  }
+  return chunks;
+}
+
+function lightlyRandomize(tasks, rng = Math.random, probability = 0.25) {
+  const next = [...tasks];
+  for (let i = 0; i < next.length - 1; i += 1) {
+    if (rng() < probability) {
+      const tmp = next[i];
+      next[i] = next[i + 1];
+      next[i + 1] = tmp;
+      i += 1;
+    }
+  }
+  return next;
+}
+
+function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
   const selectedModes = normalizeAdaptiveModes(modes);
+  const tasks = [];
+
+  for (let round = 0; round < setWords.length; round += 1) {
+    selectedModes.forEach((mode, stageIndex) => {
+      const word = setWords[(round + stageIndex) % setWords.length];
+      tasks.push({
+        word,
+        mode,
+        stageIndex,
+        wrongStreak: 0,
+      });
+    });
+  }
+
+  if (!options.randomize) return tasks;
+  return lightlyRandomize(tasks, options.rng, options.randomizeProbability);
+}
+
+function buildSetState(session, setIndex) {
+  const currentSetWords = session.studySets[setIndex] || [];
+  const queue = buildStudySetQueue(currentSetWords, session.modes, {
+    randomize: session.randomize,
+    rng: session.rng,
+    randomizeProbability: session.randomizeProbability,
+  });
+
   return {
+    ...session,
+    currentSetIndex: setIndex,
+    currentSetWords,
+    queue,
+    totalStages: currentSetWords.length * session.modes.length,
+    completedStages: 0,
+    isSetComplete: currentSetWords.length === 0,
+    isComplete: currentSetWords.length === 0 && setIndex >= session.totalSets - 1,
+  };
+}
+
+export function createAdaptiveSession(words = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
+  const selectedModes = normalizeAdaptiveModes(modes);
+  const setSize = clampSetSize(options.setSize ?? DEFAULT_SET_SIZE, words.length);
+  const studySets = chunkWords(words, setSize);
+  const baseSession = {
     modes: selectedModes,
-    totalStages: words.length * selectedModes.length,
-    queue: buildAdaptiveQueue(words, selectedModes),
+    setSize,
+    studySets,
+    totalSets: studySets.length,
+    currentSetIndex: 0,
+    currentSetWords: studySets[0] || [],
+    randomize: options.randomize === true,
+    rng: options.rng,
+    randomizeProbability: options.randomizeProbability,
+    totalStages: 0,
+    queue: [],
     completedStages: 0,
     isComplete: words.length === 0,
+    isSetComplete: words.length === 0,
   };
+
+  if (words.length === 0) return baseSession;
+  return buildSetState(baseSession, 0);
 }
 
 export function resolveAdaptiveAnswer(session, isCorrect) {
@@ -42,20 +124,17 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
 
   if (isCorrect) {
     const nextCompletedStages = currentCompletedStages + 1;
-    const nextStageIndex = currentStageIndex + 1;
-    const nextTask =
-      nextStageIndex < modes.length
-        ? { word: currentTask.word, stageIndex: nextStageIndex, wrongStreak: 0 }
-        : null;
+    const setDone = remainingQueue.length === 0;
+    const allDone = setDone && (session.currentSetIndex || 0) >= (session.totalSets || 1) - 1;
 
-    const nextQueue = nextTask ? [...remainingQueue, nextTask] : remainingQueue;
     return {
       ...session,
       modes,
       totalStages: session.totalStages,
-      queue: nextQueue,
+      queue: remainingQueue,
       completedStages: nextCompletedStages,
-      isComplete: nextQueue.length === 0,
+      isSetComplete: setDone && !allDone,
+      isComplete: allDone,
     };
   }
 
@@ -71,6 +150,7 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
 
   const nextTask = {
     word: currentTask.word,
+    mode: modes[nextStageIndex],
     stageIndex: nextStageIndex,
     wrongStreak: shouldStepDown ? 0 : nextWrongStreak,
   };
@@ -79,10 +159,20 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
     ...session,
     modes,
     totalStages: session.totalStages,
-    queue: [...remainingQueue, nextTask],
+    queue: [nextTask, ...remainingQueue],
     completedStages: Math.max(0, currentCompletedStages - completedRollback),
+    isSetComplete: false,
     isComplete: false,
   };
+}
+
+export function startNextAdaptiveSet(session) {
+  if (!session?.isSetComplete) return session;
+  const nextSetIndex = (session.currentSetIndex || 0) + 1;
+  if (nextSetIndex >= (session.totalSets || 0)) {
+    return { ...session, isSetComplete: false, isComplete: true, queue: [] };
+  }
+  return buildSetState({ ...session, isSetComplete: false }, nextSetIndex);
 }
 
 export function getAdaptiveProgress(session) {

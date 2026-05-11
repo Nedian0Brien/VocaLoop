@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   TARGET_SCORE:   'vocaloop_quiz_target_score',
   SOUND_ENABLED:  'vocaloop_quiz_sound_enabled',
   MIXED_MODES:    'vocaloop_quiz_mixed_modes',
+  STUDY_SET_SIZE: 'vocaloop_quiz_study_set_size',
   // 새 옵션 — TOEFL 전용 다양성 강화
   VOCAB_MODE:     'vocaloop_quiz_vocab_mode',     // 'off' | 'all' | 'folders'
   VOCAB_FOLDERS:  'vocaloop_quiz_vocab_folders',  // JSON [number]
@@ -27,6 +28,7 @@ const STORAGE_KEYS = {
 const VOCAB_SAMPLE_MIN = 5;
 const VOCAB_SAMPLE_MAX = 25;
 const VOCAB_SAMPLE_DEFAULT = 12;
+const DEFAULT_STUDY_SET_SIZE = 5;
 const DEFAULT_MIXED_MODES = ['multiple', 'short', 'complete-word'];
 const MIXED_MODE_OPTIONS = [
   {
@@ -202,6 +204,7 @@ export default function QuizConfigModal({
   const [aiMode, setAiMode] = useState(initialAiMode);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [mixedModeIds, setMixedModeIds] = useState(DEFAULT_MIXED_MODES);
+  const [studySetSize, setStudySetSize] = useState(DEFAULT_STUDY_SET_SIZE);
 
   // 새 옵션: 단어 소스
   const [vocabMode, setVocabMode] = useState('off'); // 'off' | 'all' | 'folders'
@@ -232,6 +235,13 @@ export default function QuizConfigModal({
     if (savedAiMode !== null) setAiMode(savedAiMode === 'true');
     if (savedTarget) setTargetScore(Number(savedTarget));
     if (savedSound !== null) setSoundEnabled(savedSound === 'true');
+    const savedStudySetSizeRaw = localStorage.getItem(STORAGE_KEYS.STUDY_SET_SIZE);
+    const savedStudySetSize = Number(savedStudySetSizeRaw);
+    setStudySetSize(
+      savedStudySetSizeRaw !== null && Number.isFinite(savedStudySetSize)
+        ? Math.max(1, Math.round(savedStudySetSize))
+        : DEFAULT_STUDY_SET_SIZE
+    );
     try {
       const savedMixedModes = JSON.parse(localStorage.getItem(STORAGE_KEYS.MIXED_MODES) || '[]');
       const normalized = Array.isArray(savedMixedModes)
@@ -294,14 +304,22 @@ export default function QuizConfigModal({
     : words;
 
   const maxQuestions = isToefl ? 10 : Math.max(1, filteredWords.length);
+  const maxStudySetSize = Math.max(1, filteredWords.length);
+  const countValue = isMixed ? Math.min(studySetSize, maxStudySetSize) : questionCount;
+  const countTitle = isMixed ? '학습 세트 크기' : '문항 개수';
+  const countSubtitle = isMixed ? '한 번에 집중할 단어 묶음 크기를 정하세요' : '퀴즈당 출제될 문제 수를 정하세요';
+  const countBadge = isMixed ? 'Words' : 'Items';
 
   useEffect(() => {
     if (isOpen) {
       if (questionCount > maxQuestions && !isToefl) {
         setQuestionCount(Math.min(10, maxQuestions));
       }
+      if (isMixed && studySetSize > maxStudySetSize) {
+        setStudySetSize(maxStudySetSize);
+      }
     }
-  }, [isOpen, maxQuestions, isToefl]);
+  }, [isOpen, isMixed, maxQuestions, maxStudySetSize, questionCount, studySetSize, isToefl]);
 
   // TOEFL 단어 풀 — 선택된 source 에 따라 결정
   const toeflVocabPool = useMemo(() => {
@@ -371,7 +389,10 @@ export default function QuizConfigModal({
     localStorage.setItem(STORAGE_KEYS.AI_MODE, aiMode.toString());
     localStorage.setItem(STORAGE_KEYS.TARGET_SCORE, targetScore.toString());
     localStorage.setItem(STORAGE_KEYS.SOUND_ENABLED, soundEnabled.toString());
-    if (isMixed) localStorage.setItem(STORAGE_KEYS.MIXED_MODES, JSON.stringify(mixedModeIds));
+    if (isMixed) {
+      localStorage.setItem(STORAGE_KEYS.MIXED_MODES, JSON.stringify(mixedModeIds));
+      localStorage.setItem(STORAGE_KEYS.STUDY_SET_SIZE, String(countValue));
+    }
 
     if (isToefl) {
       localStorage.setItem(STORAGE_KEYS.VOCAB_MODE, vocabMode);
@@ -389,6 +410,7 @@ export default function QuizConfigModal({
       targetScore,
       soundEnabled,
       adaptiveModes: isMixed ? mixedModeIds : [],
+      studySetSize: isMixed ? countValue : 0,
       // TOEFL 다양성 옵션
       vocabSource: isToefl
         ? { mode: vocabMode, folderIds: vocabFolderIds, sampleSize: vocabSampleSize, pool: toeflVocabPool }
@@ -583,19 +605,21 @@ export default function QuizConfigModal({
             <section className="space-y-6">
               <SectionHead
                 icon={Hash}
-                title="문항 개수"
-                subtitle="퀴즈당 출제될 문제 수를 정하세요"
+                title={countTitle}
+                subtitle={countSubtitle}
               />
 
               <div className="space-y-6 px-1 pt-4">
                 <div className="flex items-center justify-between">
                   <div className="relative">
-                    <span className="text-5xl font-black text-surface-900 tracking-tighter">{questionCount}</span>
-                    <Badge tone="brand" size="xs" className="absolute -top-4 -right-12">Items</Badge>
+                    <span className="text-5xl font-black text-surface-900 tracking-tighter">{countValue}</span>
+                    <Badge tone="brand" size="xs" className="absolute -top-4 -right-12">{countBadge}</Badge>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-1">Max Questions</p>
-                    <p className="text-sm font-black text-surface-600">{maxQuestions}</p>
+                    <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-1">
+                      {isMixed ? 'Total Words' : 'Max Questions'}
+                    </p>
+                    <p className="text-sm font-black text-surface-600">{isMixed ? maxStudySetSize : maxQuestions}</p>
                   </div>
                 </div>
 
@@ -603,17 +627,26 @@ export default function QuizConfigModal({
                   <input
                     type="range"
                     min={1}
-                    max={maxQuestions}
-                    value={questionCount}
-                    onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    aria-label="문항 개수"
+                    max={isMixed ? maxStudySetSize : maxQuestions}
+                    value={countValue}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      if (isMixed) setStudySetSize(next);
+                      else setQuestionCount(next);
+                    }}
+                    aria-label={countTitle}
                     className="w-full h-3 bg-surface-100 rounded-pill appearance-none cursor-pointer accent-brand-600"
                   />
                   <div className="flex justify-between mt-4 text-2xs font-black text-surface-300 uppercase tracking-widest">
-                    <span>1 Unit</span>
-                    <span>{isToefl ? 'Limit 10' : 'Adaptive Max'}</span>
+                    <span>{isMixed ? '1 Word' : '1 Unit'}</span>
+                    <span>{isMixed ? 'Set Size' : isToefl ? 'Limit 10' : 'Adaptive Max'}</span>
                   </div>
                 </div>
+                {isMixed && (
+                  <p className="text-xs font-bold text-surface-500 leading-relaxed">
+                    전체 단어를 {countValue}개씩 묶어 세트별로 진행합니다. 각 세트가 끝나면 잠깐 멈추고 다음 학습으로 넘어갈 수 있습니다.
+                  </p>
+                )}
               </div>
             </section>
 

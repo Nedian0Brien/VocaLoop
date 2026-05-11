@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Brain, ArrowLeft, Volume2 } from './Icons';
+import { Brain, ArrowLeft, Volume2, Trophy, Sparkles } from './Icons';
 import QuizDashboard from './QuizDashboard';
 import QuizConfigModal from './QuizConfigModal';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
@@ -11,10 +11,11 @@ import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
-import { Button } from '../design-system';
+import { Badge, Button, Card } from '../design-system';
 import {
   createAdaptiveSession,
   getAdaptiveProgress,
+  startNextAdaptiveSet,
   resolveAdaptiveAnswer,
 } from '../services/adaptiveQuizService';
 
@@ -38,6 +39,53 @@ const StatusChip = ({ active, label, dot, icon: Icon }) => (
     </span>
   </div>
 );
+
+const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
+  const setNumber = (session?.currentSetIndex || 0) + 1;
+  const totalSets = session?.totalSets || 1;
+  const setWordCount = session?.currentSetWords?.length || 0;
+
+  return (
+    <Card variant="elevated" radius="hero" padding="xl" className="max-w-2xl mx-auto text-center shadow-[var(--shadow-elevated)]">
+      <div className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-success-50 text-success-600 flex items-center justify-center shadow-[var(--shadow-soft)]">
+        <Trophy className="w-10 h-10" aria-hidden="true" />
+      </div>
+      <Badge tone="success" style="dot" size="md" className="mb-5">
+        Study Break
+      </Badge>
+      <h3 className="text-3xl sm:text-4xl font-black text-surface-900 tracking-tight mb-3">
+        학습 세트 {setNumber} 완료
+      </h3>
+      <p className="text-sm sm:text-base font-bold text-surface-500 leading-relaxed mb-8">
+        {setWordCount}개 단어의 복합 퀴즈를 끝냈습니다. 잠깐 쉬고 다음 세트로 이어가세요.
+      </p>
+
+      <div className="grid grid-cols-3 gap-3 mb-8">
+        <div className="rounded-xl bg-surface-50 border border-surface-100 p-4">
+          <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-1">Set</p>
+          <p className="text-xl font-black text-brand-600">{setNumber}/{totalSets}</p>
+        </div>
+        <div className="rounded-xl bg-success-50 border border-success-100 p-4">
+          <p className="text-2xs font-black text-success-500 uppercase tracking-widest mb-1">Correct</p>
+          <p className="text-xl font-black text-success-700">{stats.correct}</p>
+        </div>
+        <div className="rounded-xl bg-danger-50 border border-danger-100 p-4">
+          <p className="text-2xs font-black text-danger-400 uppercase tracking-widest mb-1">Wrong</p>
+          <p className="text-xl font-black text-danger-600">{stats.wrong}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button variant="secondary" size="lg" fullWidth onClick={onFinish}>
+          여기서 마치기
+        </Button>
+        <Button variant="primary" size="lg" fullWidth onClick={onContinue} rightIcon={Sparkles}>
+          다음 학습으로
+        </Button>
+      </div>
+    </Card>
+  );
+};
 
 export default function QuizView({ words, setView, user, aiMode, setAiMode, aiConfig, folders = [], onUpdateLearningRate }) {
   const [quizState, setQuizState] = useState('select');
@@ -137,6 +185,7 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
       vocabSource,
       topicSelection,
       adaptiveModes,
+      studySetSize,
     } = config;
 
     if (sessionAiMode !== aiMode) setAiMode(sessionAiMode);
@@ -170,7 +219,10 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
     const limitedQueue = shuffledWords.slice(0, Math.min(questionCount, targetWords.length));
 
     if (modeId === 'mixed') {
-      setAdaptiveSession(createAdaptiveSession(limitedQueue, adaptiveModes));
+      setAdaptiveSession(createAdaptiveSession(shuffledWords, adaptiveModes, {
+        setSize: studySetSize || 5,
+        randomize: true,
+      }));
       setQueue([]);
     } else {
       setQueue(limitedQueue);
@@ -261,9 +313,17 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
   };
 
   const resetQuiz = () => handleBackToModeSelect();
+  const handleNextStudySet = () => {
+    setAdaptiveSession((current) => startNextAdaptiveSet(current));
+  };
+  const handleFinishAtStudyBreak = () => {
+    setQuizState('result');
+    if (soundEnabled) playSound('COMPLETE');
+  };
   const adaptiveTask = selectedMode?.id === 'mixed' ? adaptiveSession?.queue?.[0] : null;
   const adaptiveMode = adaptiveTask ? adaptiveSession?.modes?.[adaptiveTask.stageIndex] : null;
   const adaptiveProgress = adaptiveSession ? getAdaptiveProgress(adaptiveSession) : null;
+  const isStudySetBreak = selectedMode?.id === 'mixed' && adaptiveSession?.isSetComplete;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px]">
@@ -308,7 +368,14 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
           </div>
 
           {/* 컨텐츠 */}
-          {(!selectedMode || (!selectedMode.id?.startsWith('toefl') && selectedMode.id !== 'mixed' && (!queue || queue.length === 0 || !queue[currentIndex])) || (selectedMode.id === 'mixed' && !adaptiveTask)) ? (
+          {isStudySetBreak ? (
+            <StudySetBreak
+              session={adaptiveSession}
+              stats={stats}
+              onContinue={handleNextStudySet}
+              onFinish={handleFinishAtStudyBreak}
+            />
+          ) : (!selectedMode || (!selectedMode.id?.startsWith('toefl') && selectedMode.id !== 'mixed' && (!queue || queue.length === 0 || !queue[currentIndex])) || (selectedMode.id === 'mixed' && !adaptiveTask)) ? (
             <div className="flex flex-col items-center justify-center py-24 bg-white rounded-hero border border-surface-100 shadow-[var(--shadow-elevated)]">
               <div className="w-20 h-20 bg-surface-50 rounded-2xl flex items-center justify-center mb-6">
                 <Brain className="w-10 h-10 text-surface-200 animate-pulse" aria-hidden="true" />

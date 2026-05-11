@@ -51,6 +51,8 @@ import QuizView from './QuizView';
 
 afterEach(() => {
     cleanup();
+    localStorage.clear();
+    vi.restoreAllMocks();
 });
 
 describe('QuizView', () => {
@@ -91,6 +93,8 @@ describe('QuizView', () => {
     });
 
     test('advances mixed quiz through selected difficulty stages', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
         render(
             <QuizView
                 words={[
@@ -123,5 +127,45 @@ describe('QuizView', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         expect(screen.getByText('complete-word-quiz')).toBeTruthy();
+    });
+
+    test('pauses mixed quiz after each five-word study set and continues to the next set', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+        const words = Array.from({ length: 6 }, (_, index) => ({
+            id: index + 1,
+            word: `word-${index + 1}`,
+            meaning_ko: `뜻 ${index + 1}`,
+            learningRate: 0,
+            createdAt: '2026-04-01T00:00:00Z',
+            stats: { wrong_count: 0, review_count: 0 },
+        }));
+
+        render(
+            <QuizView
+                words={words}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={false}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('AI 복합 퀴즈'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+
+        for (let i = 0; i < 15; i += 1) {
+            fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
+        }
+
+        expect(screen.getByRole('heading', { name: '학습 세트 1 완료' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: '다음 학습으로' })).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: '다음 학습으로' }));
+        expect(screen.queryByRole('heading', { name: '학습 세트 1 완료' })).toBeNull();
+        expect(screen.getByText(/-quiz$/)).toBeTruthy();
     });
 });

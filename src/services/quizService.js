@@ -116,6 +116,36 @@ export async function generateMultipleChoiceOptions(word, allWords, useAI = fals
   return generateLocalMultipleChoice(word, allWords);
 }
 
+function normalizeAnswerText(value = '') {
+  return String(value).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getMeaningCandidates(correctAnswer = '') {
+  return String(correctAnswer)
+    .split(',')
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+}
+
+function compareShortAnswer(userAnswer, correctAnswer) {
+  const user = normalizeAnswerText(userAnswer);
+  const correct = normalizeAnswerText(correctAnswer);
+
+  if (user === correct) {
+    return { similarity: 1.0, isCorrect: true, matchedAnswer: correctAnswer.trim() };
+  }
+
+  const distance = levenshteinDistance(user, correct);
+  const maxLen = Math.max(user.length, correct.length);
+  const similarity = maxLen === 0 ? 0 : 1 - (distance / maxLen);
+
+  return {
+    similarity,
+    isCorrect: similarity >= 0.8,
+    matchedAnswer: correctAnswer.trim(),
+  };
+}
+
 /**
  * 주관식 답안 채점 (Levenshtein Distance)
  * @param {String} userAnswer - 사용자 답안
@@ -123,24 +153,16 @@ export async function generateMultipleChoiceOptions(word, allWords, useAI = fals
  * @returns {Object} - { similarity: 0-1, isCorrect: boolean }
  */
 export function gradeShortAnswer(userAnswer, correctAnswer) {
-  // 공백 제거 및 소문자 변환
-  const user = userAnswer.trim().toLowerCase();
-  const correct = correctAnswer.trim().toLowerCase();
+  const candidates = getMeaningCandidates(correctAnswer);
+  const answersToCheck = candidates.length > 0 ? candidates : [correctAnswer];
+  const results = answersToCheck.map((answer) => compareShortAnswer(userAnswer, answer));
+  const best = results.reduce((max, result) => (
+    result.similarity > max.similarity ? result : max
+  ), { similarity: 0, isCorrect: false, matchedAnswer: '' });
 
-  // 완전 일치
-  if (user === correct) {
-    return { similarity: 1.0, isCorrect: true };
-  }
-
-  // Levenshtein Distance 계산
-  const distance = levenshteinDistance(user, correct);
-  const maxLen = Math.max(user.length, correct.length);
-  const similarity = 1 - (distance / maxLen);
-
-  // 80% 이상 유사하면 정답으로 인정
-  const isCorrect = similarity >= 0.8;
-
-  return { similarity, isCorrect };
+  return best.isCorrect
+    ? { ...best, isCorrect: true }
+    : { similarity: best.similarity, isCorrect: false, matchedAnswer: best.matchedAnswer };
 }
 
 /**
@@ -188,6 +210,14 @@ function levenshteinDistance(a, b) {
  * @returns {Promise<Object>} - { isCorrect: boolean, feedback: string }
  */
 export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
+  const localResult = gradeShortAnswer(userAnswer, correctAnswer);
+  if (localResult.isCorrect) {
+    return {
+      isCorrect: true,
+      feedback: '정답입니다!',
+      matchedAnswer: localResult.matchedAnswer,
+    };
+  }
 
   const prompt = `당신은 영어 단어 학습 채점 전문가입니다.
 
@@ -197,6 +227,7 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
 - 학습자 답안: ${userAnswer}
 
 학습자의 답안이 의미상 정답과 일치하는지 판단해주세요.
+- 정답이 쉼표(,)로 여러 뜻을 포함한다면, 그중 하나만 의미상 맞아도 정답입니다.
 - 완전히 같은 의미: 정답
 - 유사한 의미이지만 핵심이 다름: 오답
 - 철자 오류가 있지만 의도는 명확함: 정답 (단, 오타 지적)
