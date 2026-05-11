@@ -1,16 +1,23 @@
+const appRoot = __dirname;
+
 module.exports = {
     apps: [
         {
             name: 'voca-loop',
-            script: 'server.js',
+            cwd: appRoot,
+            script: 'python3',
+            args: '-m uvicorn backend.app.main:app --host 0.0.0.0 --port 3050',
+            interpreter: 'none',
             instances: 1,
             autorestart: true,
             watch: false,
             max_memory_restart: '1G',
             env: {
                 NODE_ENV: 'production',
-                PORT: 3000
-            }
-        }
-    ]
+                ENVIRONMENT: 'production',
+                PORT: 3050,
+                PYTHONPATH: appRoot,
+            },
+        },
+    ],
 };

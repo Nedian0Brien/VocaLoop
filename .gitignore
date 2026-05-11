@@ -29,10 +29,20 @@ dist
 dist-ssr
 *.local
 
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local app runtime data
+*.db
+uploads/
+
 # Environment variables
 .env
 .env.*
 !.env.example
+.auth_secret
 
 # Vite
 vite.config.js.timestamp-*

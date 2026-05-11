@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .db import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    settings: Mapped[UserSettings | None] = relationship(back_populates="user", cascade="all, delete-orphan", uselist=False)
+    folders: Mapped[list[Folder]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    words: Mapped[list[Word]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    toefl_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ai_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="gemini")
+    ai_model: Mapped[str] = mapped_column(String(100), nullable=False, default="gemini-2.0-flash")
+    gemini_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    openai_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    claude_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="settings")
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    color: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="folders")
+    words: Mapped[list[Word]] = relationship(back_populates="folder")
+
+
+class Word(Base):
+    __tablename__ = "words"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    folder_id: Mapped[int | None] = mapped_column(ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True)
+    word: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    meaning_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pronunciation: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pos: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    definitions: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    definitions_ko: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    examples: Mapped[list[dict[str, str]]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    synonyms: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    nuance: Mapped[str | None] = mapped_column(Text, nullable=True)
+    learning_rate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="new")
+    stats: Mapped[dict[str, int]] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="words")
+    folder: Mapped[Folder | None] = relationship(back_populates="words")

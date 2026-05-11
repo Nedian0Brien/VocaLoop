@@ -23,8 +23,19 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install dependencies
         run: npm install
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Run backend tests
+        run: pytest backend/tests -q
 
       - name: Build project
         run: npm run build
@@ -65,18 +76,19 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 20 || nvm install 20
             
-            cd ~/project/voca-loop/VocaLoop
-            
+            cd ~/project/VocaLoop
+
             # 충돌 방지를 위해 강제 동기화
             git fetch origin main
             git reset --hard origin/main
-            
+
             # 의존성 설치 및 빌드
             npm install
             npm run build:clean
-            
+            python3 -m pip install --user -r backend/requirements.txt
+
             # PM2 재시작
-            pm2 restart voca-loop --update-env || pm2 start server.js --name voca-loop
+            pm2 restart voca-loop --update-env || pm2 start ecosystem.config.cjs --only voca-loop
 
       - name: Notify Discord on Deploy Success
         if: success()

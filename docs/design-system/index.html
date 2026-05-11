@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VocaLoop · Design System</title>
+  <meta name="description" content="VocaLoop 디자인 시스템 — Modern Bold Editorial. 토큰, 프리미티브, 합성 패턴 비주얼 스타일가이드." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" />
+
+  <style>
+    /* =========================================================
+     * VocaLoop Design Tokens — 1:1 with src/design-system/tokens.js
+     * =======================================================*/
+    :root {
+      /* Brand */
+      --color-brand-50:  #EFF6FF; --color-brand-100: #DBEAFE; --color-brand-200: #BFDBFE;
+      --color-brand-300: #93C5FD; --color-brand-400: #60A5FA; --color-brand-500: #3B82F6;
+      --color-brand-600: #2563EB; --color-brand-700: #1D4ED8; --color-brand-800: #1E40AF;
+      --color-brand-900: #1E3A8A;
+      /* Accent */
+      --color-accent-50:  #FAF5FF; --color-accent-100: #F3E8FF;
+      --color-accent-400: #A78BFA; --color-accent-500: #8B5CF6;
+      --color-accent-600: #7C3AED; --color-accent-700: #6D28D9;
+      /* Indigo pair */
+      --color-indigo-500: #6366F1; --color-indigo-600: #4F46E5; --color-indigo-700: #4338CA;
+      /* Surface */
+      --color-surface-0:   #FFFFFF; --color-surface-50:  #F8FAFC; --color-surface-100: #F1F5F9;
+      --color-surface-200: #E2E8F0; --color-surface-300: #CBD5E1; --color-surface-400: #94A3B8;
+      --color-surface-500: #64748B; --color-surface-600: #475569; --color-surface-700: #334155;
+      --color-surface-800: #1E293B; --color-surface-900: #0F172A;
+      /* Semantic */
+      --color-success-50: #ECFDF5; --color-success-500: #10B981; --color-success-600: #059669; --color-success-700: #047857;
+      --color-warning-50: #FFFBEB; --color-warning-500: #F59E0B; --color-warning-600: #D97706; --color-warning-700: #B45309;
+      --color-danger-50:  #FEF2F2; --color-danger-500:  #EF4444; --color-danger-600:  #DC2626; --color-danger-700:  #B91C1C;
+
+      /* Typography */
+      --font-display: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+      /* Radius */
+      --radius-xs: 0.5rem; --radius-sm: 0.75rem; --radius-md: 1rem; --radius-lg: 1.25rem;
+      --radius-xl: 1.5rem; --radius-2xl: 2rem; --radius-3xl: 3rem; --radius-pill: 9999px;
+
+      /* Shadow */
+      --shadow-soft:        0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
+      --shadow-card:        0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+      --shadow-card-hover:  0 10px 20px -5px rgb(15 23 42 / 0.10), 0 4px 8px -4px rgb(15 23 42 / 0.06);
+      --shadow-elevated:    0 20px 40px -10px rgb(15 23 42 / 0.15);
+      --shadow-floating:    0 30px 60px -15px rgb(15 23 42 / 0.25);
+      --shadow-glow-brand:  0 10px 30px -10px rgb(37 99 235 / 0.35);
+      --shadow-glow-accent: 0 10px 30px -10px rgb(124 58 237 / 0.35);
+      --shadow-glow-indigo: 0 10px 30px -10px rgb(79 70 229 / 0.35);
+
+      /* Motion */
+      --ease-decel:  cubic-bezier(0, 0, 0.2, 1);
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
+    body {
+      margin: 0;
+      font-family: var(--font-display);
+      background: var(--color-surface-50);
+      color: var(--color-surface-900);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    /* =========================================================
+     * Layout
+     * =======================================================*/
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    .sidebar {
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      background: var(--color-surface-0);
+      border-right: 1px solid var(--color-surface-100);
+      padding: 2rem 1.5rem;
+    }
+    @media (max-width: 900px) { .sidebar { position: relative; height: auto; } }
+
+    .brand {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-weight: 900; font-size: 1.25rem; color: var(--color-brand-700);
+      letter-spacing: -0.02em; margin-bottom: 2rem;
+    }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-indigo-600));
+      display: grid; place-items: center; color: white; font-weight: 900;
+    }
+
+    .nav { display: flex; flex-direction: column; gap: 0.125rem; }
+    .nav .group {
+      font-size: 0.625rem; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.18em; color: var(--color-surface-400);
+      padding: 1rem 0.75rem 0.5rem;
+    }
+    .nav a {
+      display: block; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 600; color: var(--color-surface-600);
+      text-decoration: none; transition: all 150ms ease-out;
+    }
+    .nav a:hover { background: var(--color-surface-100); color: var(--color-surface-900); }
+
+    main { padding: 3rem clamp(1.5rem, 5vw, 4rem); max-width: 1280px; }
+    section { margin-bottom: 6rem; scroll-margin-top: 4rem; }
+    .section-eyebrow {
+      display: inline-block; font-size: 0.625rem; font-weight: 900;
+      text-transform: uppercase; letter-spacing: 0.18em; color: var(--color-brand-600);
+      background: var(--color-brand-50); padding: 0.375rem 0.75rem;
+      border-radius: var(--radius-pill); margin-bottom: 1rem;
+    }
+    .section-title { font-size: 2.25rem; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 0.75rem; }
+    .section-lead  { font-size: 1.125rem; color: var(--color-surface-500); font-weight: 500; max-width: 60ch; margin: 0 0 2.5rem; }
+    .subsection-title { font-size: 1.125rem; font-weight: 900; letter-spacing: -0.02em; margin: 2.5rem 0 1rem; color: var(--color-surface-700); }
+
+    /* =========================================================
+     * Hero
+     * =======================================================*/
+    .hero {
+      background: var(--color-surface-900);
+      color: white; border-radius: var(--radius-3xl);
+      padding: 4rem clamp(2rem, 5vw, 4rem);
+      position: relative; overflow: hidden; margin-bottom: 5rem;
+    }
+    .hero::before, .hero::after {
+      content: ''; position: absolute; width: 24rem; height: 24rem;
+      border-radius: 50%; filter: blur(100px); pointer-events: none;
+    }
+    .hero::before { top: -8rem; right: -4rem; background: rgba(59,130,246,0.25); }
+    .hero::after  { bottom: -8rem; left: -4rem; background: rgba(124,58,237,0.20); }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.625rem; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.18em; color: var(--color-brand-300);
+      background: rgba(59,130,246,0.12); padding: 0.5rem 0.875rem;
+      border-radius: var(--radius-pill); border: 1px solid rgba(59,130,246,0.25);
+      position: relative; z-index: 1;
+    }
+    .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-brand-400); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .hero h1 {
+      position: relative; z-index: 1;
+      font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 900;
+      letter-spacing: -0.04em; line-height: 1.05;
+      margin: 1.5rem 0 1.25rem;
+    }
+    .hero h1 em { font-style: normal; color: var(--color-brand-400); }
+    .hero p {
+      position: relative; z-index: 1;
+      font-size: 1.125rem; max-width: 60ch; color: rgba(255,255,255,0.7);
+      font-weight: 500; margin: 0 0 2rem;
+    }
+    .hero-meta {
+      position: relative; z-index: 1;
+      display: flex; flex-wrap: wrap; gap: 2rem;
+      padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .hero-meta div { display: flex; flex-direction: column; gap: 0.25rem; }
+    .hero-meta .k { font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(255,255,255,0.5); }
+    .hero-meta .v { font-size: 1rem; font-weight: 700; color: white; font-family: var(--font-mono); }
+
+    /* =========================================================
+     * Token: Color
+     * =======================================================*/
+    .palette { display: grid; gap: 2rem; }
+    .palette-row { }
+    .palette-name {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .palette-name h4 {
+      font-size: 0.875rem; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--color-surface-700); margin: 0;
+    }
+    .palette-name p { font-size: 0.75rem; color: var(--color-surface-500); margin: 0; font-weight: 500; }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.5rem; }
+    .swatch {
+      border-radius: var(--radius-md); padding: 1rem; min-height: 80px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 0.6875rem;
+      box-shadow: var(--shadow-soft);
+    }
+    .swatch .step { font-weight: 700; }
+    .swatch .hex  { opacity: 0.85; }
+
+    /* =========================================================
+     * Typography
+     * =======================================================*/
+    .type-row {
+      display: grid; grid-template-columns: 120px 1fr;
+      gap: 2rem; padding: 1.25rem 0;
+      border-bottom: 1px solid var(--color-surface-100);
+      align-items: baseline;
+    }
+    .type-row .meta {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      color: var(--color-surface-500); font-weight: 500;
+    }
+    .type-row .meta strong { color: var(--color-surface-900); display: block; font-weight: 700; }
+    .type-row .sample { color: var(--color-surface-900); }
+
+    .weights { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+    .weight { padding: 1.25rem; border-radius: var(--radius-md); background: var(--color-surface-0); border: 1px solid var(--color-surface-100); }
+    .weight .label { font-size: 0.6875rem; font-weight: 700; color: var(--color-surface-500); font-family: var(--font-mono); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    .weight .demo { font-size: 1.5rem; letter-spacing: -0.02em; }
+
+    /* =========================================================
+     * Spacing / Radius / Shadow
+     * =======================================================*/
+    .spacing-scale { display: flex; flex-direction: column; gap: 0.75rem; }
+    .spacing-row { display: grid; grid-template-columns: 80px 80px 1fr; gap: 1rem; align-items: center; }
+    .spacing-row .key { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 700; color: var(--color-surface-700); }
+    .spacing-row .px  { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-surface-500); }
+    .spacing-bar { height: 12px; background: var(--color-brand-500); border-radius: var(--radius-xs); }
+
+    .radius-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
+    .radius-tile {
+      aspect-ratio: 1; background: var(--color-surface-0); border: 1px solid var(--color-surface-100);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.25rem; padding: 1rem; box-shadow: var(--shadow-soft);
+    }
+    .radius-tile .key { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 700; }
+    .radius-tile .v   { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--color-surface-500); }
+
+    .shadow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+    .shadow-tile {
+      background: var(--color-surface-0); border-radius: var(--radius-xl);
+      padding: 2rem 1.5rem; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.5rem; min-height: 140px;
+    }
+    .shadow-tile .key { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 700; }
+    .shadow-tile .v   { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--color-surface-500); text-align: center; }
+
+    .motion-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .motion-card { background: var(--color-surface-0); border: 1px solid var(--color-surface-100); border-radius: var(--radius-lg); padding: 1.25rem; }
+    .motion-card .key { font-family: var(--font-mono); font-weight: 700; font-size: 0.875rem; }
+    .motion-card .v   { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--color-surface-500); margin-bottom: 0.75rem; }
+    .motion-card .ball { width: 24px; height: 24px; border-radius: 50%; background: var(--color-brand-500); animation: slide 2.4s infinite; }
+    .motion-card.decel  .ball { animation-timing-function: var(--ease-decel); }
+    .motion-card.spring .ball { animation-timing-function: var(--ease-spring); }
+    .motion-card.linear .ball { animation-timing-function: linear; }
+    @keyframes slide { 0%{transform:translateX(0)} 50%{transform:translateX(160px)} 100%{transform:translateX(0)} }
+
+    /* =========================================================
+     * Components — Button
+     * =======================================================*/
+    .demo-block {
+      background: var(--color-surface-0); border: 1px solid var(--color-surface-100);
+      border-radius: var(--radius-2xl); padding: 2rem; margin-bottom: 1rem;
+    }
+    .demo-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em;
+      transition: all 150ms ease-out; cursor: pointer; border: 0;
+      gap: 0.5rem; white-space: nowrap;
+    }
+    .btn-sm { height: 36px; padding: 0 1rem; font-size: 0.875rem; border-radius: var(--radius-sm); gap: 0.375rem; }
+    .btn-md { height: 44px; padding: 0 1.25rem; font-size: 0.875rem; border-radius: var(--radius-md); }
+    .btn-lg { height: 56px; padding: 0 1.75rem; font-size: 1rem; border-radius: var(--radius-lg); gap: 0.625rem; }
+
+    .btn-primary { background: var(--color-brand-600); color: white; box-shadow: var(--shadow-glow-brand); }
+    .btn-primary:hover { background: var(--color-brand-700); }
+    .btn-secondary { background: var(--color-surface-100); color: var(--color-surface-900); }
+    .btn-secondary:hover { background: var(--color-surface-200); }
+    .btn-ghost { background: transparent; color: var(--color-surface-600); }
+    .btn-ghost:hover { background: var(--color-surface-100); color: var(--color-surface-900); }
+    .btn-danger { background: var(--color-danger-500); color: white; }
+    .btn-danger:hover { background: var(--color-danger-600); }
+    .btn-dark { background: var(--color-surface-900); color: white; }
+    .btn-dark:hover { background: var(--color-surface-800); }
+    .btn:disabled { background: var(--color-surface-200); color: var(--color-surface-400); box-shadow: none; cursor: not-allowed; }
+    .btn .spinner {
+      width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* =========================================================
+     * Components — Card
+     * =======================================================*/
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+    .card {
+      padding: 1.5rem; border-radius: var(--radius-2xl);
+      transition: all 300ms var(--ease-decel);
+    }
+    .card-elevated { background: var(--color-surface-0); border: 1px solid var(--color-surface-100); box-shadow: var(--shadow-card); }
+    .card-elevated:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+    .card-flat     { background: var(--color-surface-0); border: 1px solid var(--color-surface-100); }
+    .card-outlined { background: transparent; border: 2px solid var(--color-surface-200); }
+    .card-dark     { background: var(--color-surface-900); color: white; box-shadow: var(--shadow-elevated); position: relative; overflow: hidden; }
+    .card-dark::before { content:''; position: absolute; top: -3rem; right: -3rem; width: 12rem; height: 12rem; background: rgba(59,130,246,0.18); border-radius: 50%; filter: blur(60px); }
+    .card-gradient { background: linear-gradient(135deg, var(--color-indigo-600), var(--color-brand-700)); color: white; box-shadow: var(--shadow-glow-indigo); position: relative; overflow: hidden; }
+    .card-gradient::before { content:''; position: absolute; top: -4rem; right: -4rem; width: 12rem; height: 12rem; background: rgba(255,255,255,0.12); border-radius: 50%; filter: blur(40px); }
+    .card .label { font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.6; margin-bottom: 0.5rem; }
+    .card .title { font-size: 1.125rem; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 0.5rem; position: relative; z-index: 1; }
+    .card .desc  { font-size: 0.875rem; opacity: 0.7; position: relative; z-index: 1; margin: 0; }
+
+    /* =========================================================
+     * Components — Badge
+     * =======================================================*/
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      padding: 0.25rem 0.625rem; border-radius: var(--radius-pill);
+      font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em;
+    }
+    .badge-tag { text-transform: none; letter-spacing: 0; font-size: 0.75rem; font-weight: 700; }
+    .b-brand   { background: var(--color-brand-50);   color: var(--color-brand-700); }
+    .b-accent  { background: var(--color-accent-50);  color: var(--color-accent-700); }
+    .b-success { background: var(--color-success-50); color: var(--color-success-700); }
+    .b-warning { background: var(--color-warning-50); color: var(--color-warning-700); }
+    .b-danger  { background: var(--color-danger-50);  color: var(--color-danger-700); }
+    .b-neutral { background: var(--color-surface-100); color: var(--color-surface-600); }
+    .b-dark    { background: var(--color-surface-900); color: white; }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+    .b-brand   .dot { background: var(--color-brand-500); }
+    .b-accent  .dot { background: var(--color-accent-500); }
+    .b-success .dot { background: var(--color-success-500); }
+    .b-warning .dot { background: var(--color-warning-500); }
+    .b-danger  .dot { background: var(--color-danger-500); }
+    .b-neutral .dot { background: var(--color-surface-400); }
+    .b-dark    .dot { background: white; }
+
+    /* =========================================================
+     * Components — Input
+     * =======================================================*/
+    .field { display: flex; flex-direction: column; gap: 0.5rem; max-width: 360px; }
+    .field-label { font-size: 0.875rem; font-weight: 600; color: var(--color-surface-700); }
+    .field-input-wrap { position: relative; }
+    .field-input {
+      width: 100%; height: 48px; padding: 0 1rem; border-radius: var(--radius-md);
+      background: var(--color-surface-0); border: 1px solid var(--color-surface-200);
+      font-family: inherit; font-size: 0.875rem; color: var(--color-surface-900);
+      outline: none; transition: all 150ms;
+    }
+    .field-input:focus { border-color: var(--color-brand-500); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .field-input.with-icon { padding-left: 2.75rem; }
+    .field-input::placeholder { color: var(--color-surface-400); }
+    .field-icon { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--color-surface-400); }
+    .field-error .field-input { border-color: var(--color-danger-500); }
+    .field-error .field-input:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+    .field-help { font-size: 0.75rem; color: var(--color-surface-500); }
+    .field-error .field-help { color: var(--color-danger-600); }
+
+    /* =========================================================
+     * Components — Stat & SectionHeading
+     * =======================================================*/
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .stat {
+      background: var(--color-surface-0); border: 1px solid var(--color-surface-100);
+      border-radius: var(--radius-2xl); padding: 1.5rem;
+      box-shadow: var(--shadow-card); transition: all 300ms;
+    }
+    .stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+    .stat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .stat-icon { width: 48px; height: 48px; border-radius: var(--radius-lg); display: grid; place-items: center; transition: transform 500ms; }
+    .stat:hover .stat-icon { transform: scale(1.1); }
+    .stat-icon.brand   { background: var(--color-brand-50);   color: var(--color-brand-600); }
+    .stat-icon.accent  { background: var(--color-accent-50);  color: var(--color-accent-600); }
+    .stat-icon.warning { background: var(--color-warning-50); color: var(--color-warning-600); }
+    .stat-trend { font-size: 0.625rem; font-weight: 900; padding: 0.25rem 0.5rem; border-radius: var(--radius-xs); }
+    .stat-trend.up   { background: var(--color-success-50); color: var(--color-success-600); }
+    .stat-trend.down { background: var(--color-danger-50);  color: var(--color-danger-600); }
+    .stat-key { font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: var(--color-surface-400); margin: 0 0 0.375rem; }
+    .stat-value-row { display: flex; align-items: baseline; gap: 0.5rem; }
+    .stat-value { font-size: 1.875rem; font-weight: 900; letter-spacing: -0.03em; color: var(--color-surface-900); }
+    .stat-sub   { font-size: 0.75rem; font-weight: 700; color: var(--color-surface-400); opacity: 0.7; }
+
+    .section-heading { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .section-heading .icon-box {
+      width: 48px; height: 48px; border-radius: var(--radius-lg);
+      display: grid; place-items: center; color: white;
+    }
+    .ic-brand  { background: var(--color-brand-600);  box-shadow: var(--shadow-glow-brand); }
+    .ic-accent { background: var(--color-accent-600); box-shadow: var(--shadow-glow-accent); }
+    .ic-indigo { background: var(--color-indigo-600); box-shadow: var(--shadow-glow-indigo); }
+    .ic-dark   { background: var(--color-surface-900); }
+    .section-heading h4 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; margin: 0; color: var(--color-surface-900); }
+    .section-heading p  { font-size: 0.875rem; font-weight: 700; color: var(--color-surface-400); margin: 0; }
+
+    /* =========================================================
+     * Recipes
+     * =======================================================*/
+    .recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 720px) { .recipe-grid { grid-template-columns: 1fr; } }
+    .recipe-cta {
+      background: linear-gradient(135deg, var(--color-indigo-600), var(--color-brand-700));
+      color: white; padding: 2rem; border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-glow-indigo); position: relative; overflow: hidden;
+    }
+    .recipe-cta::before { content: ''; position: absolute; top: -3rem; right: -3rem; width: 12rem; height: 12rem; background: rgba(255,255,255,0.12); border-radius: 50%; filter: blur(40px); }
+    .recipe-cta .label { font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.7; }
+    .recipe-cta h5 { font-size: 1.25rem; font-weight: 900; letter-spacing: -0.02em; margin: 0.5rem 0 1.5rem; position: relative; z-index: 1; }
+    .recipe-cta .progress-meta { display: flex; justify-content: space-between; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; margin-bottom: 0.5rem; opacity: 0.85; position: relative; z-index: 1; }
+    .recipe-cta .progress-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.25); border-radius: var(--radius-pill); overflow: hidden; position: relative; z-index: 1; }
+    .recipe-cta .progress-bar div { width: 64%; height: 100%; background: white; border-radius: var(--radius-pill); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+
+    .recipe-tip {
+      background: var(--color-surface-900); color: white;
+      padding: 2.5rem; border-radius: var(--radius-3xl); position: relative; overflow: hidden;
+      border: 1px solid var(--color-surface-800);
+    }
+    .recipe-tip::before, .recipe-tip::after {
+      content:''; position: absolute; width: 16rem; height: 16rem; border-radius: 50%; filter: blur(80px); pointer-events: none;
+    }
+    .recipe-tip::before { top: -4rem; right: -4rem; background: rgba(59,130,246,0.15); }
+    .recipe-tip::after  { bottom: -4rem; left: -4rem; background: rgba(124,58,237,0.12); }
+    .recipe-tip .head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; position: relative; z-index: 1; }
+    .recipe-tip .head .ic {
+      width: 56px; height: 56px; border-radius: var(--radius-xl);
+      background: linear-gradient(135deg, var(--color-brand-500), var(--color-indigo-600));
+      display: grid; place-items: center; color: white;
+    }
+    .recipe-tip h5 { font-size: 1.125rem; font-weight: 900; letter-spacing: -0.02em; margin: 0; position: relative; z-index: 1; }
+    .recipe-tip p  { font-size: 0.875rem; line-height: 1.7; color: rgba(255,255,255,0.7); margin: 0; position: relative; z-index: 1; max-width: 56ch; }
+    .recipe-tip p em { font-style: italic; color: var(--color-brand-300); font-weight: 900; }
+
+    /* =========================================================
+     * Code blocks
+     * =======================================================*/
+    pre.code {
+      background: var(--color-surface-900); color: #E2E8F0;
+      border-radius: var(--radius-md); padding: 1rem 1.25rem;
+      font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.65;
+      overflow-x: auto; margin: 1rem 0 0;
+    }
+    pre.code .c-key { color: #93C5FD; }
+    pre.code .c-str { color: #FCD34D; }
+    pre.code .c-cmt { color: #64748B; }
+
+    footer {
+      margin-top: 6rem; padding-top: 2rem;
+      border-top: 1px solid var(--color-surface-200);
+      font-size: 0.75rem; color: var(--color-surface-500); font-weight: 500;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">V</div>
+        <span>Design System</span>
+      </div>
+      <nav class="nav">
+        <span class="group">Foundations</span>
+        <a href="#colors">Colors</a>
+        <a href="#typography">Typography</a>
+        <a href="#spacing">Spacing</a>
+        <a href="#radius">Radius</a>
+        <a href="#shadows">Shadows</a>
+        <a href="#motion">Motion</a>
+        <span class="group">Components</span>
+        <a href="#buttons">Button</a>
+        <a href="#cards">Card</a>
+        <a href="#badges">Badge</a>
+        <a href="#inputs">Input</a>
+        <a href="#stats">Stat</a>
+        <a href="#sectionheading">SectionHeading</a>
+        <span class="group">Patterns</span>
+        <a href="#recipes">Recipes</a>
+      </nav>
+    </aside>
+
+    <main>
+      <!-- HERO -->
+      <header class="hero">
+        <span class="hero-eyebrow"><span class="dot"></span>VocaLoop · v1.0</span>
+        <h1>Modern Bold <em>Editorial</em>.<br/>학습 에너지 + 신뢰감.</h1>
+        <p>VocaLoop의 모든 표면, 타입, 모션이 따르는 단일 진실 공급원. 컴포넌트 작성 시 항상 토큰 → 프리미티브 순으로 합성하세요.</p>
+        <div class="hero-meta">
+          <div><span class="k">Tokens</span><span class="v">tokens.js</span></div>
+          <div><span class="k">Primitives</span><span class="v">6 components</span></div>
+          <div><span class="k">Stack</span><span class="v">React 19 · Tailwind v4</span></div>
+          <div><span class="k">Updated</span><span class="v">2026-05-06</span></div>
+        </div>
+      </header>
+
+      <!-- COLORS -->
+      <section id="colors">
+        <span class="section-eyebrow">Foundation 01</span>
+        <h2 class="section-title">Color Palette</h2>
+        <p class="section-lead">모든 색은 의미 기반으로 분류됩니다. <code style="font-family:var(--font-mono); background:var(--color-surface-100); padding:0.125rem 0.375rem; border-radius:4px;">gray-*</code> 직접 사용 금지 — 항상 <code style="font-family:var(--font-mono); background:var(--color-surface-100); padding:0.125rem 0.375rem; border-radius:4px;">surface-*</code>를 사용하세요.</p>
+
+        <div class="palette">
+          <div class="palette-row">
+            <div class="palette-name"><h4>Brand</h4><p>주요 액션, 진행률, 핵심 강조</p></div>
+            <div class="swatches">
+              <div class="swatch" style="background:var(--color-brand-50);  color:var(--color-brand-900)"><span class="step">50</span><span class="hex">#EFF6FF</span></div>
+              <div class="swatch" style="background:var(--color-brand-100); color:var(--color-brand-900)"><span class="step">100</span><span class="hex">#DBEAFE</span></div>
+              <div class="swatch" style="background:var(--color-brand-300); color:white"><span class="step">300</span><span class="hex">#93C5FD</span></div>
+              <div class="swatch" style="background:var(--color-brand-500); color:white"><span class="step">500</span><span class="hex">#3B82F6</span></div>
+              <div class="swatch" style="background:var(--color-brand-600); color:white"><span class="step">600</span><span class="hex">#2563EB</span></div>
+              <div class="swatch" style="background:var(--color-brand-700); color:white"><span class="step">700</span><span class="hex">#1D4ED8</span></div>
+              <div class="swatch" style="background:var(--color-brand-900); color:white"><span class="step">900</span><span class="hex">#1E3A8A</span></div>
+            </div>
+          </div>
+
+          <div class="palette-row">
+            <div class="palette-name"><h4>Accent</h4><p>TOEFL · 고급 모드 · 보조 강조</p></div>
+            <div class="swatches">
+              <div class="swatch" style="background:var(--color-accent-50);  color:var(--color-accent-700)"><span class="step">50</span><span class="hex">#FAF5FF</span></div>
+              <div class="swatch" style="background:var(--color-accent-100); color:var(--color-accent-700)"><span class="step">100</span><span class="hex">#F3E8FF</span></div>
+              <div class="swatch" style="background:var(--color-accent-400); color:white"><span class="step">400</span><span class="hex">#A78BFA</span></div>
+              <div class="swatch" style="background:var(--color-accent-500); color:white"><span class="step">500</span><span class="hex">#8B5CF6</span></div>
+              <div class="swatch" style="background:var(--color-accent-600); color:white"><span class="step">600</span><span class="hex">#7C3AED</span></div>
+              <div class="swatch" style="background:var(--color-accent-700); color:white"><span class="step">700</span><span class="hex">#6D28D9</span></div>
+            </div>
+          </div>
+
+          <div class="palette-row">
+            <div class="palette-name"><h4>Indigo Pair</h4><p>그라데이션 짝</p></div>
+            <div class="swatches">
+              <div class="swatch" style="background:var(--color-indigo-500); color:white"><span class="step">500</span><span class="hex">#6366F1</span></div>
+              <div class="swatch" style="background:var(--color-indigo-600); color:white"><span class="step">600</span><span class="hex">#4F46E5</span></div>
+              <div class="swatch" style="background:var(--color-indigo-700); color:white"><span class="step">700</span><span class="hex">#4338CA</span></div>
+            </div>
+          </div>
+
+          <div class="palette-row">
+            <div class="palette-name"><h4>Surface</h4><p>모든 배경 · 텍스트 · 보더 (gray ❌)</p></div>
+            <div class="swatches">
+              <div class="swatch" style="background:var(--color-surface-0);   color:var(--color-surface-900); border:1px solid var(--color-surface-200)"><span class="step">0</span><span class="hex">#FFFFFF</span></div>
+              <div class="swatch" style="background:var(--color-surface-50);  color:var(--color-surface-900)"><span class="step">50</span><span class="hex">#F8FAFC</span></div>
+              <div class="swatch" style="background:var(--color-surface-100); color:var(--color-surface-900)"><span class="step">100</span><span class="hex">#F1F5F9</span></div>
+              <div class="swatch" style="background:var(--color-surface-200); color:var(--color-surface-900)"><span class="step">200</span><span class="hex">#E2E8F0</span></div>
+              <div class="swatch" style="background:var(--color-surface-400); color:white"><span class="step">400</span><span class="hex">#94A3B8</span></div>
+              <div class="swatch" style="background:var(--color-surface-500); color:white"><span class="step">500</span><span class="hex">#64748B</span></div>
+              <div class="swatch" style="background:var(--color-surface-700); color:white"><span class="step">700</span><span class="hex">#334155</span></div>
+              <div class="swatch" style="background:var(--color-surface-900); color:white"><span class="step">900</span><span class="hex">#0F172A</span></div>
+            </div>
+          </div>
+
+          <div class="palette-row">
+            <div class="palette-name"><h4>Semantic</h4><p>Success · Warning · Danger</p></div>
+            <div class="swatches">
+              <div class="swatch" style="background:var(--color-success-50);  color:var(--color-success-700)"><span class="step">success-50</span><span class="hex">#ECFDF5</span></div>
+              <div class="swatch" style="background:var(--color-success-500); color:white"><span class="step">success-500</span><span class="hex">#10B981</span></div>
+              <div class="swatch" style="background:var(--color-success-700); color:white"><span class="step">success-700</span><span class="hex">#047857</span></div>
+              <div class="swatch" style="background:var(--color-warning-50);  color:var(--color-warning-700)"><span class="step">warning-50</span><span class="hex">#FFFBEB</span></div>
+              <div class="swatch" style="background:var(--color-warning-500); color:white"><span class="step">warning-500</span><span class="hex">#F59E0B</span></div>
+              <div class="swatch" style="background:var(--color-warning-700); color:white"><span class="step">warning-700</span><span class="hex">#B45309</span></div>
+              <div class="swatch" style="background:var(--color-danger-50);   color:var(--color-danger-700)"><span class="step">danger-50</span><span class="hex">#FEF2F2</span></div>
+              <div class="swatch" style="background:var(--color-danger-500);  color:white"><span class="step">danger-500</span><span class="hex">#EF4444</span></div>
+              <div class="swatch" style="background:var(--color-danger-700);  color:white"><span class="step">danger-700</span><span class="hex">#B91C1C</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TYPOGRAPHY -->
+      <section id="typography">
+        <span class="section-eyebrow">Foundation 02</span>
+        <h2 class="section-title">Typography</h2>
+        <p class="section-lead">디스플레이는 Inter + Noto Sans KR. 헤딩에는 항상 <code style="font-family:var(--font-mono);">font-black (900)</code>. 본문 ≥ 14px, 줄 높이 ≥ 1.5.</p>
+
+        <h3 class="subsection-title">Scale</h3>
+        <div>
+          <div class="type-row"><div class="meta"><strong>text-5xl</strong>48px · 1.05</div><div class="sample" style="font-size:3rem; line-height:1.05; font-weight:900; letter-spacing:-0.04em;">Hero Headline</div></div>
+          <div class="type-row"><div class="meta"><strong>text-4xl</strong>36px · 1.1</div><div class="sample" style="font-size:2.25rem; line-height:1.1; font-weight:900; letter-spacing:-0.03em;">Page Heading</div></div>
+          <div class="type-row"><div class="meta"><strong>text-3xl</strong>30px · 1.2</div><div class="sample" style="font-size:1.875rem; line-height:1.2; font-weight:900; letter-spacing:-0.03em;">KPI 74%</div></div>
+          <div class="type-row"><div class="meta"><strong>text-2xl</strong>24px · 1.25</div><div class="sample" style="font-size:1.5rem; line-height:1.25; font-weight:900; letter-spacing:-0.02em;">Section Heading</div></div>
+          <div class="type-row"><div class="meta"><strong>text-xl</strong>20px · 1.4</div><div class="sample" style="font-size:1.25rem; line-height:1.4; font-weight:700;">Sidebar Heading</div></div>
+          <div class="type-row"><div class="meta"><strong>text-lg</strong>18px · 1.5</div><div class="sample" style="font-size:1.125rem; line-height:1.5; font-weight:500;">강조 본문 — Lead paragraph for sections.</div></div>
+          <div class="type-row"><div class="meta"><strong>text-base</strong>16px · 1.5</div><div class="sample" style="font-size:1rem; line-height:1.5;">기본 본문 — 모든 일반 텍스트의 기준선입니다.</div></div>
+          <div class="type-row"><div class="meta"><strong>text-sm</strong>14px · 1.5</div><div class="sample" style="font-size:0.875rem; line-height:1.5;">보조 본문 — 버튼, 라벨, 메타 정보.</div></div>
+          <div class="type-row"><div class="meta"><strong>text-xs</strong>12px · 1.5</div><div class="sample" style="font-size:0.75rem; line-height:1.5; color: var(--color-surface-500);">캡션 · 라벨 · 도움말 텍스트.</div></div>
+          <div class="type-row"><div class="meta"><strong>text-2xs</strong>10px · 1.25</div><div class="sample" style="font-size:0.625rem; font-weight:900; text-transform:uppercase; letter-spacing:0.18em; color:var(--color-brand-600);">Eyebrow Caps Label</div></div>
+        </div>
+
+        <h3 class="subsection-title">Weights</h3>
+        <div class="weights">
+          <div class="weight"><div class="label">font-medium · 500</div><div class="demo" style="font-weight:500;">Body Default</div></div>
+          <div class="weight"><div class="label">font-semibold · 600</div><div class="demo" style="font-weight:600;">Labels & Meta</div></div>
+          <div class="weight"><div class="label">font-bold · 700</div><div class="demo" style="font-weight:700;">Buttons & Stress</div></div>
+          <div class="weight"><div class="label">font-black · 900</div><div class="demo" style="font-weight:900; letter-spacing:-0.02em;">All Headings</div></div>
+        </div>
+      </section>
+
+      <!-- SPACING -->
+      <section id="spacing">
+        <span class="section-eyebrow">Foundation 03</span>
+        <h2 class="section-title">Spacing</h2>
+        <p class="section-lead">8px 기반 스케일. 임의값 사용 금지. 컴포넌트 내부 간격은 항상 이 토큰으로.</p>
+        <div class="demo-block">
+          <div class="spacing-scale">
+            <div class="spacing-row"><span class="key">1</span><span class="px">4px</span><div class="spacing-bar" style="width:4px"></div></div>
+            <div class="spacing-row"><span class="key">2</span><span class="px">8px</span><div class="spacing-bar" style="width:8px"></div></div>
+            <div class="spacing-row"><span class="key">3</span><span class="px">12px</span><div class="spacing-bar" style="width:12px"></div></div>
+            <div class="spacing-row"><span class="key">4</span><span class="px">16px</span><div class="spacing-bar" style="width:16px"></div></div>
+            <div class="spacing-row"><span class="key">5</span><span class="px">20px</span><div class="spacing-bar" style="width:20px"></div></div>
+            <div class="spacing-row"><span class="key">6</span><span class="px">24px</span><div class="spacing-bar" style="width:24px"></div></div>
+            <div class="spacing-row"><span class="key">8</span><span class="px">32px</span><div class="spacing-bar" style="width:32px"></div></div>
+            <div class="spacing-row"><span class="key">10</span><span class="px">40px</span><div class="spacing-bar" style="width:40px"></div></div>
+            <div class="spacing-row"><span class="key">12</span><span class="px">48px</span><div class="spacing-bar" style="width:48px"></div></div>
+            <div class="spacing-row"><span class="key">16</span><span class="px">64px</span><div class="spacing-bar" style="width:64px"></div></div>
+            <div class="spacing-row"><span class="key">20</span><span class="px">80px</span><div class="spacing-bar" style="width:80px"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RADIUS -->
+      <section id="radius">
+        <span class="section-eyebrow">Foundation 04</span>
+        <h2 class="section-title">Border Radius</h2>
+        <p class="section-lead">모든 모서리는 의미 기반 토큰으로. 시그니처는 <code style="font-family:var(--font-mono);">rounded-card (32px)</code>와 <code style="font-family:var(--font-mono);">rounded-hero (48px)</code>.</p>
+        <div class="radius-grid">
+          <div class="radius-tile" style="border-radius: var(--radius-xs)"><span class="key">xs</span><span class="v">8px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-sm)"><span class="key">sm</span><span class="v">12px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-md)"><span class="key">md</span><span class="v">16px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-lg)"><span class="key">lg</span><span class="v">20px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-xl)"><span class="key">xl</span><span class="v">24px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-2xl)"><span class="key">card</span><span class="v">32px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-3xl)"><span class="key">hero</span><span class="v">48px</span></div>
+          <div class="radius-tile" style="border-radius: var(--radius-pill)"><span class="key">pill</span><span class="v">9999px</span></div>
+        </div>
+      </section>
+
+      <!-- SHADOWS -->
+      <section id="shadows">
+        <span class="section-eyebrow">Foundation 05</span>
+        <h2 class="section-title">Shadows</h2>
+        <p class="section-lead">고도(elevation)와 강조(glow)를 분리. Glow는 핵심 액션에만 사용하세요.</p>
+        <div class="shadow-grid">
+          <div class="shadow-tile" style="box-shadow: var(--shadow-soft)"><span class="key">soft</span><span class="v">미세한 분리</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-card)"><span class="key">card</span><span class="v">기본 카드</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-card-hover)"><span class="key">card-hover</span><span class="v">호버 강조</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-elevated)"><span class="key">elevated</span><span class="v">다이얼로그</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-floating)"><span class="key">floating</span><span class="v">호버 max</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-glow-brand)"><span class="key">glow-brand</span><span class="v">primary CTA</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-glow-accent)"><span class="key">glow-accent</span><span class="v">accent CTA</span></div>
+          <div class="shadow-tile" style="box-shadow: var(--shadow-glow-indigo)"><span class="key">glow-indigo</span><span class="v">gradient CTA</span></div>
+        </div>
+      </section>
+
+      <!-- MOTION -->
+      <section id="motion">
+        <span class="section-eyebrow">Foundation 06</span>
+        <h2 class="section-title">Motion</h2>
+        <p class="section-lead">모든 인터랙션은 <code style="font-family:var(--font-mono);">prefers-reduced-motion</code> 사용자에게 자동 비활성화됩니다.</p>
+        <div class="motion-grid">
+          <div class="motion-card linear">
+            <div class="key">linear</div>
+            <div class="v">기준 비교용 — 사용 금지</div>
+            <div class="ball"></div>
+          </div>
+          <div class="motion-card decel">
+            <div class="key">--ease-decel</div>
+            <div class="v">cubic-bezier(0, 0, 0.2, 1)<br/>인풋, 등장</div>
+            <div class="ball"></div>
+          </div>
+          <div class="motion-card spring">
+            <div class="key">--ease-spring</div>
+            <div class="v">cubic-bezier(0.16, 1, 0.3, 1)<br/>카드 변형, 플립</div>
+            <div class="ball"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BUTTONS -->
+      <section id="buttons">
+        <span class="section-eyebrow">Component 01</span>
+        <h2 class="section-title">Button</h2>
+        <p class="section-lead">5 variants × 3 sizes. <code style="font-family:var(--font-mono);">primary</code>는 brand glow, <code style="font-family:var(--font-mono);">danger</code>는 파괴적 액션 전용.</p>
+
+        <h3 class="subsection-title">Variants</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <button class="btn btn-md btn-primary">Primary</button>
+            <button class="btn btn-md btn-secondary">Secondary</button>
+            <button class="btn btn-md btn-ghost">Ghost</button>
+            <button class="btn btn-md btn-danger">Danger</button>
+            <button class="btn btn-md btn-dark">Dark</button>
+          </div>
+        </div>
+
+        <h3 class="subsection-title">Sizes</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <button class="btn btn-sm btn-primary">Small</button>
+            <button class="btn btn-md btn-primary">Medium</button>
+            <button class="btn btn-lg btn-primary">Large</button>
+          </div>
+        </div>
+
+        <h3 class="subsection-title">States</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <button class="btn btn-md btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 3 21"/><path d="M21 3l-6.5 6.5"/><path d="M14.5 3 21 3l0 6.5"/><path d="M3 14.5V21h6.5"/></svg>
+              Left Icon
+            </button>
+            <button class="btn btn-md btn-primary">
+              Right Icon
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="btn btn-md btn-primary"><span class="spinner"></span>Loading...</button>
+            <button class="btn btn-md btn-primary" disabled>Disabled</button>
+          </div>
+        </div>
+
+        <pre class="code"><span class="c-cmt">// React</span>
+&lt;<span class="c-key">Button</span> variant=<span class="c-str">"primary"</span> size=<span class="c-str">"lg"</span> leftIcon={Sparkles}&gt;학습 시작&lt;/<span class="c-key">Button</span>&gt;
+&lt;<span class="c-key">Button</span> variant=<span class="c-str">"primary"</span> loading&gt;저장 중...&lt;/<span class="c-key">Button</span>&gt;</pre>
+      </section>
+
+      <!-- CARDS -->
+      <section id="cards">
+        <span class="section-eyebrow">Component 02</span>
+        <h2 class="section-title">Card</h2>
+        <p class="section-lead">5 variants × 5 padding × 5 radius. 메인 카드는 <code style="font-family:var(--font-mono);">radius="card"</code>가 표준.</p>
+
+        <div class="card-grid">
+          <div class="card card-elevated">
+            <div class="label">Variant</div>
+            <h3 class="title">Elevated</h3>
+            <p class="desc">기본 메인 카드. 호버 시 들어올림.</p>
+          </div>
+          <div class="card card-flat">
+            <div class="label">Variant</div>
+            <h3 class="title">Flat</h3>
+            <p class="desc">그림자 없음. 사이드바, 보조 영역.</p>
+          </div>
+          <div class="card card-outlined">
+            <div class="label">Variant</div>
+            <h3 class="title">Outlined</h3>
+            <p class="desc">투명 배경 + 보더. 빈 상태 / 점선 영역.</p>
+          </div>
+          <div class="card card-dark">
+            <div class="label">Variant</div>
+            <h3 class="title">Dark</h3>
+            <p class="desc">Smart Tip 같은 강조 영역.</p>
+          </div>
+          <div class="card card-gradient">
+            <div class="label">Variant</div>
+            <h3 class="title">Gradient</h3>
+            <p class="desc">Weekly Goal 같은 핵심 CTA.</p>
+          </div>
+        </div>
+
+        <pre class="code"><span class="c-cmt">// React</span>
+&lt;<span class="c-key">Card</span> variant=<span class="c-str">"elevated"</span> radius=<span class="c-str">"card"</span> padding=<span class="c-str">"lg"</span> hover&gt;
+  ...
+&lt;/<span class="c-key">Card</span>&gt;</pre>
+      </section>
+
+      <!-- BADGES -->
+      <section id="badges">
+        <span class="section-eyebrow">Component 03</span>
+        <h2 class="section-title">Badge</h2>
+        <p class="section-lead">Eyebrow caps · 라벨 · 상태 표시. 7 tones × pill / tag / dot.</p>
+
+        <h3 class="subsection-title">Pill — uppercase eyebrow</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <span class="badge b-brand">Brand</span>
+            <span class="badge b-accent">Accent</span>
+            <span class="badge b-success">Recommended</span>
+            <span class="badge b-warning">Coming Soon</span>
+            <span class="badge b-danger">Deprecated</span>
+            <span class="badge b-neutral">Neutral</span>
+            <span class="badge b-dark">Pro</span>
+          </div>
+        </div>
+
+        <h3 class="subsection-title">Dot — 상태 인디케이터</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <span class="badge b-brand"><span class="dot"></span>Live</span>
+            <span class="badge b-success"><span class="dot"></span>Online</span>
+            <span class="badge b-warning"><span class="dot"></span>Pending</span>
+            <span class="badge b-danger"><span class="dot"></span>Offline</span>
+          </div>
+        </div>
+
+        <h3 class="subsection-title">Tag — 일반 라벨</h3>
+        <div class="demo-block">
+          <div class="demo-row">
+            <span class="badge badge-tag b-brand">v2.1</span>
+            <span class="badge badge-tag b-neutral">noun</span>
+            <span class="badge badge-tag b-accent">TOEFL</span>
+            <span class="badge badge-tag b-success">Mastered</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- INPUTS -->
+      <section id="inputs">
+        <span class="section-eyebrow">Component 04</span>
+        <h2 class="section-title">Input</h2>
+        <p class="section-lead">label · icon · error · hint 통합. <code style="font-family:var(--font-mono);">aria-describedby</code> 자동 처리.</p>
+
+        <div class="demo-block" style="display:grid; gap: 1.5rem; max-width: 400px;">
+          <div class="field">
+            <label class="field-label">기본 인풋</label>
+            <div class="field-input-wrap">
+              <input class="field-input" type="text" placeholder="예: VocaLoop" />
+            </div>
+            <span class="field-help">최소 3자 이상 입력.</span>
+          </div>
+
+          <div class="field">
+            <label class="field-label">아이콘 인풋</label>
+            <div class="field-input-wrap">
+              <svg class="field-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              <input class="field-input with-icon" type="email" placeholder="example@email.com" />
+            </div>
+          </div>
+
+          <div class="field field-error">
+            <label class="field-label">에러 상태</label>
+            <div class="field-input-wrap">
+              <input class="field-input" type="text" value="invalid input" />
+            </div>
+            <span class="field-help">필수 항목입니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section id="stats">
+        <span class="section-eyebrow">Component 05</span>
+        <h2 class="section-title">Stat</h2>
+        <p class="section-lead">대시보드 KPI 카드. trend 부호로 색이 자동 결정됩니다.</p>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="stat-head">
+              <div class="stat-icon brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              </div>
+              <span class="stat-trend up">↑ 5%</span>
+            </div>
+            <p class="stat-key">Avg. Mastery</p>
+            <div class="stat-value-row"><span class="stat-value">74%</span><span class="stat-sub">Mastery Level</span></div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-head">
+              <div class="stat-icon accent">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              </div>
+              <span class="stat-trend down">↓ 3%</span>
+            </div>
+            <p class="stat-key">Session Accuracy</p>
+            <div class="stat-value-row"><span class="stat-value">82%</span><span class="stat-sub">Last Session</span></div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-head">
+              <div class="stat-icon warning">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+              </div>
+            </div>
+            <p class="stat-key">Studied This Week</p>
+            <div class="stat-value-row"><span class="stat-value">38</span><span class="stat-sub">Words Completed</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION HEADING -->
+      <section id="sectionheading">
+        <span class="section-eyebrow">Component 06</span>
+        <h2 class="section-title">Section Heading</h2>
+        <p class="section-lead">대시보드 큰 섹션의 시작부 표준. icon box + title + subtitle.</p>
+
+        <div class="demo-block" style="display:flex; flex-direction:column; gap:2rem;">
+          <div class="section-heading">
+            <div class="icon-box ic-indigo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            </div>
+            <div>
+              <h4>Vocabulary Training</h4>
+              <p>암기 수준에 맞춘 기초 단계 학습</p>
+            </div>
+          </div>
+
+          <div class="section-heading">
+            <div class="icon-box ic-brand">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3Z"/></svg>
+            </div>
+            <div>
+              <h4>Academic TOEFL</h4>
+              <p>실전 대비 고난도 학술적 문해력 강화</p>
+            </div>
+          </div>
+
+          <div class="section-heading">
+            <div class="icon-box ic-accent">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a2 2 0 1 0 4 0 2 2 0 1 0 -4 0"/><path d="M9.5 2.5a2.5 2.5 0 1 1 0 5"/><path d="M14.5 2.5a2.5 2.5 0 1 0 0 5"/><path d="M3 22q0-6 9-6t9 6"/></svg>
+            </div>
+            <div>
+              <h4>Smart Brain Mode</h4>
+              <p>AI 기반 적응형 학습 알고리즘</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RECIPES -->
+      <section id="recipes">
+        <span class="section-eyebrow">Patterns</span>
+        <h2 class="section-title">Recipes</h2>
+        <p class="section-lead">검증된 합성 패턴들. 새 화면을 만들 땐 이 중 하나에서 시작하세요.</p>
+
+        <h3 class="subsection-title">Weekly Goal CTA + Smart Tip</h3>
+        <div class="recipe-grid">
+          <div class="recipe-cta">
+            <span class="label">Weekly Goal</span>
+            <h5>32 / 50 단어 학습 완료</h5>
+            <div class="progress-meta"><span>Words Studied</span><span>32 / 50</span></div>
+            <div class="progress-bar"><div></div></div>
+          </div>
+
+          <div class="recipe-tip">
+            <div class="head">
+              <div class="ic">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/></svg>
+              </div>
+              <h5>Smart Learning Strategy</h5>
+            </div>
+            <p>이미 충분히 학습한 단어보다는 <em>학습률이 낮은 폴더</em>를 집중적으로 선택해보세요. AI 모드를 활성화하면 단순한 암기를 넘어 단어 사이의 미묘한 뉘앙스 차이까지 파악할 수 있습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>VocaLoop Design System · v1.0 · 2026-05-06</p>
+        <p>토큰을 변경하려면 <code style="font-family:var(--font-mono);">src/design-system/tokens.js</code> 와 <code style="font-family:var(--font-mono);">src/index.css</code>의 <code style="font-family:var(--font-mono);">@theme</code> 블록을 함께 업데이트하세요.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

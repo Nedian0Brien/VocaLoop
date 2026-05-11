@@ -3,35 +3,22 @@ import { Sparkles, Settings, X, Save, Check } from './Icons';
 import {
   generateCompleteTheWordSet,
   generateCompleteTheWordFeedback,
-  generateCompleteTheWordSummary
+  generateCompleteTheWordSummary,
 } from '../services/toeflService';
 import { generateWordData } from '../services/geminiService';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { createWord } from '../services/wordApi';
 import { playSound } from '../utils/soundEffects';
+import { sampleWords, pickRandomTopics } from '../utils/topicSets';
+import { Button } from '../design-system';
 
 const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
 const FONT_SCALE_STYLES = {
-  1: {
-    paragraph: 'text-lg leading-[1.9] md:text-xl',
-    cell: 'w-6 h-6 text-base md:w-8 md:h-8 md:text-lg'
-  },
-  2: {
-    paragraph: 'text-xl leading-[1.9] md:text-2xl',
-    cell: 'w-7 h-7 text-lg md:w-9 md:h-9 md:text-xl'
-  },
-  3: {
-    paragraph: 'text-2xl leading-[1.9] md:text-[1.75rem]',
-    cell: 'w-8 h-8 text-xl md:w-10 md:h-10 md:text-2xl'
-  },
-  4: {
-    paragraph: 'text-[1.8rem] leading-[1.9] md:text-[2rem]',
-    cell: 'w-9 h-9 text-2xl md:w-11 md:h-11 md:text-[1.7rem]'
-  },
-  5: {
-    paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',
-    cell: 'w-10 h-10 text-2xl md:w-12 md:h-12 md:text-[2rem]'
-  }
+  1: { paragraph: 'text-lg leading-[1.9] md:text-xl',          cell: 'w-6 h-6 text-base md:w-8 md:h-8 md:text-lg' },
+  2: { paragraph: 'text-xl leading-[1.9] md:text-2xl',         cell: 'w-7 h-7 text-lg md:w-9 md:h-9 md:text-xl' },
+  3: { paragraph: 'text-2xl leading-[1.9] md:text-[1.75rem]',  cell: 'w-8 h-8 text-xl md:w-10 md:h-10 md:text-2xl' },
+  4: { paragraph: 'text-[1.8rem] leading-[1.9] md:text-[2rem]',cell: 'w-9 h-9 text-2xl md:w-11 md:h-11 md:text-[1.7rem]' },
+  5: { paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',cell: 'w-10 h-10 text-2xl md:w-12 md:h-12 md:text-[2rem]' },
 };
 
 const getPrefixRevealCount = (letterCount) => {
@@ -42,9 +29,7 @@ const getPrefixRevealCount = (letterCount) => {
 
 const getBlankSegments = (answer = '') => {
   const safeAnswer = String(answer);
-  if (!safeAnswer) {
-    return [{ type: 'editable', value: '' }];
-  }
+  if (!safeAnswer) return [{ type: 'editable', value: '' }];
 
   const chars = safeAnswer.split('');
   const editableIndexes = chars
@@ -52,18 +37,13 @@ const getBlankSegments = (answer = '') => {
     .filter((index) => index !== null);
 
   if (editableIndexes.length === 0) {
-    return chars.map((char) => ({
-      type: 'fixed',
-      value: char,
-      inputIndex: null
-    }));
+    return chars.map((char) => ({ type: 'fixed', value: char, inputIndex: null }));
   }
 
   const hiddenSet = new Set(editableIndexes);
   const revealedIndexes = new Set();
   const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
 
-  // Only reveal prefix (first few letters), not suffix
   editableIndexes.slice(0, prefixRevealCount).forEach((index) => {
     hiddenSet.delete(index);
     revealedIndexes.add(index);
@@ -77,30 +57,15 @@ const getBlankSegments = (answer = '') => {
 
   return chars.map((char, index) => {
     const isAlphabet = /^[a-zA-Z]$/.test(char);
-    if (!isAlphabet) {
-      return { type: 'fixed', value: char, inputIndex: null };
-    }
-
-    if (revealedIndexes.has(index)) {
-      return { type: 'fixed', value: char, inputIndex: null };
-    }
-
+    if (!isAlphabet) return { type: 'fixed', value: char, inputIndex: null };
+    if (revealedIndexes.has(index)) return { type: 'fixed', value: char, inputIndex: null };
     return { type: 'editable', value: '', inputIndex: index };
   });
 };
 
 const renderParagraphWithInputs = ({
-  paragraph,
-  blanks,
-  answers,
-  onChange,
-  onKeyDown,
-  onBlankClick,
-  isChecked,
-  questionIndex,
-  inputRefs,
-  fontScaleLevel,
-  blankResults
+  paragraph, blanks, answers, onChange, onKeyDown, onBlankClick,
+  isChecked, questionIndex, inputRefs, fontScaleLevel, blankResults,
 }) => {
   const parts = [];
   const regex = /{{(\d+)}}/g;
@@ -137,16 +102,16 @@ const renderParagraphWithInputs = ({
     parts.push(
       <span
         key={`blank-${blankId}`}
-        className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-xl border shadow-sm cursor-text transition-colors duration-200 ${
+        className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-md border shadow-sm cursor-text transition-colors duration-200 ${
           isChecked && hasWordResult
             ? isWordCorrect
-              ? 'border-green-400 bg-green-50/70'
-              : 'border-red-400 bg-red-50/70'
+              ? 'border-success-400 bg-success-50/70'
+              : 'border-danger-400  bg-danger-50/70'
             : isChecked
-            ? 'border-gray-300 bg-white'
-            : isBlankFilled
-            ? 'border-blue-300 bg-blue-50/40'
-            : 'border-gray-300 bg-white'
+              ? 'border-surface-300 bg-white'
+              : isBlankFilled
+                ? 'border-brand-300 bg-brand-50/40'
+                : 'border-surface-300 bg-white'
         }`}
         role="button"
         tabIndex={isChecked ? -1 : 0}
@@ -167,14 +132,14 @@ const renderParagraphWithInputs = ({
         {blankSegments.map((segment, segmentIndex) => {
           const isLastSegment = segmentIndex === blankSegments.length - 1;
           const baseCellClass = `inline-flex items-center justify-center ${FONT_SCALE_STYLES[fontScaleLevel]?.cell || FONT_SCALE_STYLES[3].cell} font-medium leading-none ${
-            isLastSegment ? '' : 'border-r border-gray-200'
+            isLastSegment ? '' : 'border-r border-surface-200'
           }`;
 
           if (segment.type === 'fixed') {
             return (
               <span
                 key={`fixed-${blankId}-${segmentIndex}`}
-                className={`${baseCellClass} bg-gray-50 text-gray-800`}
+                className={`${baseCellClass} bg-surface-50 text-surface-800`}
               >
                 {segment.value}
               </span>
@@ -184,8 +149,7 @@ const renderParagraphWithInputs = ({
           const answerValue = blankAnswers[segment.inputIndex] || '';
           const expectedLetter = blankAnswer[segment.inputIndex] || '';
           const displayValue = isChecked && !isWordCorrect ? expectedLetter : answerValue;
-          const isCorrect =
-            isChecked && answerValue.toLowerCase() === expectedLetter.toLowerCase();
+          const isCorrect = isChecked && answerValue.toLowerCase() === expectedLetter.toLowerCase();
           const isWrongLetter = isChecked && !isWordCorrect && !isCorrect;
 
           return (
@@ -196,25 +160,23 @@ const renderParagraphWithInputs = ({
                 inputRefs.current[`${questionIndex}-${blankIndex}-${segment.inputIndex}`] = node;
               }}
               value={displayValue}
-              onChange={(event) =>
-                onChange(blankIndex, segment.inputIndex, event.target.value)
-              }
+              onChange={(event) => onChange(blankIndex, segment.inputIndex, event.target.value)}
               onKeyDown={(event) => onKeyDown(event, blankIndex, segment.inputIndex)}
               maxLength={1}
               disabled={isChecked}
               inputMode="latin"
               lang="en"
               aria-label={`빈칸 ${blankIndex + 1}의 ${segmentIndex + 1}번째 철자`}
-              className={`${baseCellClass} bg-white text-center transition-colors duration-200 focus:outline-none focus:bg-blue-50/70 ${
+              className={`${baseCellClass} bg-white text-center transition-colors duration-200 focus:outline-none focus:bg-brand-50/70 ${
                 isChecked
                   ? isWordCorrect
-                    ? 'bg-green-50 text-green-700'
+                    ? 'bg-success-50 text-success-700'
                     : isWrongLetter
-                    ? 'bg-red-50 text-red-600'
-                    : 'bg-red-50 text-red-600'
+                      ? 'bg-danger-50 text-danger-600'
+                      : 'bg-danger-50 text-danger-600'
                   : isBlankFilled
-                  ? 'text-blue-700'
-                  : 'text-gray-700'
+                    ? 'text-brand-700'
+                    : 'text-surface-700'
               }`}
             />
           );
@@ -233,11 +195,12 @@ export default function ToeflCompleteTheWordQuiz({
   aiConfig,
   questionCount,
   targetScore,
+  vocabSource,
+  topicSelection,
   onExit,
-  db,
-  user
+  user,
 }) {
-  const [status, setStatus] = useState('loading'); // loading | ready | feedback | summary | error
+  const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -247,6 +210,7 @@ export default function ToeflCompleteTheWordQuiz({
   const [summary, setSummary] = useState(null);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
   const [fontScaleLevel, setFontScaleLevel] = useState(() => {
     const saved = Number(localStorage.getItem(FONT_SCALE_STORAGE_KEY));
     if (!Number.isFinite(saved)) return 3;
@@ -254,12 +218,11 @@ export default function ToeflCompleteTheWordQuiz({
   });
   const [showSettings, setShowSettings] = useState(false);
   const [incorrectWords, setIncorrectWords] = useState(new Set());
-  const [savingWords, setSavingWords] = useState(new Set()); // Words currently being saved
-  const [savedWords, setSavedWords] = useState(new Set()); // Words successfully saved
+  const [savingWords, setSavingWords] = useState(new Set());
+  const [savedWords, setSavedWords] = useState(new Set());
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
-
   const currentQuestion = questions[currentIndex];
 
   const initializeAnswers = (questionList) => {
@@ -274,20 +237,32 @@ export default function ToeflCompleteTheWordQuiz({
     setError('');
     setFeedback('');
     setSummary(null);
+
+    const vocabularyWords =
+      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
+        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
+        : [];
+
+    const pickedTopics =
+      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
+        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
+        : [];
+
+    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
+
     try {
       const data = await generateCompleteTheWordSet({
-        aiConfig,
-        questionCount,
-        blanksPerQuestion,
-        targetScore
+        aiConfig, questionCount, blanksPerQuestion, targetScore,
+        vocabularyWords,
+        pickedTopics,
       });
       const cleanedQuestions = (data.questions || []).map((question) => ({
         ...question,
         blanks:
           question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
             ...blank,
-            segments: getBlankSegments(blank.answer || '')
-          })) || []
+            segments: getBlankSegments(blank.answer || ''),
+          })) || [],
       }));
       setQuestions(cleanedQuestions);
       initializeAnswers(cleanedQuestions);
@@ -300,17 +275,12 @@ export default function ToeflCompleteTheWordQuiz({
     }
   };
 
-  useEffect(() => {
-    loadQuestions();
-  }, [questionCount, targetScore, aiConfig]);
-
-  useEffect(() => {
-    localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel));
-  }, [fontScaleLevel]);
+  useEffect(() => { loadQuestions(); }, [questionCount, targetScore, aiConfig]);
+  useEffect(() => { localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel)); }, [fontScaleLevel]);
 
   const totalQuestions = questions.length;
-
   const currentAnswers = answers[currentIndex] || [];
+
   const filledBlankCount = currentQuestion
     ? currentQuestion.blanks.reduce((count, blank, index) => {
         const blankAnswers = currentAnswers[index] || [];
@@ -321,9 +291,7 @@ export default function ToeflCompleteTheWordQuiz({
         return count + (isFilled ? 1 : 0);
       }, 0)
     : 0;
-  const remainingBlankCount = currentQuestion
-    ? currentQuestion.blanks.length - filledBlankCount
-    : 0;
+  const remainingBlankCount = currentQuestion ? currentQuestion.blanks.length - filledBlankCount : 0;
 
   const getEditableIndices = (blank) =>
     (blank?.segments || [])
@@ -349,13 +317,12 @@ export default function ToeflCompleteTheWordQuiz({
     return {
       correctCount,
       total: currentQuestion.blanks.length,
-      isPerfect: correctCount === currentQuestion.blanks.length
+      isPerfect: correctCount === currentQuestion.blanks.length,
     };
   }, [checked, currentQuestion, currentAnswers]);
 
   const blankResults = useMemo(() => {
     if (!currentQuestion || !checked) return [];
-
     return currentQuestion.blanks.map((blank, index) => {
       const blankAnswers = currentAnswers[index] || [];
       const editableIndices = getEditableIndices(blank);
@@ -378,23 +345,17 @@ export default function ToeflCompleteTheWordQuiz({
   const focusBlankInput = (blankIndex, preferFirstEmpty = true) => {
     const blank = currentQuestion?.blanks?.[blankIndex];
     if (!blank) return;
-
     const editableIndices = getEditableIndices(blank);
     if (editableIndices.length === 0) return;
-
     const blankAnswers = currentAnswers[blankIndex] || [];
-    const targetIndex =
-      preferFirstEmpty
-        ? editableIndices.find((index) => !(blankAnswers[index] || '').trim()) ?? editableIndices[0]
-        : editableIndices[0];
-
-    const key = `${currentIndex}-${blankIndex}-${targetIndex}`;
-    focusInputByKey(key);
+    const targetIndex = preferFirstEmpty
+      ? editableIndices.find((index) => !(blankAnswers[index] || '').trim()) ?? editableIndices[0]
+      : editableIndices[0];
+    focusInputByKey(`${currentIndex}-${blankIndex}-${targetIndex}`);
   };
 
   const focusNextIncompleteBlank = (fromBlankIndex) => {
     if (!currentQuestion) return;
-
     const nextBlankIndex = currentQuestion.blanks.findIndex((blank, blankIndex) => {
       if (blankIndex <= fromBlankIndex) return false;
       const editableIndices = getEditableIndices(blank);
@@ -402,39 +363,28 @@ export default function ToeflCompleteTheWordQuiz({
       const blankAnswers = currentAnswers[blankIndex] || [];
       return editableIndices.some((index) => !(blankAnswers[index] || '').trim());
     });
-
     if (nextBlankIndex === -1) return;
-
-    requestAnimationFrame(() => {
-      focusBlankInput(nextBlankIndex);
-    });
+    requestAnimationFrame(() => focusBlankInput(nextBlankIndex));
   };
 
   const focusNextInput = (blankIndex, inputIndex) => {
     const blank = currentQuestion?.blanks?.[blankIndex];
     if (!blank) return;
-
     const editableIndices = getEditableIndices(blank);
-
     const nextEditableIndex = editableIndices.find((index) => index > inputIndex);
-
     if (nextEditableIndex === undefined) return;
-
-    const key = `${currentIndex}-${blankIndex}-${nextEditableIndex}`;
-    focusInputByKey(key);
+    focusInputByKey(`${currentIndex}-${blankIndex}-${nextEditableIndex}`);
   };
 
   const focusPreviousInput = (blankIndex, inputIndex) => {
     const blank = currentQuestion?.blanks?.[blankIndex];
     if (!blank) return;
-
     const editableIndices = getEditableIndices(blank);
     const prevInSameBlank = [...editableIndices].reverse().find((index) => index < inputIndex);
     if (prevInSameBlank !== undefined) {
       focusInputByKey(`${currentIndex}-${blankIndex}-${prevInSameBlank}`);
       return;
     }
-
     for (let i = blankIndex - 1; i >= 0; i -= 1) {
       const prevBlank = currentQuestion.blanks[i];
       const prevEditableIndices = getEditableIndices(prevBlank);
@@ -469,21 +419,15 @@ export default function ToeflCompleteTheWordQuiz({
 
     if (sanitized) {
       const hasNextInputInBlank = editableIndices.some((index) => index > inputIndex);
-
-      if (hasNextInputInBlank) {
-        focusNextInput(blankIndex, inputIndex);
-      } else if (isBlankFilled) {
-        focusNextIncompleteBlank(blankIndex);
-      }
+      if (hasNextInputInBlank) focusNextInput(blankIndex, inputIndex);
+      else if (isBlankFilled) focusNextIncompleteBlank(blankIndex);
     }
   };
 
   const handleInputKeyDown = (event, blankIndex, inputIndex) => {
     if (event.key !== 'Backspace' || checked) return;
-
     const currentValue = (currentAnswers[blankIndex] || [])[inputIndex] || '';
     if (currentValue) return;
-
     event.preventDefault();
     focusPreviousInput(blankIndex, inputIndex);
   };
@@ -494,7 +438,6 @@ export default function ToeflCompleteTheWordQuiz({
     setFeedback('');
     setStatus('feedback');
 
-    // Collect incorrect words for vocabulary saving
     const newIncorrectWords = new Set(incorrectWords);
     currentQuestion.blanks.forEach((blank, index) => {
       const blankAnswers = currentAnswers[index] || [];
@@ -504,10 +447,7 @@ export default function ToeflCompleteTheWordQuiz({
         const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
         return userAnswer === targetAnswer;
       });
-
-      if (!isCorrect && blank.answer) {
-        newIncorrectWords.add(blank.answer.toLowerCase().trim());
-      }
+      if (!isCorrect && blank.answer) newIncorrectWords.add(blank.answer.toLowerCase().trim());
     });
     setIncorrectWords(newIncorrectWords);
   };
@@ -517,23 +457,17 @@ export default function ToeflCompleteTheWordQuiz({
 
     setIsGeneratingFeedback(true);
     try {
-      // Reconstruct full words including prefix hints
       const userAnswers = currentAnswers.map((blankAnswers, blankIndex) => {
         const blank = currentQuestion.blanks[blankIndex];
         const segments = getBlankSegments(blank.answer);
-
         return segments.map((segment) => {
-          if (segment.type === 'fixed') {
-            return segment.value;
-          }
+          if (segment.type === 'fixed') return segment.value;
           return blankAnswers[segment.inputIndex] || '';
         }).join('');
       });
 
       const result = await generateCompleteTheWordFeedback({
-        aiConfig,
-        question: currentQuestion,
-        userAnswers
+        aiConfig, question: currentQuestion, userAnswers,
       });
       setFeedback(result.feedback || '');
     } catch (err) {
@@ -553,40 +487,30 @@ export default function ToeflCompleteTheWordQuiz({
     }
 
     setIsGeneratingSummary(true);
-    const resultPayload = questions
-      .map((question, index) => {
-        const questionAnswers = answers[index] || [];
-        const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
-          const blankAnswers = questionAnswers[blankIndex] || [];
-          const editableIndices = (blank.segments || [])
-            .filter((segment) => segment.type === 'editable')
-            .map((segment) => segment.inputIndex);
+    const resultPayload = questions.map((question, index) => {
+      const questionAnswers = answers[index] || [];
+      const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
+        const blankAnswers = questionAnswers[blankIndex] || [];
+        const editableIndices = (blank.segments || [])
+          .filter((segment) => segment.type === 'editable')
+          .map((segment) => segment.inputIndex);
+        const isCorrect = editableIndices.every((inputIndex) => {
+          const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
+          const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
+          return userAnswer === targetAnswer;
+        });
+        return count + (isCorrect ? 1 : 0);
+      }, 0);
+      return `Q${index + 1}: ${correctCount}/${question.blanks.length}`;
+    }).join(' | ');
 
-          const isCorrect = editableIndices.every((inputIndex) => {
-            const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-            const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-            return userAnswer === targetAnswer;
-          });
-
-          return count + (isCorrect ? 1 : 0);
-        }, 0);
-        return `Q${index + 1}: ${correctCount}/${question.blanks.length}`;
-      })
-      .join(' | ');
     try {
       const summaryData = await generateCompleteTheWordSummary({
-        aiConfig,
-        targetScore,
-        results: resultPayload
+        aiConfig, targetScore, results: resultPayload,
       });
       setSummary(summaryData);
     } catch (err) {
-      setSummary({
-        summary: 'AI 종합 피드백을 불러오지 못했습니다.',
-        strengths: [],
-        improvements: [],
-        nextSteps: []
-      });
+      setSummary({ summary: 'AI 종합 피드백을 불러오지 못했습니다.', strengths: [], improvements: [], nextSteps: [] });
     } finally {
       setIsGeneratingSummary(false);
       setStatus('summary');
@@ -594,46 +518,36 @@ export default function ToeflCompleteTheWordQuiz({
     }
   };
 
-  const getStorageKeyFromEmail = (email) => {
-    if (!email) return null;
-    return email.toLowerCase().replace(/[.@#$[\]]/g, '_');
-  };
-
   const handleSaveWordToVocabulary = async (word) => {
-    if (!db || !user || !user.email) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
+    if (!user) { alert('로그인이 필요합니다.'); return; }
+    if (savedWords.has(word)) { alert('이미 저장된 단어입니다.'); return; }
 
-    if (savedWords.has(word)) {
-      alert('이미 저장된 단어입니다.');
-      return;
-    }
-
-    const appId = 'vocaloop-default';
-    const userStorageKey = getStorageKeyFromEmail(user.email);
-
-    // Mark as saving
     setSavingWords(prev => new Set([...prev, word]));
 
     try {
       const wordData = await generateWordData(word, aiConfig);
-      await addDoc(collection(db, 'artifacts', appId, 'users', userStorageKey, 'words'), {
-        ...wordData,
-        createdAt: serverTimestamp(),
-        status: 'NEW',
-        learningRate: 0,
-        stats: { wrong_count: 0, consecutive_wrong: 0, review_count: 0 }
-      });
-
-      // Mark as saved
+      const payload = {
+        word: wordData?.word ?? word,
+        meaning_ko: wordData?.meaning_ko ?? null,
+        pronunciation: wordData?.pronunciation ?? null,
+        pos: wordData?.pos ?? null,
+        definitions: Array.isArray(wordData?.definitions) ? wordData.definitions : [],
+        definitions_ko: Array.isArray(wordData?.definitions_ko) ? wordData.definitions_ko : [],
+        examples: Array.isArray(wordData?.examples) ? wordData.examples : [],
+        synonyms: Array.isArray(wordData?.synonyms) ? wordData.synonyms : [],
+        nuance: wordData?.nuance ?? null,
+        folder_id: null,
+        learning_rate: 0,
+        status: 'new',
+        stats: { wrong_count: 0, review_count: 0 },
+      };
+      await createWord(payload);
       setSavedWords(prev => new Set([...prev, word]));
       alert(`'${word}' 단어를 단어장에 저장했습니다!`);
     } catch (error) {
       console.error(`Failed to save word: ${word}`, error);
       alert(`'${word}' 저장에 실패했습니다: ${error.message}`);
     } finally {
-      // Remove from saving
       setSavingWords(prev => {
         const updated = new Set(prev);
         updated.delete(word);
@@ -644,32 +558,22 @@ export default function ToeflCompleteTheWordQuiz({
 
   if (status === 'loading') {
     return (
-      <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-10 text-center">
-        <Sparkles className="w-10 h-10 text-blue-400 mx-auto mb-4 animate-pulse" />
-        <h3 className="text-xl font-bold text-gray-900 mb-2">TOEFL 문제를 생성 중입니다</h3>
-        <p className="text-sm text-gray-500">학술적 문단을 준비하고 있어요. 잠시만 기다려주세요.</p>
+      <div className="bg-white rounded-xl border border-brand-100 shadow-[var(--shadow-soft)] p-10 text-center">
+        <Sparkles className="w-10 h-10 text-brand-400 mx-auto mb-4 animate-pulse" aria-hidden="true" />
+        <h3 className="text-xl font-black text-surface-900 mb-2 tracking-tight">TOEFL 문제를 생성 중입니다</h3>
+        <p className="text-sm font-bold text-surface-500">학술적 문단을 준비하고 있어요. 잠시만 기다려주세요.</p>
       </div>
     );
   }
 
   if (status === 'error') {
     return (
-      <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-10 text-center">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">문제 생성 실패</h3>
-        <p className="text-sm text-red-500 mb-6">{error}</p>
+      <div className="bg-white rounded-xl border border-danger-100 shadow-[var(--shadow-soft)] p-10 text-center">
+        <h3 className="text-xl font-black text-surface-900 mb-2 tracking-tight">문제 생성 실패</h3>
+        <p className="text-sm font-bold text-danger-500 mb-6">{error}</p>
         <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={loadQuestions}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            다시 시도
-          </button>
-          <button
-            onClick={onExit}
-            className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            모드 선택으로
-          </button>
+          <Button variant="primary" size="md" onClick={loadQuestions}>다시 시도</Button>
+          <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
         </div>
       </div>
     );
@@ -677,45 +581,34 @@ export default function ToeflCompleteTheWordQuiz({
 
   if (status === 'summary' && summary) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+      <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">학습 완료 리포트</h2>
-            <p className="text-sm text-gray-500">목표 점수: TOEFL {targetScore}+</p>
+            <h2 className="text-2xl font-black text-surface-900 tracking-tight">학습 완료 리포트</h2>
+            <p className="text-sm font-bold text-surface-500">목표 점수: TOEFL {targetScore}+</p>
           </div>
-          <button
-            onClick={onExit}
-            className="px-5 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            모드 선택으로
-          </button>
+          <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
         </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
-          <p className="text-sm text-blue-900">{summary.summary}</p>
+        <div className="bg-brand-50 border border-brand-100 rounded-xl p-6">
+          <p className="text-sm font-bold text-brand-900">{summary.summary}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">강점</h4>
-            <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              {(summary.strengths || []).map((item, index) => (
-                <li key={`strength-${index}`}>{item}</li>
-              ))}
+          <div className="bg-surface-50 rounded-xl p-4">
+            <h4 className="font-black text-surface-900 mb-2 tracking-tight">강점</h4>
+            <ul className="text-sm text-surface-600 space-y-1 list-disc list-inside">
+              {(summary.strengths || []).map((item, index) => <li key={`strength-${index}`}>{item}</li>)}
             </ul>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">개선점</h4>
-            <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              {(summary.improvements || []).map((item, index) => (
-                <li key={`improvement-${index}`}>{item}</li>
-              ))}
+          <div className="bg-surface-50 rounded-xl p-4">
+            <h4 className="font-black text-surface-900 mb-2 tracking-tight">개선점</h4>
+            <ul className="text-sm text-surface-600 space-y-1 list-disc list-inside">
+              {(summary.improvements || []).map((item, index) => <li key={`improvement-${index}`}>{item}</li>)}
             </ul>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">다음 학습</h4>
-            <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              {(summary.nextSteps || []).map((item, index) => (
-                <li key={`next-${index}`}>{item}</li>
-              ))}
+          <div className="bg-surface-50 rounded-xl p-4">
+            <h4 className="font-black text-surface-900 mb-2 tracking-tight">다음 학습</h4>
+            <ul className="text-sm text-surface-600 space-y-1 list-disc list-inside">
+              {(summary.nextSteps || []).map((item, index) => <li key={`next-${index}`}>{item}</li>)}
             </ul>
           </div>
         </div>
@@ -725,49 +618,57 @@ export default function ToeflCompleteTheWordQuiz({
 
   if (!currentQuestion) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">문제를 불러올 수 없습니다</h3>
-        <button
-          onClick={loadQuestions}
-          className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          다시 생성
-        </button>
+      <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-10 text-center">
+        <h3 className="text-xl font-black text-surface-900 mb-2 tracking-tight">문제를 불러올 수 없습니다</h3>
+        <Button variant="primary" size="md" onClick={loadQuestions}>다시 생성</Button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Complete-the-Word</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-2xl font-black text-surface-900 tracking-tight">Complete-the-Word</h2>
+          <p className="text-sm font-bold text-surface-500">
             학술적 문단에서 빠진 철자를 채워보세요. (문항 {currentIndex + 1}/{totalQuestions})
           </p>
         </div>
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
-            목표 점수 TOEFL {targetScore}+
+        <div className="flex flex-wrap items-center gap-2 max-w-full text-sm text-surface-600">
+          <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
+            TOEFL {targetScore}+
           </span>
+          {sessionContext.vocabSampleCount > 0 && (
+            <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
+              내 단어 {sessionContext.vocabSampleCount}개 활용
+            </span>
+          )}
+          {sessionContext.pickedTopics.length > 0 && (
+            <span
+              title={sessionContext.pickedTopics.map((t) => t.label).join(' · ')}
+              className="inline-flex items-center max-w-full px-3 py-1 rounded-pill bg-accent-50 text-accent-700 font-black text-2xs uppercase tracking-widest"
+            >
+              <span className="truncate">주제: {sessionContext.pickedTopics.map((t) => t.label).join(' · ')}</span>
+            </span>
+          )}
           <button
             onClick={() => setShowSettings(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-md hover:bg-surface-100 transition-colors shrink-0"
             aria-label="퀴즈 설정"
           >
-            <Settings className="w-5 h-5 text-gray-600" />
+            <Settings className="w-5 h-5 text-surface-600" aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-4 md:p-8 text-gray-800">
-        <p className="mb-6 text-base md:text-lg font-semibold text-gray-900">
+      <div className="bg-surface-50 rounded-md p-4 md:p-8 text-surface-800">
+        <p className="mb-6 text-base md:text-lg font-black text-surface-900 tracking-tight">
           Fill in the missing letters in the paragraph.
         </p>
-        <p className="mb-4 text-xs text-gray-500 font-medium">
+        <p className="mb-4 text-xs text-surface-500 font-bold">
           빈칸 {currentQuestion.blanks.length}개 · 일부 철자는 고정으로 제공됩니다.
         </p>
-        <p className={`${FONT_SCALE_STYLES[fontScaleLevel]?.paragraph || FONT_SCALE_STYLES[3].paragraph} tracking-[-0.01em] text-gray-700`}>
+        <p className={`${FONT_SCALE_STYLES[fontScaleLevel]?.paragraph || FONT_SCALE_STYLES[3].paragraph} tracking-[-0.01em] text-surface-700`}>
           {renderParagraphWithInputs({
             paragraph: currentQuestion.paragraph,
             blanks: currentQuestion.blanks,
@@ -779,18 +680,18 @@ export default function ToeflCompleteTheWordQuiz({
             questionIndex: currentIndex,
             inputRefs,
             fontScaleLevel,
-            blankResults
+            blankResults,
           })}
         </p>
       </div>
 
       {checked && correctness && (
-        <div className={`rounded-xl p-4 ${correctness.isPerfect ? 'bg-green-50' : 'bg-yellow-50'}`}>
-          <p className="text-sm font-semibold text-gray-900">
+        <div className={`rounded-md p-4 ${correctness.isPerfect ? 'bg-success-50' : 'bg-warning-50'}`}>
+          <p className="text-sm font-black text-surface-900">
             맞힌 개수: {correctness.correctCount} / {correctness.total}
           </p>
           {!correctness.isPerfect && (
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="text-xs font-semibold text-surface-600 mt-1">
               오답은 아래의 정답 및 피드백을 확인해주세요.
             </p>
           )}
@@ -798,34 +699,34 @@ export default function ToeflCompleteTheWordQuiz({
       )}
 
       {checked && !correctness?.isPerfect && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <div className="text-sm text-gray-700">
-            <span className="font-semibold">정답 문단:</span>
-            <p className="mt-2 text-gray-600 leading-relaxed">{currentQuestion.fullParagraph}</p>
+        <div className="bg-white border border-surface-200 rounded-md p-4 space-y-3">
+          <div className="text-sm text-surface-700">
+            <span className="font-black">정답 문단:</span>
+            <p className="mt-2 text-surface-600 leading-relaxed">{currentQuestion.fullParagraph}</p>
           </div>
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-surface-700">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="font-semibold">AI 피드백</span>
+              <span className="font-black">AI 피드백</span>
               <button
                 type="button"
                 onClick={handleGenerateFeedback}
                 disabled={isGeneratingFeedback || Boolean(feedback)}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-accent-500 via-indigo-pair-500 to-brand-500 px-4 py-2 text-xs font-black text-white shadow-sm transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Sparkles className={`w-4 h-4 ${isGeneratingFeedback ? 'animate-pulse' : ''}`} />
+                <Sparkles className={`w-4 h-4 ${isGeneratingFeedback ? 'animate-pulse' : ''}`} aria-hidden="true" />
                 {isGeneratingFeedback ? 'AI 피드백 생성 중...' : feedback ? 'AI 피드백 생성 완료' : 'AI 피드백 생성'}
               </button>
             </div>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-surface-600">
               {feedback || '버튼을 눌러 오답 기반 AI 피드백을 생성할 수 있습니다.'}
             </p>
           </div>
 
           {incorrectWords.size > 0 && (
-            <div className="pt-3 border-t border-gray-200">
+            <div className="pt-3 border-t border-surface-200">
               <div className="mb-3">
-                <span className="font-semibold">틀린 단어 ({incorrectWords.size}개)</span>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <span className="font-black">틀린 단어 ({incorrectWords.size}개)</span>
+                <p className="text-xs font-semibold text-surface-500 mt-0.5">
                   저장이 필요한 단어만 선택해서 단어장에 추가하세요.
                 </p>
               </div>
@@ -837,39 +738,39 @@ export default function ToeflCompleteTheWordQuiz({
                   return (
                     <div
                       key={word}
-                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all ${
+                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-all ${
                         isSaved
-                          ? 'bg-green-50 border-green-300'
-                          : 'bg-white border-gray-200 hover:border-gray-300'
+                          ? 'bg-success-50 border-success-300'
+                          : 'bg-white border-surface-200 hover:border-surface-300'
                       }`}
                     >
-                      <span className={`font-medium ${isSaved ? 'text-green-700' : 'text-gray-700'}`}>
+                      <span className={`font-bold ${isSaved ? 'text-success-700' : 'text-surface-700'}`}>
                         {word}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleSaveWordToVocabulary(word)}
-                        disabled={isSaving || isSaved || !db || !user}
-                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold transition-all ${
+                        disabled={isSaving || isSaved || !user}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-black transition-all ${
                           isSaved
-                            ? 'bg-green-100 text-green-700 cursor-default'
-                            : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed'
+                            ? 'bg-success-100 text-success-700 cursor-default'
+                            : 'bg-gradient-to-r from-success-500 to-success-600 text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed'
                         }`}
                         title={isSaved ? '저장 완료' : '단어장에 저장'}
                       >
                         {isSaving ? (
                           <>
-                            <Save className="w-3 h-3 animate-pulse" />
+                            <Save className="w-3 h-3 animate-pulse" aria-hidden="true" />
                             <span>저장 중...</span>
                           </>
                         ) : isSaved ? (
                           <>
-                            <Check className="w-3 h-3" />
+                            <Check className="w-3 h-3" aria-hidden="true" />
                             <span>저장됨</span>
                           </>
                         ) : (
                           <>
-                            <Save className="w-3 h-3" />
+                            <Save className="w-3 h-3" aria-hidden="true" />
                             <span>저장</span>
                           </>
                         )}
@@ -884,58 +785,54 @@ export default function ToeflCompleteTheWordQuiz({
       )}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="text-sm text-gray-600 flex items-center gap-4">
-          <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
+        <div className="text-sm text-surface-600 flex items-center gap-4">
+          <span className="px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-xs">
             푼 문제 {filledBlankCount}개
           </span>
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">
+          <span className="px-3 py-1 rounded-pill bg-surface-100 text-surface-700 font-black text-xs">
             남은 문제 {remainingBlankCount}개
           </span>
         </div>
         <div className="flex items-center gap-3">
           {!checked ? (
-            <button
-              onClick={handleCheckAnswers}
-              className="px-6 py-2 font-medium rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
-            >
-              정답 확인
-            </button>
+            <Button variant="primary" size="md" onClick={handleCheckAnswers}>정답 확인</Button>
           ) : (
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleNextQuestion}
               disabled={isGeneratingSummary}
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {currentIndex < totalQuestions - 1
                 ? '다음 문항'
                 : isGeneratingSummary
-                ? '리포트 생성 중...'
-                : '학습 완료'}
-            </button>
+                  ? '리포트 생성 중...'
+                  : '학습 완료'}
+            </Button>
           )}
         </div>
       </div>
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-surface-900/50 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)} role="dialog" aria-modal="true">
+          <div className="bg-white rounded-xl shadow-[var(--shadow-elevated)] max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">퀴즈 설정</h3>
+              <h3 className="text-lg font-black text-surface-900 tracking-tight">퀴즈 설정</h3>
               <button
                 onClick={() => setShowSettings(false)}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1 rounded-md hover:bg-surface-100 transition-colors"
                 aria-label="설정 닫기"
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="w-5 h-5 text-surface-600" aria-hidden="true" />
               </button>
             </div>
 
             <div className="space-y-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="rounded-md border border-surface-200 bg-surface-50 px-4 py-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-gray-700">글자 크기</p>
-                  <span className="text-sm text-gray-500">{fontScaleLevel}단계 / 5단계</span>
+                  <p className="text-sm font-black text-surface-700 tracking-tight">글자 크기</p>
+                  <span className="text-sm font-bold text-surface-500">{fontScaleLevel}단계 / 5단계</span>
                 </div>
                 <input
                   type="range"
@@ -944,20 +841,15 @@ export default function ToeflCompleteTheWordQuiz({
                   step={1}
                   value={fontScaleLevel}
                   onChange={(event) => setFontScaleLevel(Number(event.target.value))}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-brand-600"
                   aria-label="문제 글자 크기"
                 />
-                <p className="text-xs text-gray-500 mt-2">문단과 빈칸의 크기를 조절할 수 있습니다.</p>
+                <p className="text-xs font-semibold text-surface-500 mt-2">문단과 빈칸의 크기를 조절할 수 있습니다.</p>
               </div>
             </div>
 
             <div className="flex justify-end">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                확인
-              </button>
+              <Button variant="primary" size="md" onClick={() => setShowSettings(false)}>확인</Button>
             </div>
           </div>
         </div>

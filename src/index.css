@@ -1,11 +1,135 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
 
-body {
-    background-color: #F8F9F9;
+/* ==========================================================================
+ * VocaLoop Design Tokens — Tailwind v4 @theme
+ * 값은 src/design-system/tokens.js 와 1:1 일치해야 합니다.
+ * 새 색/간격/그림자가 필요하면 토큰을 먼저 추가하세요.
+ * ========================================================================== */
+@theme {
+    /* Brand */
+    --color-brand-50:  #EFF6FF;
+    --color-brand-100: #DBEAFE;
+    --color-brand-200: #BFDBFE;
+    --color-brand-300: #93C5FD;
+    --color-brand-400: #60A5FA;
+    --color-brand-500: #3B82F6;
+    --color-brand-600: #2563EB;
+    --color-brand-700: #1D4ED8;
+    --color-brand-800: #1E40AF;
+    --color-brand-900: #1E3A8A;
+
+    /* Accent (purple) */
+    --color-accent-50:  #FAF5FF;
+    --color-accent-100: #F3E8FF;
+    --color-accent-400: #A78BFA;
+    --color-accent-500: #8B5CF6;
+    --color-accent-600: #7C3AED;
+    --color-accent-700: #6D28D9;
+
+    /* Indigo (gradient pair) */
+    --color-indigo-pair-500: #6366F1;
+    --color-indigo-pair-600: #4F46E5;
+    --color-indigo-pair-700: #4338CA;
+
+    /* Surface — 통일된 슬레이트 팔레트 */
+    --color-surface-0:   #FFFFFF;
+    --color-surface-50:  #F8FAFC;
+    --color-surface-100: #F1F5F9;
+    --color-surface-200: #E2E8F0;
+    --color-surface-300: #CBD5E1;
+    --color-surface-400: #94A3B8;
+    --color-surface-500: #64748B;
+    --color-surface-600: #475569;
+    --color-surface-700: #334155;
+    --color-surface-800: #1E293B;
+    --color-surface-900: #0F172A;
+
+    /* Semantic — Tailwind-aligned full scale */
+    --color-success-50:  #ECFDF5;
+    --color-success-100: #D1FAE5;
+    --color-success-200: #A7F3D0;
+    --color-success-300: #6EE7B7;
+    --color-success-400: #34D399;
+    --color-success-500: #10B981;
+    --color-success-600: #059669;
+    --color-success-700: #047857;
+    --color-warning-50:  #FFFBEB;
+    --color-warning-100: #FEF3C7;
+    --color-warning-200: #FDE68A;
+    --color-warning-300: #FCD34D;
+    --color-warning-400: #FBBF24;
+    --color-warning-500: #F59E0B;
+    --color-warning-600: #D97706;
+    --color-warning-700: #B45309;
+    --color-danger-50:   #FEF2F2;
+    --color-danger-100:  #FEE2E2;
+    --color-danger-200:  #FECACA;
+    --color-danger-300:  #FCA5A5;
+    --color-danger-400:  #F87171;
+    --color-danger-500:  #EF4444;
+    --color-danger-600:  #DC2626;
+    --color-danger-700:  #B91C1C;
+
+    /* Typography — font-display / font-serif / font-mono */
+    --font-display: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+    --font-serif:   'Merriweather', Georgia, serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+    --text-2xs:  0.625rem;
+    --text-2xs--line-height: 1.25;
+    --text-5xl:  3rem;
+    --text-5xl--line-height: 1.05;
+
+    /* Radius — 의미 기반 토큰 (rounded-card, rounded-hero …) */
+    --radius-xs:    0.5rem;
+    --radius-sm:    0.75rem;
+    --radius-md:    1rem;
+    --radius-lg:    1.25rem;
+    --radius-xl:    1.5rem;
+    --radius-2xl:   2rem;     /* 메인 카드 시그니처 */
+    --radius-3xl:   3rem;     /* 히어로/푸터 카드 */
+    --radius-card:  2rem;     /* alias */
+    --radius-hero:  3rem;     /* alias */
+    --radius-pill:  9999px;
+
+    /* Shadows */
+    --shadow-soft:        0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
+    --shadow-card:        0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+    --shadow-card-hover:  0 10px 20px -5px rgb(15 23 42 / 0.10), 0 4px 8px -4px rgb(15 23 42 / 0.06);
+    --shadow-elevated:    0 20px 40px -10px rgb(15 23 42 / 0.15);
+    --shadow-floating:    0 30px 60px -15px rgb(15 23 42 / 0.25);
+    --shadow-glow-brand:  0 10px 30px -10px rgb(37 99 235 / 0.35);
+    --shadow-glow-accent: 0 10px 30px -10px rgb(124 58 237 / 0.35);
+    --shadow-glow-indigo: 0 10px 30px -10px rgb(79 70 229 / 0.35);
+
+    /* Motion */
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-decel:  cubic-bezier(0, 0, 0.2, 1);
 }
 
+/* ==========================================================================
+ * Base — 토큰을 사용한 글로벌 스타일
+ * ========================================================================== */
+body {
+    background-color: var(--color-surface-50);
+    color: var(--color-surface-900);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 기본 포커스 링 — 키보드 사용자에게만 보이도록 */
+:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+}
+
+/* ==========================================================================
+ * Card flip (WordCard 전용)
+ * ========================================================================== */
 .card-flip {
     perspective: 1000px;
 }
@@ -14,8 +138,16 @@ body {
     position: relative;
     width: 100%;
     height: 100%;
-    transition: transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: transform 0.7s var(--ease-spring);
     transform-style: preserve-3d;
+}
+
+.word-card-radius-shell {
+    border-radius: var(--radius-sm);
+}
+
+.word-card-radius-layer {
+    border-radius: inherit;
 }
 
 .card-flip.flipped .card-inner {
@@ -28,94 +160,57 @@ body {
     height: 100%;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-sm);
 }
 
 .card-back {
     transform: rotateY(180deg);
 }
 
-/* 호버 시 그림자 강조 효과 (Floating Effect) - 마우스 장치에서만 적용 */
 @media (hover: hover) {
     .card-inner:hover {
-        box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--shadow-floating);
     }
 }
 
-/* 리스트 아이템 추가 애니메이션 (Slide Down & Fade In) */
+/* ==========================================================================
+ * Animations — 모두 토큰 기반 easing
+ * ========================================================================== */
 @keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
-
 .animate-slide-in {
-    animation: slideIn 0.5s ease-out forwards;
+    animation: slideIn 0.5s var(--ease-decel) forwards;
 }
 
-/* AI Generation Pulse Glow */
 @keyframes pulseGlow {
-
-    0%,
-    100% {
+    0%, 100% {
         box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
         border-color: rgba(59, 130, 246, 0.5);
     }
-
     50% {
         box-shadow: 0 0 25px rgba(99, 102, 241, 0.5);
         border-color: rgba(99, 102, 241, 0.8);
     }
 }
-
 .animate-pulse-glow {
     animation: pulseGlow 2s infinite ease-in-out;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-
 @keyframes expandFromIcon {
-    from {
-        opacity: 0;
-        transform: scale(0.3);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.3); }
+    to   { opacity: 1; transform: scale(1); }
 }
-
 .animate-expand-from-icon {
-    animation: expandFromIcon 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: expandFromIcon 0.4s var(--ease-spring) forwards;
 }
 
 @keyframes skeletonPulse {
-    0% {
-        background-color: #f3f4f6;
-    }
-    50% {
-        background-color: #e5e7eb;
-    }
-    100% {
-        background-color: #f3f4f6;
-    }
+    0%   { background-color: var(--color-surface-100); }
+    50%  { background-color: var(--color-surface-200); }
+    100% { background-color: var(--color-surface-100); }
 }
-
 .animate-skeleton {
     animation: skeletonPulse 1.5s ease-in-out infinite;
 }
@@ -130,7 +225,24 @@ body {
         box-shadow: 0 0 0 4px rgba(var(--pulse-color), 0.1);
     }
 }
-
 .hover-border-pulse:hover {
     animation: borderPulse 2s infinite ease-in-out;
+}
+
+/* ==========================================================================
+ * Utilities
+ * ========================================================================== */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 모션 감소 사용자 — 모든 애니메이션 비활성화 */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

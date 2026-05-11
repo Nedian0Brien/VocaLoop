@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getLearningRateColor, getLearningStatus, LEARNING_STATUS } from '../utils/learningRate';
+import { getLearningRateColor, getLearningStatus } from '../utils/learningRate';
 
 /**
  * 학습률 원형 도넛 그래프 컴포넌트
@@ -16,7 +16,6 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
   const [animatedRate, setAnimatedRate] = useState(0);
 
   useEffect(() => {
-    // requestAnimationFrame을 사용한 부드러운 애니메이션
     const startTime = performance.now();
     const duration = 600; // ms
     const startRate = animatedRate;
@@ -28,7 +27,6 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = startRate + (targetRate - startRate) * eased;
       setAnimatedRate(current);
@@ -43,15 +41,13 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
   }, [rate]);
 
   const center = size / 2;
-  const radius = (size - strokeWidth) / 2 - 1; // 1px 여유
+  const radius = (size - strokeWidth) / 2 - 1;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (animatedRate / 100) * circumference;
   const color = getLearningRateColor(animatedRate);
-  const status = getLearningStatus(rate);
-  const isComplete = rate >= 100;
 
-  // 배경 트랙 색상 (살짝 연한)
-  const trackColor = '#E5E7EB'; // gray-200
+  // surface-200 — 디자인 시스템 토큰
+  const trackColor = '#E2E8F0';
 
   return (
     <div
@@ -65,7 +61,6 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
         viewBox={`0 0 ${size} ${size}`}
         className="transform -rotate-90"
       >
-        {/* 배경 트랙 */}
         <circle
           cx={center}
           cy={center}
@@ -75,7 +70,6 @@ export default function LearningRateDonut({ rate = 0, size = 48, strokeWidth = 4
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
-        {/* 진행 호 */}
         {animatedRate > 0 && (
           <circle
             cx={center}
@@ -106,16 +100,16 @@ export function LearningStatusBadge({ rate = 0 }) {
   const status = getLearningStatus(rate);
 
   const config = {
-    difficult: { label: '어려워요', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-500' },
-    learning: { label: '학습 중', bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
-    memorized: { label: '외웠어요', bg: 'bg-green-50', text: 'text-green-600', dot: 'bg-green-500' },
+    difficult: { label: '어려워요', bg: 'bg-danger-50',  text: 'text-danger-600',  dot: 'bg-danger-500' },
+    learning:  { label: '학습 중',  bg: 'bg-brand-50',   text: 'text-brand-600',   dot: 'bg-brand-500' },
+    memorized: { label: '외웠어요', bg: 'bg-success-50', text: 'text-success-600', dot: 'bg-success-500' },
   };
 
   const c = config[status];
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.bg} ${c.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-2xs font-black uppercase tracking-wide ${c.bg} ${c.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-pill ${c.dot}`} aria-hidden="true" />
       {c.label}
     </span>
   );
