@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap, ChevronRight, Clock, BarChart3 } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
+import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
 
 const HIST_STORAGE_KEY = 'vocaloop_quiz_history';
 const GOAL_STORAGE_KEY = 'vocaloop_weekly_goal';
@@ -22,6 +23,13 @@ const readWeeklyGoal = () => {
 
 const writeWeeklyGoal = (n) => {
   try { localStorage.setItem(GOAL_STORAGE_KEY, String(n)); } catch { /* ignore */ }
+};
+
+const TOEFL_READING_LABELS = {
+  'complete-words': 'Complete the Words',
+  'daily-life': 'Read in Daily Life',
+  'academic-passage': 'Read an Academic Passage',
+  'toefl-complete': 'Complete the Words',
 };
 
 /**
@@ -129,6 +137,7 @@ const HistoryItem = ({ entry, onSelect }) => {
 
 export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
   const [history, setHistory] = useState([]);
+  const [readingSummary, setReadingSummary] = useState(() => summarizeToeflReadingStats());
 
   // Weekly Goal — 사용자별 localStorage. 인라인 편집 가능.
   const [weeklyGoal, setWeeklyGoal] = useState(DEFAULT_WEEKLY_GOAL);
@@ -139,6 +148,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
     try {
       const savedHistory = JSON.parse(localStorage.getItem(HIST_STORAGE_KEY) || '[]');
       setHistory(savedHistory.slice(0, 5));
+      setReadingSummary(summarizeToeflReadingStats());
     } catch (e) {
       console.error('Failed to load history:', e);
     }
@@ -176,8 +186,10 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
   ];
 
   const toeflModes = [
-    { id: 'toefl-complete', title: 'TOEFL 문단 완성', description: '실제 TOEFL 학술 텍스트의 맥락을 이해하고 빈칸의 철자를 완성하는 고난도 모드입니다.', icon: Sparkles, color: 'blue', recommended: true },
-    { id: 'toefl-build', title: 'TOEFL 문장 구성', description: '주어진 단어들을 문법적으로 올바르게 조합하여 완성된 문장을 구성합니다.', icon: Zap, color: 'purple' }
+    { id: 'toefl-reading-mock', title: 'TOEFL Reading Mock Test', description: 'Stage 1 결과에 따라 Stage 2 난이도가 갈리는 실전형 Reading 모의고사입니다.', icon: Target, color: 'purple', recommended: true },
+    { id: 'toefl-complete', title: 'Complete the Words', description: '2026 TOEFL Reading의 단어 완성 task에 맞춰 문맥 속 빠진 철자를 완성합니다.', icon: Sparkles, color: 'blue', recommended: true },
+    { id: 'toefl-daily-life', title: 'Read in Daily Life', description: '이메일, 공지, 일정표 등 실생활 텍스트에서 목적과 세부 정보를 빠르게 파악합니다.', icon: BookOpen, color: 'blue' },
+    { id: 'toefl-academic-passage', title: 'Read an Academic Passage', description: '학술 지문을 읽고 중심 생각, 추론, 어휘 맥락, 수사적 관계를 풉니다.', icon: Zap, color: 'purple' }
   ];
 
   const accuracyTrend = history.length >= 2
@@ -187,6 +199,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
   const goalProgress = weeklyGoal > 0
     ? Math.min((stats.studiedCount || 0) / weeklyGoal * 100, 100)
     : 0;
+  const hasReadingStats = readingSummary.total > 0;
 
   return (
     <div className="max-w-5xl mx-auto space-y-14 animate-in fade-in slide-in-from-bottom-6 duration-1000">
@@ -269,7 +282,38 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
               title="Academic TOEFL"
               subtitle="실전 대비 고난도 학술적 문해력 강화"
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {hasReadingStats && (
+              <Card variant="outlined" radius="card" padding="lg" className="mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div>
+                    <Badge tone="brand" style="dot" size="xs" className="mb-3">TOEFL Reading Mastery</Badge>
+                    <div className="flex items-end gap-3">
+                      <p className="text-4xl font-black text-surface-900 tracking-tight">{readingSummary.accuracy}%</p>
+                      <p className="pb-1 text-xs font-black uppercase tracking-widest text-surface-400">
+                        {readingSummary.correct}/{readingSummary.total}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="rounded-md bg-surface-50 border border-surface-100 p-3">
+                      <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Weakest Task</p>
+                      <p className="mt-1 font-black text-surface-800">
+                        {TOEFL_READING_LABELS[readingSummary.weakestTask?.id] || readingSummary.weakestTask?.id || '-'}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-surface-50 border border-surface-100 p-3">
+                      <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Weakest Topic</p>
+                      <p className="mt-1 font-black text-surface-800">{readingSummary.weakestTopic?.id || '-'}</p>
+                    </div>
+                    <div className="rounded-md bg-surface-50 border border-surface-100 p-3">
+                      <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Weakest Skill</p>
+                      <p className="mt-1 font-black text-surface-800">{readingSummary.weakestSkill?.id || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {toeflModes.map((mode) => (
                 <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
               ))}

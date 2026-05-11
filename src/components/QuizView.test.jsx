@@ -43,6 +43,14 @@ vi.mock('./ToeflBuildSentenceQuiz', () => ({
     default: () => <div>toefl-build-quiz</div>,
 }));
 
+vi.mock('./ToeflReadingTaskQuiz', () => ({
+    default: ({ taskType }) => <div>toefl-reading-task:{taskType}</div>,
+}));
+
+vi.mock('./ToeflReadingMockTest', () => ({
+    default: () => <div>toefl-reading-mock-test</div>,
+}));
+
 vi.mock('../utils/soundEffects', () => ({
     playSound: vi.fn(),
 }));
@@ -167,5 +175,97 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByRole('button', { name: '다음 학습으로' }));
         expect(screen.queryByRole('heading', { name: '학습 세트 1 완료' })).toBeNull();
         expect(screen.getByText(/-quiz$/)).toBeTruthy();
+    });
+
+    test('offers all 2026 TOEFL Reading task practice modes and opens each task', () => {
+        const renderQuizView = () => render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'ecosystem',
+                        meaning_ko: '생태계',
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={true}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        const { unmount } = renderQuizView();
+        expect(screen.getByText('Complete the Words')).toBeTruthy();
+        expect(screen.getByText('Read in Daily Life')).toBeTruthy();
+        expect(screen.getByText('Read an Academic Passage')).toBeTruthy();
+        expect(screen.getByText('TOEFL Reading Mock Test')).toBeTruthy();
+
+        fireEvent.click(screen.getByText('Read in Daily Life'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-reading-task:daily-life')).toBeTruthy();
+
+        unmount();
+        renderQuizView();
+        fireEvent.click(screen.getByText('Read an Academic Passage'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-reading-task:academic-passage')).toBeTruthy();
+
+        unmount();
+        renderQuizView();
+        fireEvent.click(screen.getByText('TOEFL Reading Mock Test'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-reading-mock-test')).toBeTruthy();
+    });
+
+    test('shows TOEFL Reading mastery summary from accumulated practice stats', () => {
+        localStorage.setItem('vocaloop_toefl_reading_stats_v1', JSON.stringify({
+            version: 1,
+            totals: { correct: 3, total: 4 },
+            byTask: {
+                'daily-life': { correct: 1, total: 2 },
+                'academic-passage': { correct: 2, total: 2 },
+            },
+            byTopic: {
+                campus: { correct: 1, total: 2 },
+            },
+            bySkill: {
+                inference: { correct: 0, total: 1 },
+                detail: { correct: 3, total: 3 },
+            },
+            recent: [],
+        }));
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'ecosystem',
+                        meaning_ko: '생태계',
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={true}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        expect(screen.getByText('TOEFL Reading Mastery')).toBeTruthy();
+        expect(screen.getByText('75%')).toBeTruthy();
+        expect(screen.getAllByText('Read in Daily Life').length).toBeGreaterThan(0);
+        expect(screen.getByText('inference')).toBeTruthy();
     });
 });

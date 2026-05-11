@@ -8,6 +8,8 @@ import CompleteWordQuiz from './CompleteWordQuiz';
 import QuizResult from './QuizResult';
 import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
+import ToeflReadingTaskQuiz from './ToeflReadingTaskQuiz';
+import ToeflReadingMockTest from './ToeflReadingMockTest';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
@@ -194,7 +196,7 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
     if (!selectedMode) return;
     const modeId = selectedMode.id;
 
-    if (modeId === 'toefl-complete' || modeId === 'toefl-build') {
+    if (modeId === 'toefl-complete' || modeId === 'toefl-build' || modeId === 'toefl-daily-life' || modeId === 'toefl-academic-passage' || modeId === 'toefl-reading-mock') {
       setToeflConfig({
         questionCount,
         targetScore,
@@ -466,6 +468,41 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
 
               {selectedMode.id === 'toefl-build' && (
                 <ToeflBuildSentenceQuiz
+                  aiConfig={aiConfig}
+                  questionCount={toeflConfig.questionCount}
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-daily-life' && (
+                <ToeflReadingTaskQuiz
+                  aiConfig={aiConfig}
+                  taskType="daily-life"
+                  questionCount={toeflConfig.questionCount}
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-academic-passage' && (
+                <ToeflReadingTaskQuiz
+                  aiConfig={aiConfig}
+                  taskType="academic-passage"
+                  questionCount={toeflConfig.questionCount}
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-reading-mock' && (
+                <ToeflReadingMockTest
                   aiConfig={aiConfig}
                   questionCount={toeflConfig.questionCount}
                   targetScore={toeflConfig.targetScore}
