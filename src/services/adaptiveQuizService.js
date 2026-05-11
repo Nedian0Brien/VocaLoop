@@ -45,21 +45,41 @@ function lightlyRandomize(tasks, rng = Math.random, probability = 0.25) {
   return next;
 }
 
-function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
-  const selectedModes = normalizeAdaptiveModes(modes);
-  const tasks = [];
+function insertAt(items, index, item) {
+  return [
+    ...items.slice(0, index),
+    item,
+    ...items.slice(index),
+  ];
+}
 
-  for (let round = 0; round < setWords.length; round += 1) {
-    selectedModes.forEach((mode, stageIndex) => {
-      const word = setWords[(round + stageIndex) % setWords.length];
-      tasks.push({
-        word,
-        mode,
-        stageIndex,
-        wrongStreak: 0,
-      });
+function getProgressedTaskInsertionIndex(queue, nextTask, session) {
+  if (!session?.randomize) return queue.length;
+
+  const rng = session.rng || Math.random;
+  let earliestIndex = 0;
+
+  if (nextTask.stageIndex > 1) {
+    const lowerStageToClear = nextTask.stageIndex - 1;
+    queue.forEach((task, index) => {
+      if ((task.stageIndex || 0) < lowerStageToClear) {
+        earliestIndex = index + 1;
+      }
     });
   }
+
+  const availableSlots = queue.length - earliestIndex + 1;
+  return earliestIndex + Math.floor(rng() * availableSlots);
+}
+
+function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
+  const selectedModes = normalizeAdaptiveModes(modes);
+  const tasks = setWords.map((word) => ({
+    word,
+    mode: selectedModes[0],
+    stageIndex: 0,
+    wrongStreak: 0,
+  }));
 
   if (!options.randomize) return tasks;
   return lightlyRandomize(tasks, options.rng, options.randomizeProbability);
@@ -124,14 +144,31 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
 
   if (isCorrect) {
     const nextCompletedStages = currentCompletedStages + 1;
-    const setDone = remainingQueue.length === 0;
+    const nextStageIndex = currentStageIndex + 1;
+    const nextTask =
+      nextStageIndex < modes.length
+        ? {
+          word: currentTask.word,
+          mode: modes[nextStageIndex],
+          stageIndex: nextStageIndex,
+          wrongStreak: 0,
+        }
+        : null;
+    const nextQueue = nextTask
+      ? insertAt(
+        remainingQueue,
+        getProgressedTaskInsertionIndex(remainingQueue, nextTask, session),
+        nextTask
+      )
+      : remainingQueue;
+    const setDone = nextQueue.length === 0;
     const allDone = setDone && (session.currentSetIndex || 0) >= (session.totalSets || 1) - 1;
 
     return {
       ...session,
       modes,
       totalStages: session.totalStages,
-      queue: remainingQueue,
+      queue: nextQueue,
       completedStages: nextCompletedStages,
       isSetComplete: setDone && !allDone,
       isComplete: allDone,

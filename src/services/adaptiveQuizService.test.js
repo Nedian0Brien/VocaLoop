@@ -79,16 +79,49 @@ describe('adaptiveQuizService', () => {
     expect(session.totalSets).toBe(2);
     expect(session.currentSetIndex).toBe(0);
     expect(session.currentSetWords).toHaveLength(5);
-    expect(session.queue).toHaveLength(15);
-    expect(session.queue.slice(0, 6).map((task) => task.mode)).toEqual([
-      'multiple',
-      'short',
-      'complete-word',
-      'multiple',
-      'short',
-      'complete-word',
-    ]);
-    expect(new Set(session.queue.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(15);
+    expect(session.totalStages).toBe(15);
+    expect(session.queue).toHaveLength(5);
+    expect(session.queue.every((task) => task.mode === 'multiple')).toBe(true);
+
+    let activeSession = session;
+    const answeredTasks = [];
+    for (let i = 0; i < 15; i += 1) {
+      answeredTasks.push(activeSession.queue[0]);
+      activeSession = resolveAdaptiveAnswer(activeSession, true);
+    }
+
+    expect(activeSession.isSetComplete).toBe(true);
+    expect(new Set(answeredTasks.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(15);
+  });
+
+  test('preserves each word mode order when randomizing a study set', () => {
+    const setWords = Array.from({ length: 5 }, (_, index) => ({
+      id: `w${index + 1}`,
+      word: `word-${index + 1}`,
+      meaning_ko: `뜻 ${index + 1}`,
+    }));
+
+    const session = createAdaptiveSession(
+      setWords,
+      ['multiple', 'short', 'complete-word'],
+      { setSize: 5, randomize: true, rng: () => 0 }
+    );
+
+    const nextStageByWord = new Map();
+    let activeSession = session;
+    let guard = 0;
+
+    while (!activeSession.isComplete && !activeSession.isSetComplete && guard < 30) {
+      const task = activeSession.queue[0];
+      const expectedStage = nextStageByWord.get(task.word.id) || 0;
+      expect(task.stageIndex).toBe(expectedStage);
+      expect(task.mode).toBe(activeSession.modes[expectedStage]);
+      nextStageByWord.set(task.word.id, expectedStage + 1);
+      activeSession = resolveAdaptiveAnswer(activeSession, true);
+      guard += 1;
+    }
+
+    expect([...nextStageByWord.values()]).toEqual([3, 3, 3, 3, 3]);
   });
 
   test('pauses at each study set boundary and starts the next set on request', () => {
@@ -115,7 +148,8 @@ describe('adaptiveQuizService', () => {
     const nextSet = startNextAdaptiveSet(session);
     expect(nextSet.currentSetIndex).toBe(1);
     expect(nextSet.currentSetWords).toHaveLength(1);
-    expect(nextSet.queue).toHaveLength(3);
+    expect(nextSet.totalStages).toBe(3);
+    expect(nextSet.queue).toHaveLength(1);
     expect(nextSet.isSetComplete).toBe(false);
   });
 });
