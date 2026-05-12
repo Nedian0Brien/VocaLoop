@@ -91,7 +91,17 @@ const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
   );
 };
 
-export default function QuizView({ words, setView, user, aiMode, setAiMode, aiConfig, folders = [], onUpdateLearningRate }) {
+export default function QuizView({
+  words,
+  setView,
+  user,
+  aiMode,
+  setAiMode,
+  aiConfig,
+  folders = [],
+  onUpdateLearningRate,
+  onSaveVocabularyWord,
+}) {
   const [quizState, setQuizState] = useState('select');
   const [selectedMode, setSelectedMode] = useState(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -488,6 +498,8 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  existingWords={words}
+                  onSaveVocabularyWord={onSaveVocabularyWord}
                 />
               )}
 
@@ -500,6 +512,8 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  existingWords={words}
+                  onSaveVocabularyWord={onSaveVocabularyWord}
                 />
               )}
 
@@ -511,6 +525,8 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  existingWords={words}
+                  onSaveVocabularyWord={onSaveVocabularyWord}
                 />
               )}
 

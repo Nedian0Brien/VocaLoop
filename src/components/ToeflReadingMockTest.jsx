@@ -9,6 +9,11 @@ import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { playSound } from '../utils/soundEffects';
 import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { Button } from '../design-system';
+import {
+  ToeflVocabularyCaptureTray,
+  useToeflVocabularyCapture,
+  VocabularyCaptureText,
+} from './ToeflVocabularyCapture';
 
 const TASK_LABELS = {
   'complete-words': 'Complete the Words',
@@ -28,6 +33,7 @@ const normalizeItem = (item, index, stage) => ({
   skillTag: item?.skillTag || 'general-reading',
   topicTags: Array.isArray(item?.topicTags) ? item.topicTags : [],
   explanationKo: item?.explanationKo || '정답 근거를 다시 확인해보세요.',
+  saveableWords: Array.isArray(item?.saveableWords) ? item.saveableWords : [],
 });
 
 const normalizeModule = (data, stage, difficulty) => ({
@@ -59,6 +65,8 @@ export default function ToeflReadingMockTest({
   vocabSource,
   topicSelection,
   onExit,
+  existingWords = [],
+  onSaveVocabularyWord,
 }) {
   const stageOneCount = Math.max(2, Math.ceil((questionCount || 6) / 2));
   const stageTwoCount = Math.max(1, (questionCount || 6) - stageOneCount);
@@ -73,6 +81,7 @@ export default function ToeflReadingMockTest({
   const [checked, setChecked] = useState(false);
   const [band, setBand] = useState(null);
   const [sessionContext, setSessionContext] = useState({ vocabularyWords: [], pickedTopics: [] });
+  const vocabCapture = useToeflVocabularyCapture({ existingWords, onSaveVocabularyWord });
 
   const currentItem = currentModule?.items?.[currentIndex];
   const correctCount = useMemo(() => results.filter((result) => result?.correct).length, [results]);
@@ -259,8 +268,30 @@ export default function ToeflReadingMockTest({
               </p>
             </div>
             <h3 className="text-xl font-black text-surface-900 mb-3 tracking-tight">{currentItem.title}</h3>
-            <p className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700">{currentItem.stimulus}</p>
+            <VocabularyCaptureText
+              text={currentItem.stimulus}
+              onCaptureWord={vocabCapture.captureWord}
+              className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
+            />
           </section>
+
+          <ToeflVocabularyCaptureTray
+            words={vocabCapture.capturedWords}
+            savingKeys={vocabCapture.savingKeys}
+            savedKeys={vocabCapture.savedKeys}
+            existingWordKeys={vocabCapture.existingWordKeys}
+            errors={vocabCapture.errors}
+            onSaveWord={vocabCapture.saveWord}
+            onDismissWord={vocabCapture.dismissWord}
+            buildMetadata={() => ({
+              source: 'toefl-reading-mock',
+              sourceLabel: 'TOEFL Reading Mock Test',
+              taskType: currentItem.taskType,
+              questionId: currentItem.id,
+              title: currentItem.title,
+              contextText: currentItem.stimulus,
+            })}
+          />
 
           <section className="space-y-4">
             <div>

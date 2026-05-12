@@ -39,6 +39,8 @@ const makeItem = ({ id, taskType, answerIndex = 0, skillTag = 'scanning' }) => (
 });
 
 describe('ToeflReadingMockTest', () => {
+  let getSelectionSpy;
+
   beforeEach(() => {
     toeflService.generateReadingMockModule.mockImplementation(({ stage }) => Promise.resolve({
       stage,
@@ -59,6 +61,7 @@ describe('ToeflReadingMockTest', () => {
 
   afterEach(() => {
     cleanup();
+    getSelectionSpy?.mockRestore?.();
     vi.clearAllMocks();
   });
 
@@ -99,5 +102,52 @@ describe('ToeflReadingMockTest', () => {
     expect(screen.getByText('Estimated Reading Band')).toBeTruthy();
     expect(screen.getByText('6')).toBeTruthy();
     expect(statsService.recordToeflReadingAttempt).toHaveBeenCalled();
+  });
+
+  test('allows saving selected mock-test vocabulary before answer check without exposing meaning', async () => {
+    const onSaveVocabularyWord = vi.fn().mockResolvedValue({
+      word: 'stimulus',
+      meaning_ko: '자극',
+    });
+
+    render(
+      <ToeflReadingMockTest
+        aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+        questionCount={3}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={onSaveVocabularyWord}
+      />
+    );
+
+    const stimulus = await screen.findByText('complete-words stimulus');
+    getSelectionSpy = vi.spyOn(window, 'getSelection').mockReturnValue({
+      anchorNode: stimulus.firstChild,
+      toString: () => 'stimulus',
+      removeAllRanges: vi.fn(),
+    });
+
+    fireEvent.mouseUp(stimulus);
+
+    await screen.findByText('stimulus');
+    expect(screen.getByRole('button', { name: '단어장에 저장' })).toBeTruthy();
+    expect(screen.queryByText('자극')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '단어장에 저장' }));
+
+    await waitFor(() => {
+      expect(onSaveVocabularyWord).toHaveBeenCalledWith(
+        'stimulus',
+        expect.objectContaining({
+          source: 'toefl-reading-mock',
+          taskType: 'complete-words',
+        })
+      );
+    });
+    await screen.findByText('저장됨');
+    expect(screen.queryByText('자극')).toBeNull();
   });
 });

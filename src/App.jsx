@@ -25,6 +25,11 @@ import { createWord, deleteWord, listWords, updateWord } from './services/wordAp
 import { createFolder, deleteFolder, listFolders, reorderFolders, updateFolder } from './services/folderApi';
 import { getSettings } from './services/settingsApi';
 import {
+    buildVocabularyPayload,
+    getVocabularyWordKey,
+    normalizeCapturedWord,
+} from './utils/vocabularyCapture';
+import {
     getLearningStatus,
     LEARNING_STATUS,
     LEARNING_STATUS_CONFIG,
@@ -337,6 +342,28 @@ function App() {
         } finally {
             setIsAnalyzing(false);
         }
+    };
+
+    const handleSaveVocabularyWord = async (rawWord, context = {}) => {
+        if (!user) throw new Error('로그인이 필요합니다.');
+        const capturedWord = normalizeCapturedWord(rawWord);
+        if (!capturedWord) throw new Error('저장할 단어를 찾을 수 없습니다.');
+
+        const existingWord = words.find((word) => getVocabularyWordKey(word.word) === capturedWord);
+        if (existingWord) {
+            showNotification(`'${existingWord.word}'는 이미 단어장에 있습니다.`);
+            return existingWord;
+        }
+
+        if (!activeAiConfig.apiKey) {
+            throw new Error(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`);
+        }
+
+        const analysisResult = await generateWordData(capturedWord, activeAiConfig);
+        const createdWord = await createWord(buildVocabularyPayload(analysisResult, capturedWord, context));
+        const normalizedWord = upsertWordInState(createdWord);
+        showNotification(`'${normalizedWord.word}' 단어장에 저장했습니다.`);
+        return normalizedWord;
     };
 
     const handleDeleteWord = async (wordId) => {
@@ -860,6 +887,7 @@ function App() {
                                 aiConfig={activeAiConfig}
                                 folders={folders}
                                 onUpdateLearningRate={handleUpdateLearningRate}
+                                onSaveVocabularyWord={handleSaveVocabularyWord}
                             />
                         )}
                     </div>

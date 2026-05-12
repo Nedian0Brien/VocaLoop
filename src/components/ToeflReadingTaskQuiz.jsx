@@ -5,6 +5,11 @@ import { playSound } from '../utils/soundEffects';
 import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
+import {
+  ToeflVocabularyCaptureTray,
+  useToeflVocabularyCapture,
+  VocabularyCaptureText,
+} from './ToeflVocabularyCapture';
 
 const TASK_LABELS = {
   'daily-life': {
@@ -46,6 +51,8 @@ export default function ToeflReadingTaskQuiz({
   vocabSource,
   topicSelection,
   onExit,
+  existingWords = [],
+  onSaveVocabularyWord,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
   const [status, setStatus] = useState('loading');
@@ -56,6 +63,7 @@ export default function ToeflReadingTaskQuiz({
   const [checked, setChecked] = useState(false);
   const [results, setResults] = useState([]);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
+  const vocabCapture = useToeflVocabularyCapture({ existingWords, onSaveVocabularyWord });
 
   const currentQuestion = setData?.questions?.[currentIndex];
   const totalQuestions = setData?.questions?.length || 0;
@@ -212,8 +220,30 @@ export default function ToeflReadingTaskQuiz({
           <p className="text-xs font-black uppercase tracking-widest text-surface-400">{setData?.stimulusLabel}</p>
         </div>
         <h3 className="text-xl font-black text-surface-900 mb-3 tracking-tight">{setData?.title}</h3>
-        <p className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700">{setData?.stimulus}</p>
+        <VocabularyCaptureText
+          text={setData?.stimulus}
+          onCaptureWord={vocabCapture.captureWord}
+          className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
+        />
       </section>
+
+      <ToeflVocabularyCaptureTray
+        words={vocabCapture.capturedWords}
+        savingKeys={vocabCapture.savingKeys}
+        savedKeys={vocabCapture.savedKeys}
+        existingWordKeys={vocabCapture.existingWordKeys}
+        errors={vocabCapture.errors}
+        onSaveWord={vocabCapture.saveWord}
+        onDismissWord={vocabCapture.dismissWord}
+        buildMetadata={() => ({
+          source: 'toefl-reading-task',
+          sourceLabel: taskCopy.title,
+          taskType,
+          questionId: currentQuestion?.id,
+          title: setData?.title,
+          contextText: setData?.stimulus,
+        })}
+      />
 
       {currentQuestion && (
         <section className="space-y-4">

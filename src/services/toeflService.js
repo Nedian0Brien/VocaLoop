@@ -431,7 +431,8 @@ Return ONLY valid JSON:
       "answerIndex": 0,
       "skillTag": "spelling-form | scanning | detail | main-idea | inference | vocabulary-context | rhetorical-structure | practical-interpretation",
       "topicTags": ["topic-or-domain"],
-      "explanationKo": "Korean explanation of the answer."
+      "explanationKo": "Korean explanation of the answer.",
+      "saveableWords": ["optional", "words"]
     }
   ]
 }
