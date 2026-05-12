@@ -10,7 +10,7 @@ import { playSound } from '../utils/soundEffects';
 import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { Button } from '../design-system';
 import {
-  ToeflVocabularyCaptureTray,
+  ToeflVocabularyActionBar,
   useToeflVocabularyCapture,
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
@@ -67,6 +67,7 @@ export default function ToeflReadingMockTest({
   onExit,
   existingWords = [],
   onSaveVocabularyWord,
+  onExplainVocabularyWord,
 }) {
   const stageOneCount = Math.max(2, Math.ceil((questionCount || 6) / 2));
   const stageTwoCount = Math.max(1, (questionCount || 6) - stageOneCount);
@@ -81,7 +82,11 @@ export default function ToeflReadingMockTest({
   const [checked, setChecked] = useState(false);
   const [band, setBand] = useState(null);
   const [sessionContext, setSessionContext] = useState({ vocabularyWords: [], pickedTopics: [] });
-  const vocabCapture = useToeflVocabularyCapture({ existingWords, onSaveVocabularyWord });
+  const vocabCapture = useToeflVocabularyCapture({
+    existingWords,
+    onSaveVocabularyWord,
+    onExplainVocabularyWord,
+  });
 
   const currentItem = currentModule?.items?.[currentIndex];
   const correctCount = useMemo(() => results.filter((result) => result?.correct).length, [results]);
@@ -270,19 +275,27 @@ export default function ToeflReadingMockTest({
             <h3 className="text-xl font-black text-surface-900 mb-3 tracking-tight">{currentItem.title}</h3>
             <VocabularyCaptureText
               text={currentItem.stimulus}
-              onCaptureWord={vocabCapture.captureWord}
+              activeWordKey={vocabCapture.activeWord}
+              underlinedWordKeys={vocabCapture.underlinedKeys}
+              onSelectWord={vocabCapture.selectWord}
               className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
             />
           </section>
 
-          <ToeflVocabularyCaptureTray
-            words={vocabCapture.capturedWords}
+          <ToeflVocabularyActionBar
+            word={vocabCapture.activeWord}
             savingKeys={vocabCapture.savingKeys}
             savedKeys={vocabCapture.savedKeys}
+            explainingKeys={vocabCapture.explainingKeys}
+            underlinedWordKeys={vocabCapture.underlinedKeys}
             existingWordKeys={vocabCapture.existingWordKeys}
+            explanations={vocabCapture.explanations}
             errors={vocabCapture.errors}
             onSaveWord={vocabCapture.saveWord}
-            onDismissWord={vocabCapture.dismissWord}
+            onExplainWord={vocabCapture.explainWord}
+            onToggleUnderline={vocabCapture.toggleUnderline}
+            onClose={vocabCapture.clearActiveWord}
+            canExplain={checked}
             buildMetadata={() => ({
               source: 'toefl-reading-mock',
               sourceLabel: 'TOEFL Reading Mock Test',

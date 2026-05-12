@@ -101,6 +101,7 @@ export default function QuizView({
   folders = [],
   onUpdateLearningRate,
   onSaveVocabularyWord,
+  onExplainVocabularyWord,
 }) {
   const [quizState, setQuizState] = useState('select');
   const [selectedMode, setSelectedMode] = useState(null);
@@ -500,6 +501,7 @@ export default function QuizView({
                   onExit={handleBackToModeSelect}
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
+                  onExplainVocabularyWord={onExplainVocabularyWord}
                 />
               )}
 
@@ -514,6 +516,7 @@ export default function QuizView({
                   onExit={handleBackToModeSelect}
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
+                  onExplainVocabularyWord={onExplainVocabularyWord}
                 />
               )}
 
@@ -527,6 +530,7 @@ export default function QuizView({
                   onExit={handleBackToModeSelect}
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
+                  onExplainVocabularyWord={onExplainVocabularyWord}
                 />
               )}
 

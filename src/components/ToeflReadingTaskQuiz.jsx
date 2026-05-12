@@ -6,7 +6,7 @@ import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
 import {
-  ToeflVocabularyCaptureTray,
+  ToeflVocabularyActionBar,
   useToeflVocabularyCapture,
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
@@ -53,6 +53,7 @@ export default function ToeflReadingTaskQuiz({
   onExit,
   existingWords = [],
   onSaveVocabularyWord,
+  onExplainVocabularyWord,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
   const [status, setStatus] = useState('loading');
@@ -63,7 +64,11 @@ export default function ToeflReadingTaskQuiz({
   const [checked, setChecked] = useState(false);
   const [results, setResults] = useState([]);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
-  const vocabCapture = useToeflVocabularyCapture({ existingWords, onSaveVocabularyWord });
+  const vocabCapture = useToeflVocabularyCapture({
+    existingWords,
+    onSaveVocabularyWord,
+    onExplainVocabularyWord,
+  });
 
   const currentQuestion = setData?.questions?.[currentIndex];
   const totalQuestions = setData?.questions?.length || 0;
@@ -222,19 +227,27 @@ export default function ToeflReadingTaskQuiz({
         <h3 className="text-xl font-black text-surface-900 mb-3 tracking-tight">{setData?.title}</h3>
         <VocabularyCaptureText
           text={setData?.stimulus}
-          onCaptureWord={vocabCapture.captureWord}
+          activeWordKey={vocabCapture.activeWord}
+          underlinedWordKeys={vocabCapture.underlinedKeys}
+          onSelectWord={vocabCapture.selectWord}
           className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
         />
       </section>
 
-      <ToeflVocabularyCaptureTray
-        words={vocabCapture.capturedWords}
+      <ToeflVocabularyActionBar
+        word={vocabCapture.activeWord}
         savingKeys={vocabCapture.savingKeys}
         savedKeys={vocabCapture.savedKeys}
+        explainingKeys={vocabCapture.explainingKeys}
+        underlinedWordKeys={vocabCapture.underlinedKeys}
         existingWordKeys={vocabCapture.existingWordKeys}
+        explanations={vocabCapture.explanations}
         errors={vocabCapture.errors}
         onSaveWord={vocabCapture.saveWord}
-        onDismissWord={vocabCapture.dismissWord}
+        onExplainWord={vocabCapture.explainWord}
+        onToggleUnderline={vocabCapture.toggleUnderline}
+        onClose={vocabCapture.clearActiveWord}
+        canExplain={checked}
         buildMetadata={() => ({
           source: 'toefl-reading-task',
           sourceLabel: taskCopy.title,

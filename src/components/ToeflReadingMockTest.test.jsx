@@ -39,8 +39,6 @@ const makeItem = ({ id, taskType, answerIndex = 0, skillTag = 'scanning' }) => (
 });
 
 describe('ToeflReadingMockTest', () => {
-  let getSelectionSpy;
-
   beforeEach(() => {
     toeflService.generateReadingMockModule.mockImplementation(({ stage }) => Promise.resolve({
       stage,
@@ -61,7 +59,6 @@ describe('ToeflReadingMockTest', () => {
 
   afterEach(() => {
     cleanup();
-    getSelectionSpy?.mockRestore?.();
     vi.clearAllMocks();
   });
 
@@ -104,7 +101,7 @@ describe('ToeflReadingMockTest', () => {
     expect(statsService.recordToeflReadingAttempt).toHaveBeenCalled();
   });
 
-  test('allows saving selected mock-test vocabulary before answer check without exposing meaning', async () => {
+  test('opens mock-test word actions by tapping a word and keeps meaning gated until checked', async () => {
     const onSaveVocabularyWord = vi.fn().mockResolvedValue({
       word: 'stimulus',
       meaning_ko: '자극',
@@ -120,20 +117,19 @@ describe('ToeflReadingMockTest', () => {
         onExit={vi.fn()}
         existingWords={[]}
         onSaveVocabularyWord={onSaveVocabularyWord}
+        onExplainVocabularyWord={vi.fn()}
       />
     );
 
-    const stimulus = await screen.findByText('complete-words stimulus');
-    getSelectionSpy = vi.spyOn(window, 'getSelection').mockReturnValue({
-      anchorNode: stimulus.firstChild,
-      toString: () => 'stimulus',
-      removeAllRanges: vi.fn(),
-    });
+    const wordButton = await screen.findByRole('button', { name: 'stimulus 단어 액션 열기' });
+    expect(wordButton.className).toContain('hover:bg-brand-100');
 
-    fireEvent.mouseUp(stimulus);
+    fireEvent.click(wordButton);
 
-    await screen.findByText('stimulus');
+    expect(screen.getByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeTruthy();
     expect(screen.getByRole('button', { name: '단어장에 저장' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '밑줄' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '뜻 설명' })).toBeNull();
     expect(screen.queryByText('자극')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '단어장에 저장' }));

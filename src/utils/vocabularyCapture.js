@@ -13,6 +13,34 @@ export const normalizeCapturedWord = (value) => {
 
 export const getVocabularyWordKey = (value) => normalizeCapturedWord(value).toLowerCase();
 
+export const tokenizeVocabularyText = (value) => {
+  const text = String(value || '');
+  if (!text) return [];
+
+  const tokens = [];
+  const matcher = new RegExp(ENGLISH_WORD_RE.source, 'g');
+  let lastIndex = 0;
+  let match;
+
+  while ((match = matcher.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+    }
+    tokens.push({
+      type: 'word',
+      value: match[0],
+      key: getVocabularyWordKey(match[0]),
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+
+  return tokens;
+};
+
 export const buildVocabularyPayload = (wordData, fallbackWord, context = {}) => {
   const word = wordData?.word || fallbackWord;
   const examples = Array.isArray(wordData?.examples) ? [...wordData.examples] : [];
