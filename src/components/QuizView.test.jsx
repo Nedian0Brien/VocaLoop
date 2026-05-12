@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const toeflAssetApi = vi.hoisted(() => ({
+    listToeflAssets: vi.fn(),
+    createToeflAsset: vi.fn(),
+    createToeflAttempt: vi.fn(),
+}));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
     default: ({ onAnswer }) => (
@@ -44,7 +50,12 @@ vi.mock('./ToeflBuildSentenceQuiz', () => ({
 }));
 
 vi.mock('./ToeflReadingTaskQuiz', () => ({
-    default: ({ taskType }) => <div>toefl-reading-task:{taskType}</div>,
+    default: ({ taskType, reviewAsset }) => (
+        <div>
+            toefl-reading-task:{taskType}
+            {reviewAsset ? <span>review-asset:{reviewAsset.title}</span> : null}
+        </div>
+    ),
 }));
 
 vi.mock('./ToeflReadingMockTest', () => ({
@@ -63,15 +74,24 @@ vi.mock('../utils/soundEffects', () => ({
     playSound: vi.fn(),
 }));
 
+vi.mock('../services/toeflAssetApi', () => toeflAssetApi);
+
 import QuizView from './QuizView';
 
 afterEach(() => {
     cleanup();
     localStorage.clear();
+    vi.clearAllMocks();
     vi.restoreAllMocks();
 });
 
 describe('QuizView', () => {
+    beforeEach(() => {
+        toeflAssetApi.listToeflAssets.mockResolvedValue([]);
+        toeflAssetApi.createToeflAsset.mockResolvedValue(null);
+        toeflAssetApi.createToeflAttempt.mockResolvedValue(null);
+    });
+
     test('renders the study dashboard and enters quiz mode', () => {
         const setView = vi.fn();
         const setAiMode = vi.fn();
@@ -303,5 +323,55 @@ describe('QuizView', () => {
         expect(screen.getByText('75%')).toBeTruthy();
         expect(screen.getAllByText('Read in Daily Life').length).toBeGreaterThan(0);
         expect(screen.getByText('inference')).toBeTruthy();
+    });
+
+    test('loads saved TOEFL assets and opens one for review without configuration', async () => {
+        toeflAssetApi.listToeflAssets.mockResolvedValue([
+            {
+                id: 7,
+                mode: 'toefl-daily-life',
+                taskType: 'daily-life',
+                title: 'Campus Notice Review',
+                payload: {
+                    taskType: 'daily-life',
+                    title: 'Campus Notice Review',
+                    stimulus: 'The pool will close early.',
+                    questions: [],
+                },
+                metadata: { targetScore: 100, questionCount: 1 },
+                createdAt: '2026-05-12T00:00:00Z',
+            },
+        ]);
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'ecosystem',
+                        meaning_ko: '생태계',
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={true}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        await screen.findByText('Campus Notice Review');
+        fireEvent.click(screen.getByRole('button', { name: 'Campus Notice Review 복습하기' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('toefl-reading-task:daily-life')).toBeTruthy();
+            expect(screen.getByText('review-asset:Campus Notice Review')).toBeTruthy();
+        });
+        expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
     });
 });

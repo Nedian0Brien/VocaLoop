@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import load_settings
 from .db import bootstrap_db
-from .routes import account_router, auth_router, folders_router, settings_router, uploads_router, words_router
+from .routes import account_router, auth_router, folders_router, settings_router, toefl_router, uploads_router, words_router
 
 
 settings = load_settings()
@@ -29,6 +29,7 @@ app.include_router(account_router)
 app.include_router(auth_router)
 app.include_router(folders_router)
 app.include_router(settings_router)
+app.include_router(toefl_router)
 app.include_router(uploads_router)
 app.include_router(words_router)
 

@@ -166,4 +166,106 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     await screen.findByText('이주');
     await screen.findByText('movement from one place to another');
   });
+
+  test('saves generated reading sets and records attempts against the saved asset', async () => {
+    const savedAsset = {
+      id: 77,
+      mode: 'toefl-academic-passage',
+      taskType: 'academic-passage',
+      title: 'Migration Study',
+      payload: {},
+      metadata: {},
+    };
+    const onAssetCreated = vi.fn().mockResolvedValue(savedAsset);
+    const onAttemptRecorded = vi.fn().mockResolvedValue(null);
+
+    render(
+      <ToeflReadingTaskQuiz
+        aiConfig={{ provider: 'gemini', apiKey: 'test-key' }}
+        taskType="academic-passage"
+        questionCount={1}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={vi.fn()}
+        onExplainVocabularyWord={vi.fn()}
+        onAssetCreated={onAssetCreated}
+        onAttemptRecorded={onAttemptRecorded}
+      />
+    );
+
+    await screen.findByText('Migration Study');
+
+    await waitFor(() => {
+      expect(onAssetCreated).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'toefl-academic-passage',
+        taskType: 'academic-passage',
+        title: 'Migration Study',
+        payload: expect.objectContaining({
+          stimulus: 'Researchers observed migration patterns in coastal birds.',
+        }),
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Migration patterns' }));
+    fireEvent.click(screen.getByRole('button', { name: '정답 확인' }));
+    fireEvent.click(screen.getByRole('button', { name: '리포트 보기' }));
+
+    await waitFor(() => {
+      expect(onAttemptRecorded).toHaveBeenCalledWith(
+        savedAsset,
+        expect.objectContaining({
+          correctCount: 1,
+          totalCount: 1,
+          score: { accuracy: 100 },
+        })
+      );
+    });
+  });
+
+  test('loads a saved reading asset for review without generating a new set', async () => {
+    toeflService.generateReadingTaskSet.mockClear();
+
+    render(
+      <ToeflReadingTaskQuiz
+        aiConfig={{ provider: 'gemini', apiKey: 'test-key' }}
+        taskType="academic-passage"
+        questionCount={1}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={vi.fn()}
+        onExplainVocabularyWord={vi.fn()}
+        reviewAsset={{
+          id: 88,
+          mode: 'toefl-academic-passage',
+          taskType: 'academic-passage',
+          title: 'Saved Passage',
+          payload: {
+            taskType: 'academic-passage',
+            title: 'Saved Passage',
+            stimulusLabel: 'Academic passage',
+            stimulus: 'Saved stimulus for review.',
+            questions: [
+              {
+                id: 1,
+                prompt: 'What is this?',
+                options: ['A saved quiz', 'A new quiz'],
+                answerIndex: 0,
+              },
+            ],
+          },
+          metadata: {},
+        }}
+      />
+    );
+
+    await screen.findByText('Saved Passage');
+    expect(screen.getByRole('button', { name: 'stimulus 단어 액션 열기' })).toBeTruthy();
+    expect(toeflService.generateReadingTaskSet).not.toHaveBeenCalled();
+  });
 });

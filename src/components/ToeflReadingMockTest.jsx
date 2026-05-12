@@ -67,6 +67,9 @@ export default function ToeflReadingMockTest({
   existingWords = [],
   onSaveVocabularyWord,
   onExplainVocabularyWord,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const stageOneCount = Math.max(2, Math.ceil((questionCount || 6) / 2));
   const stageTwoCount = Math.max(1, (questionCount || 6) - stageOneCount);
@@ -80,6 +83,7 @@ export default function ToeflReadingMockTest({
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [checked, setChecked] = useState(false);
   const [band, setBand] = useState(null);
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
   const [sessionContext, setSessionContext] = useState({ vocabularyWords: [], pickedTopics: [] });
   const vocabCapture = useToeflVocabularyCapture({
     existingWords,
@@ -89,6 +93,7 @@ export default function ToeflReadingMockTest({
 
   const currentItem = currentModule?.items?.[currentIndex];
   const correctCount = useMemo(() => results.filter((result) => result?.correct).length, [results]);
+  const isReviewMode = Boolean(reviewAsset);
 
   const loadModule = async ({ stage, difficulty, count, context }) => {
     setStatus('loading');
@@ -96,6 +101,20 @@ export default function ToeflReadingMockTest({
     setSelectedIndex(null);
     setChecked(false);
     setCurrentIndex(0);
+    setActiveAsset(reviewAsset || null);
+
+    if (reviewAsset?.payload) {
+      try {
+        const normalized = normalizeModule(reviewAsset.payload, reviewAsset.payload.stage || 1, reviewAsset.payload.difficulty || 'review');
+        if (normalized.items.length === 0) throw new Error('저장된 모의고사 모듈 데이터가 비어 있습니다.');
+        setCurrentModule(normalized);
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 Reading 모의고사를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     try {
       const data = await generateReadingMockModule({
@@ -110,6 +129,21 @@ export default function ToeflReadingMockTest({
       const normalized = normalizeModule(data, stage, difficulty);
       if (normalized.items.length === 0) throw new Error('모의고사 모듈 데이터가 비어 있습니다.');
       setCurrentModule(normalized);
+      const savedAsset = await onAssetCreated?.({
+        mode: 'toefl-reading-mock',
+        taskType: `stage-${stage}`,
+        title: normalized.label,
+        payload: normalized,
+        metadata: {
+          targetScore,
+          questionCount: count,
+          stage,
+          difficulty,
+          vocabSampleCount: context.vocabularyWords.length,
+          pickedTopics: context.pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+        },
+      });
+      if (savedAsset) setActiveAsset(savedAsset);
       setStatus('ready');
     } catch (err) {
       setError(err.message || 'Reading 모의고사 생성 중 오류가 발생했습니다.');
@@ -130,14 +164,21 @@ export default function ToeflReadingMockTest({
     setSessionContext(context);
     loadModule({ stage: 1, difficulty: 'router', count: stageOneCount, context });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionCount, targetScore]);
+  }, [questionCount, targetScore, reviewAsset?.id]);
 
   const handleCheck = () => {
     if (!currentItem || selectedIndex === null || checked) return;
     const correct = selectedIndex === currentItem.answerIndex;
     setResults((prev) => [
       ...prev,
-      { itemId: currentItem.id, correct, skillTag: currentItem.skillTag, stage: currentModule.stage },
+      {
+        itemId: currentItem.id,
+        correct,
+        selectedIndex,
+        answerIndex: currentItem.answerIndex,
+        skillTag: currentItem.skillTag,
+        stage: currentModule.stage,
+      },
     ]);
     setItems((prev) => [...prev, currentItem]);
     setChecked(true);
@@ -152,7 +193,7 @@ export default function ToeflReadingMockTest({
       return;
     }
 
-    if (currentModule.stage === 1) {
+    if (currentModule.stage === 1 && !isReviewMode) {
       const stageOneResults = [...results];
       const difficulty = routeReadingMockDifficulty({
         correct: stageOneResults.filter((result) => result.correct).length,
@@ -170,10 +211,12 @@ export default function ToeflReadingMockTest({
 
     const finalItems = [...items];
     const finalResults = [...results];
+    const finalCorrect = finalResults.filter((result) => result.correct).length;
+    const finalTotal = finalResults.length;
     const finalBand = estimateReadingBand({
-      correct: finalResults.filter((result) => result.correct).length,
-      total: finalResults.length,
-      difficulty: stageTwoDifficulty || 'lower',
+      correct: finalCorrect,
+      total: finalTotal,
+      difficulty: stageTwoDifficulty || currentModule?.difficulty || 'lower',
     });
     setBand(finalBand);
     groupResultsByTask(finalItems, finalResults).forEach((group, taskType) => {
@@ -182,6 +225,18 @@ export default function ToeflReadingMockTest({
         topicTags: Array.from(group.topicTags),
         results: group.results,
       });
+    });
+    onAttemptRecorded?.(activeAsset, {
+      answers: {
+        selectedOptions: finalResults.map((result) => ({
+          itemId: result.itemId,
+          selectedIndex: result.selectedIndex,
+        })),
+      },
+      results: { items: finalResults },
+      correctCount: finalCorrect,
+      totalCount: finalTotal,
+      score: { band: finalBand },
     });
     setStatus('summary');
     playSound('COMPLETE');

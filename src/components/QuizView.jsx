@@ -22,6 +22,7 @@ import {
   startNextAdaptiveSet,
   resolveAdaptiveAnswer,
 } from '../services/adaptiveQuizService';
+import { createToeflAsset, createToeflAttempt, listToeflAssets } from '../services/toeflAssetApi';
 
 /**
  * 상단 상태 칩 — Sound / AI 토글 표시.
@@ -91,6 +92,17 @@ const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
   );
 };
 
+const TOEFL_MODE_TITLES = {
+  'toefl-complete': 'Complete the Words',
+  'toefl-build': 'Build a Sentence',
+  'toefl-daily-life': 'Read in Daily Life',
+  'toefl-academic-passage': 'Read an Academic Passage',
+  'toefl-reading-mock': 'TOEFL Reading Mock Test',
+  'toefl-writing-email': 'Write an Email',
+  'toefl-writing-discussion': 'Write for an Academic Discussion',
+  'toefl-writing-mock': 'TOEFL Writing Mock Test',
+};
+
 export default function QuizView({
   words,
   setView,
@@ -106,6 +118,8 @@ export default function QuizView({
   const [quizState, setQuizState] = useState('select');
   const [selectedMode, setSelectedMode] = useState(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [reviewAsset, setReviewAsset] = useState(null);
+  const [toeflAssets, setToeflAssets] = useState([]);
 
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -180,9 +194,51 @@ export default function QuizView({
 
   const wordQuizTracker = useRef({});
 
+  const refreshToeflAssets = useCallback(async () => {
+    if (!user) {
+      setToeflAssets([]);
+      return;
+    }
+    try {
+      const assets = await listToeflAssets({ limit: 20 });
+      setToeflAssets(Array.isArray(assets) ? assets : []);
+    } catch (error) {
+      console.warn('Failed to load TOEFL assets', error);
+      setToeflAssets([]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshToeflAssets();
+  }, [refreshToeflAssets]);
+
+  const handleToeflAssetCreated = useCallback(async (payload) => {
+    if (!user) return null;
+    try {
+      const asset = await createToeflAsset(payload);
+      setToeflAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)].slice(0, 20));
+      return asset;
+    } catch (error) {
+      console.warn('Failed to save TOEFL asset', error);
+      return null;
+    }
+  }, [user]);
+
+  const handleToeflAttemptRecorded = useCallback(async (asset, payload) => {
+    const assetId = asset?.id;
+    if (!user || !assetId) return null;
+    try {
+      return await createToeflAttempt(assetId, payload);
+    } catch (error) {
+      console.warn('Failed to record TOEFL attempt', error);
+      return null;
+    }
+  }, [user]);
+
   const handleBackToModeSelect = useCallback(() => {
     setQuizState('select');
     setSelectedMode(null);
+    setReviewAsset(null);
     setQueue([]);
     setCurrentIndex(0);
     setAdaptiveSession(null);
@@ -210,6 +266,7 @@ export default function QuizView({
     const modeId = selectedMode.id;
 
     if (modeId?.startsWith('toefl-')) {
+      setReviewAsset(null);
       setToeflConfig({
         questionCount,
         targetScore,
@@ -250,8 +307,25 @@ export default function QuizView({
   };
 
   const handleModeSelect = (mode) => {
+    setReviewAsset(null);
     setSelectedMode(mode);
     setShowConfigModal(true);
+  };
+
+  const handleToeflAssetSelect = (asset) => {
+    if (!asset?.mode) return;
+    setReviewAsset(asset);
+    setSelectedMode({
+      id: asset.mode,
+      title: TOEFL_MODE_TITLES[asset.mode] || asset.title || 'TOEFL Review',
+    });
+    setToeflConfig((current) => ({
+      ...current,
+      questionCount: asset.metadata?.questionCount || current.questionCount,
+      targetScore: asset.metadata?.targetScore || current.targetScore,
+    }));
+    setShowConfigModal(false);
+    setQuizState('quiz');
   };
 
   const handleAnswer = (isCorrect) => {
@@ -348,6 +422,8 @@ export default function QuizView({
           onSelectMode={handleModeSelect}
           stats={dashboardStats}
           wordCount={words.length}
+          toeflAssets={toeflAssets}
+          onSelectToeflAsset={handleToeflAssetSelect}
         />
       )}
 
@@ -476,6 +552,9 @@ export default function QuizView({
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
                   user={user}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -487,6 +566,9 @@ export default function QuizView({
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -502,6 +584,9 @@ export default function QuizView({
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
                   onExplainVocabularyWord={onExplainVocabularyWord}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -517,6 +602,9 @@ export default function QuizView({
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
                   onExplainVocabularyWord={onExplainVocabularyWord}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -531,6 +619,9 @@ export default function QuizView({
                   existingWords={words}
                   onSaveVocabularyWord={onSaveVocabularyWord}
                   onExplainVocabularyWord={onExplainVocabularyWord}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -542,6 +633,9 @@ export default function QuizView({
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -553,6 +647,9 @@ export default function QuizView({
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
 
@@ -563,6 +660,9 @@ export default function QuizView({
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}
                   onExit={handleBackToModeSelect}
+                  reviewAsset={reviewAsset}
+                  onAssetCreated={handleToeflAssetCreated}
+                  onAttemptRecorded={handleToeflAttemptRecorded}
                 />
               )}
             </div>

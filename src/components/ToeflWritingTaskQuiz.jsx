@@ -60,6 +60,9 @@ export default function ToeflWritingTaskQuiz({
   vocabSource,
   topicSelection,
   onExit,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const copy = TASK_COPY[taskType] || TASK_COPY.email;
   const TaskIcon = copy.icon;
@@ -69,6 +72,7 @@ export default function ToeflWritingTaskQuiz({
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const wordCount = useMemo(() => countWords(response), [response]);
 
@@ -78,6 +82,28 @@ export default function ToeflWritingTaskQuiz({
     setTask(null);
     setResponse('');
     setFeedback(null);
+    setActiveAsset(reviewAsset || null);
+
+    if (reviewAsset?.payload) {
+      try {
+        const savedTask = reviewAsset.payload.task || reviewAsset.payload;
+        const normalized = normalizeTask(savedTask, reviewAsset.taskType || taskType);
+        if (normalized.taskType === 'email' && !normalized.situation) throw new Error('저장된 이메일 과제 데이터가 비어 있습니다.');
+        if (normalized.taskType === 'academic-discussion' && !normalized.professorQuestion) {
+          throw new Error('저장된 토론 과제 데이터가 비어 있습니다.');
+        }
+        setTask(normalized);
+        setSessionContext({
+          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
+          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
+        });
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 Writing 과제를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     const vocabularyWords =
       vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
@@ -104,6 +130,20 @@ export default function ToeflWritingTaskQuiz({
         throw new Error('토론 과제 데이터가 비어 있습니다.');
       }
       setTask(normalized);
+      if (typeof onAssetCreated === 'function') {
+        const savedAsset = await onAssetCreated({
+          mode: taskType === 'email' ? 'toefl-writing-email' : 'toefl-writing-discussion',
+          taskType,
+          title: normalized.title || copy.title,
+          payload: { task: normalized },
+          metadata: {
+            targetScore,
+            vocabSampleCount: vocabularyWords.length,
+            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+          },
+        });
+        if (savedAsset) setActiveAsset(savedAsset);
+      }
       setStatus('ready');
     } catch (err) {
       setError(err.message || 'Writing 과제 생성 중 오류가 발생했습니다.');
@@ -114,7 +154,7 @@ export default function ToeflWritingTaskQuiz({
   useEffect(() => {
     loadTask();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskType, targetScore]);
+  }, [taskType, targetScore, reviewAsset?.id]);
 
   const handleSubmit = async () => {
     if (!task || !response.trim() || status === 'checking') return;
@@ -128,13 +168,26 @@ export default function ToeflWritingTaskQuiz({
         userResponse: response,
         targetScore,
       });
-      setFeedback({
+      const normalizedFeedback = {
         score: Number.isFinite(Number(result?.score)) ? Math.max(0, Math.min(5, Number(result.score))) : 0,
         feedbackKo: result?.feedbackKo || '피드백을 불러왔습니다.',
         strengths: Array.isArray(result?.strengths) ? result.strengths : [],
         improvements: Array.isArray(result?.improvements) ? result.improvements : [],
         nextSteps: Array.isArray(result?.nextSteps) ? result.nextSteps : [],
-      });
+      };
+      setFeedback(normalizedFeedback);
+      if (activeAsset && typeof onAttemptRecorded === 'function') {
+        await onAttemptRecorded(activeAsset, {
+          answers: { response },
+          results: { feedback: normalizedFeedback },
+          correctCount: normalizedFeedback.score >= 3 ? 1 : 0,
+          totalCount: 1,
+          score: {
+            practiceScore: normalizedFeedback.score,
+            wordCount,
+          },
+        });
+      }
       setStatus('feedback');
       playSound('COMPLETE');
     } catch (err) {

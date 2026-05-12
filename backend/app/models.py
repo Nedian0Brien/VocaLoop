@@ -29,6 +29,8 @@ class User(Base):
     settings: Mapped[UserSettings | None] = relationship(back_populates="user", cascade="all, delete-orphan", uselist=False)
     folders: Mapped[list[Folder]] = relationship(back_populates="user", cascade="all, delete-orphan")
     words: Mapped[list[Word]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    toefl_assets: Mapped[list[ToeflQuizAsset]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    toefl_attempts: Mapped[list[ToeflQuizAttempt]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSettings(Base):
@@ -102,3 +104,42 @@ class Word(Base):
 
     user: Mapped[User] = relationship(back_populates="words")
     folder: Mapped[Folder | None] = relationship(back_populates="words")
+
+
+class ToeflQuizAsset(Base):
+    __tablename__ = "toefl_quiz_assets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    task_type: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    payload: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    metadata_json: Mapped[dict] = mapped_column("metadata", MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="toefl_assets")
+    attempts: Mapped[list[ToeflQuizAttempt]] = relationship(back_populates="asset", cascade="all, delete-orphan")
+
+
+class ToeflQuizAttempt(Base):
+    __tablename__ = "toefl_quiz_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("toefl_quiz_assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    answers: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    results: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    correct_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    score: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+
+    user: Mapped[User] = relationship(back_populates="toefl_attempts")
+    asset: Mapped[ToeflQuizAsset] = relationship(back_populates="attempts")

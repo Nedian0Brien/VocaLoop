@@ -53,6 +53,9 @@ export default function ToeflReadingTaskQuiz({
   existingWords = [],
   onSaveVocabularyWord,
   onExplainVocabularyWord,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
   const [status, setStatus] = useState('loading');
@@ -62,6 +65,7 @@ export default function ToeflReadingTaskQuiz({
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [checked, setChecked] = useState(false);
   const [results, setResults] = useState([]);
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
   const vocabCapture = useToeflVocabularyCapture({
     existingWords,
@@ -76,10 +80,30 @@ export default function ToeflReadingTaskQuiz({
     setStatus('loading');
     setError('');
     setSetData(null);
+    setActiveAsset(reviewAsset || null);
     setCurrentIndex(0);
     setSelectedIndex(null);
     setChecked(false);
     setResults([]);
+
+    if (reviewAsset?.payload) {
+      try {
+        const normalized = normalizeSet(reviewAsset.payload, reviewAsset.taskType || taskType);
+        if (normalized.questions.length === 0 || !normalized.stimulus) {
+          throw new Error('저장된 문제 데이터가 비어 있습니다.');
+        }
+        setSetData(normalized);
+        setSessionContext({
+          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
+          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
+        });
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 Reading 문제를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     const vocabularyWords =
       vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
@@ -106,6 +130,19 @@ export default function ToeflReadingTaskQuiz({
         throw new Error('문제 데이터가 비어 있습니다.');
       }
       setSetData(normalized);
+      const savedAsset = await onAssetCreated?.({
+        mode: taskType === 'academic-passage' ? 'toefl-academic-passage' : 'toefl-daily-life',
+        taskType,
+        title: normalized.title,
+        payload: normalized,
+        metadata: {
+          targetScore,
+          questionCount,
+          vocabSampleCount: vocabularyWords.length,
+          pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+        },
+      });
+      if (savedAsset) setActiveAsset(savedAsset);
       setStatus('ready');
     } catch (err) {
       setError(err.message || 'Reading 문제 생성 중 오류가 발생했습니다.');
@@ -116,7 +153,7 @@ export default function ToeflReadingTaskQuiz({
   useEffect(() => {
     loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskType, questionCount, targetScore]);
+  }, [taskType, questionCount, targetScore, reviewAsset?.id]);
 
   const correctCount = useMemo(
     () => results.filter((result) => Boolean(result?.correct)).length,
@@ -129,6 +166,8 @@ export default function ToeflReadingTaskQuiz({
     const result = {
       questionId: currentQuestion.id,
       correct,
+      selectedIndex,
+      answerIndex: currentQuestion.answerIndex,
       skillTag: currentQuestion.skillTag,
     };
     setResults((prev) => {
@@ -148,10 +187,26 @@ export default function ToeflReadingTaskQuiz({
       return;
     }
     const finalResults = results.filter(Boolean);
+    const finalCorrect = finalResults.filter((result) => Boolean(result?.correct)).length;
+    const finalTotal = finalResults.length;
     recordToeflReadingAttempt({
       taskType,
       topicTags: setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label),
       results: finalResults,
+    });
+    onAttemptRecorded?.(activeAsset, {
+      answers: {
+        selectedOptions: finalResults.map((result) => ({
+          questionId: result.questionId,
+          selectedIndex: result.selectedIndex,
+        })),
+      },
+      results: { items: finalResults },
+      correctCount: finalCorrect,
+      totalCount: finalTotal,
+      score: {
+        accuracy: finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0,
+      },
     });
     setStatus('summary');
     playSound('COMPLETE');

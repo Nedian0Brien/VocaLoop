@@ -57,6 +57,9 @@ export default function ToeflBuildSentenceQuiz({
   vocabSource,
   topicSelection,
   onExit,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const [status, setStatus] = useState('loading'); // loading | ready | checking | feedback | summary | error
   const [error, setError] = useState('');
@@ -67,7 +70,9 @@ export default function ToeflBuildSentenceQuiz({
   const [feedback, setFeedback] = useState(null); // {isCorrect, feedback}
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState([]);     // 각 문항 채점 결과 boolean
+  const [attempts, setAttempts] = useState([]);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   // 드래그 상태 (pointer events 기반).
   // - dragInfoRef: pointerdown 시점 정보. threshold 통과 전에는 null이 아닌 ref.
@@ -94,6 +99,27 @@ export default function ToeflBuildSentenceQuiz({
     setFeedback(null);
     setSummary(null);
     setResults([]);
+    setAttempts([]);
+    setActiveAsset(reviewAsset || null);
+
+    if (reviewAsset?.payload?.questions) {
+      try {
+        const cleaned = (reviewAsset.payload.questions || []).filter((q) => Array.isArray(q.words) && q.target);
+        if (cleaned.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
+        setQuestions(cleaned);
+        setCurrentIndex(0);
+        initialize(cleaned);
+        setSessionContext({
+          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
+          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
+        });
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 TOEFL 문제를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     // 매 세션마다 단어/주제를 랜덤 픽 — toeflService 프롬프트에 다양성 입력 주입.
     const vocabularyWords =
@@ -121,6 +147,21 @@ export default function ToeflBuildSentenceQuiz({
       setQuestions(cleaned);
       setCurrentIndex(0);
       initialize(cleaned);
+      if (typeof onAssetCreated === 'function') {
+        const savedAsset = await onAssetCreated({
+          mode: 'toefl-build',
+          taskType: 'build-sentence',
+          title: 'Build a Sentence',
+          payload: { questions: cleaned },
+          metadata: {
+            targetScore,
+            questionCount,
+            vocabSampleCount: vocabularyWords.length,
+            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+          },
+        });
+        if (savedAsset) setActiveAsset(savedAsset);
+      }
       setStatus('ready');
     } catch (err) {
       setError(err.message || '문제 생성 중 오류가 발생했습니다.');
@@ -131,7 +172,7 @@ export default function ToeflBuildSentenceQuiz({
   useEffect(() => {
     loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionCount, targetScore]);
+  }, [questionCount, targetScore, reviewAsset?.id]);
 
   const moveToArrangement = (idx) => {
     if (status !== 'ready') return;
@@ -278,6 +319,11 @@ export default function ToeflBuildSentenceQuiz({
   const handleCheck = async () => {
     if (!currentQuestion || arrangement.length === 0 || status === 'checking') return;
     const userAttempt = arrangement.map((i) => currentQuestion.words[i]).join(' ');
+    setAttempts((prev) => {
+      const next = [...prev];
+      next[currentIndex] = userAttempt;
+      return next;
+    });
     setStatus('checking');
     setFeedback(null);
     try {
@@ -335,6 +381,14 @@ export default function ToeflBuildSentenceQuiz({
     setStatus('checking');
     const correctCount = results.filter(Boolean).length;
     const summaryPayload = `${correctCount}/${questions.length} correct`;
+    const attemptResults = questions.map((question, index) => ({
+      questionIndex: index,
+      target: question.target,
+      attempt: attempts[index] || (index === currentIndex
+        ? arrangement.map((wordIndex) => question.words[wordIndex]).join(' ')
+        : ''),
+      correct: Boolean(results[index]),
+    }));
     try {
       const data = await generateBuildSentenceSummary({
         aiConfig,
@@ -348,6 +402,17 @@ export default function ToeflBuildSentenceQuiz({
         strengths: [], improvements: [], nextSteps: [],
       });
     } finally {
+      if (activeAsset && typeof onAttemptRecorded === 'function') {
+        await onAttemptRecorded(activeAsset, {
+          answers: { attempts },
+          results: { questions: attemptResults },
+          correctCount,
+          totalCount: questions.length,
+          score: {
+            accuracy: questions.length > 0 ? correctCount / questions.length : 0,
+          },
+        });
+      }
       setStatus('summary');
       playSound('COMPLETE');
     }

@@ -21,6 +21,16 @@ const FONT_SCALE_STYLES = {
   5: { paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',cell: 'w-10 h-10 text-2xl md:w-12 md:h-12 md:text-[2rem]' },
 };
 
+const prepareCompleteQuestions = (questions, blanksPerQuestion) =>
+  (questions || []).map((question) => ({
+    ...question,
+    blanks:
+      question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
+        ...blank,
+        segments: getBlankSegments(blank.answer || ''),
+      })) || [],
+  }));
+
 const getPrefixRevealCount = (letterCount) => {
   if (letterCount <= 3) return 1;
   if (letterCount <= 6) return 2;
@@ -199,6 +209,9 @@ export default function ToeflCompleteTheWordQuiz({
   topicSelection,
   onExit,
   user,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
@@ -220,6 +233,7 @@ export default function ToeflCompleteTheWordQuiz({
   const [incorrectWords, setIncorrectWords] = useState(new Set());
   const [savingWords, setSavingWords] = useState(new Set());
   const [savedWords, setSavedWords] = useState(new Set());
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
@@ -237,6 +251,27 @@ export default function ToeflCompleteTheWordQuiz({
     setError('');
     setFeedback('');
     setSummary(null);
+    setActiveAsset(reviewAsset || null);
+
+    if (reviewAsset?.payload?.questions) {
+      try {
+        const cleanedQuestions = prepareCompleteQuestions(reviewAsset.payload.questions, blanksPerQuestion);
+        if (cleanedQuestions.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
+        setQuestions(cleanedQuestions);
+        initializeAnswers(cleanedQuestions);
+        setCurrentIndex(0);
+        setChecked(false);
+        setSessionContext({
+          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
+          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
+        });
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 Complete the Words 문제를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     const vocabularyWords =
       vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
@@ -256,18 +291,25 @@ export default function ToeflCompleteTheWordQuiz({
         vocabularyWords,
         pickedTopics,
       });
-      const cleanedQuestions = (data.questions || []).map((question) => ({
-        ...question,
-        blanks:
-          question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
-            ...blank,
-            segments: getBlankSegments(blank.answer || ''),
-          })) || [],
-      }));
+      const cleanedQuestions = prepareCompleteQuestions(data.questions, blanksPerQuestion);
       setQuestions(cleanedQuestions);
       initializeAnswers(cleanedQuestions);
       setCurrentIndex(0);
       setChecked(false);
+      const savedAsset = await onAssetCreated?.({
+        mode: 'toefl-complete',
+        taskType: 'complete-words',
+        title: 'Complete the Words',
+        payload: { questions: cleanedQuestions },
+        metadata: {
+          targetScore,
+          questionCount,
+          blanksPerQuestion,
+          vocabSampleCount: vocabularyWords.length,
+          pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+        },
+      });
+      if (savedAsset) setActiveAsset(savedAsset);
       setStatus('ready');
     } catch (err) {
       setError(err.message || '문제 생성 중 오류가 발생했습니다.');
@@ -275,7 +317,7 @@ export default function ToeflCompleteTheWordQuiz({
     }
   };
 
-  useEffect(() => { loadQuestions(); }, [questionCount, targetScore, aiConfig]);
+  useEffect(() => { loadQuestions(); }, [questionCount, targetScore, aiConfig, reviewAsset?.id]);
   useEffect(() => { localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel)); }, [fontScaleLevel]);
 
   const totalQuestions = questions.length;
@@ -487,7 +529,9 @@ export default function ToeflCompleteTheWordQuiz({
     }
 
     setIsGeneratingSummary(true);
-    const resultPayload = questions.map((question, index) => {
+    let totalCorrect = 0;
+    let totalBlanks = 0;
+    const questionResults = questions.map((question, index) => {
       const questionAnswers = answers[index] || [];
       const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
         const blankAnswers = questionAnswers[blankIndex] || [];
@@ -501,8 +545,27 @@ export default function ToeflCompleteTheWordQuiz({
         });
         return count + (isCorrect ? 1 : 0);
       }, 0);
-      return `Q${index + 1}: ${correctCount}/${question.blanks.length}`;
-    }).join(' | ');
+      totalCorrect += correctCount;
+      totalBlanks += question.blanks.length;
+      return {
+        questionIndex: index,
+        correctCount,
+        total: question.blanks.length,
+      };
+    });
+    const resultPayload = questionResults
+      .map((result, index) => `Q${index + 1}: ${result.correctCount}/${result.total}`)
+      .join(' | ');
+
+    onAttemptRecorded?.(activeAsset, {
+      answers: { blanks: answers },
+      results: { questions: questionResults },
+      correctCount: totalCorrect,
+      totalCount: totalBlanks,
+      score: {
+        accuracy: totalBlanks > 0 ? Math.round((totalCorrect / totalBlanks) * 100) : 0,
+      },
+    });
 
     try {
       const summaryData = await generateCompleteTheWordSummary({

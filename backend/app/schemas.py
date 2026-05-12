@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field
 from pydantic import BaseModel, ConfigDict
@@ -381,3 +382,76 @@ class WordRead(BaseModel):
     stats: WordStats
     created_at: datetime
     updated_at: datetime
+
+
+def _validate_non_empty_text(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("must not be empty")
+    return normalized
+
+
+def _validate_json_object(value: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(value, dict) or not value:
+        raise ValueError("must be a non-empty object")
+    return value
+
+
+class ToeflAssetBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=_to_camel)
+
+    mode: str
+    task_type: str | None = None
+    title: str
+    payload: dict[str, Any]
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("mode", "title")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        return _validate_non_empty_text(value)
+
+    @field_validator("task_type", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: object) -> object:
+        return _normalize_optional_word_text(value)
+
+    @field_validator("payload")
+    @classmethod
+    def validate_payload(cls, value: dict[str, Any]) -> dict[str, Any]:
+        return _validate_json_object(value)
+
+
+class ToeflAssetCreate(ToeflAssetBase):
+    pass
+
+
+class ToeflAssetRead(ToeflAssetBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ToeflAttemptBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=_to_camel)
+
+    answers: dict[str, Any] = Field(default_factory=dict)
+    results: dict[str, Any] = Field(default_factory=dict)
+    correct_count: int = 0
+    total_count: int = 0
+    score: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("correct_count", "total_count")
+    @classmethod
+    def validate_counts(cls, value: int) -> int:
+        return _validate_non_negative(value)
+
+
+class ToeflAttemptCreate(ToeflAttemptBase):
+    pass
+
+
+class ToeflAttemptRead(ToeflAttemptBase):
+    id: int
+    asset_id: int
+    created_at: datetime

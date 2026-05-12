@@ -73,6 +73,9 @@ export default function ToeflWritingMockTest({
   vocabSource,
   topicSelection,
   onExit,
+  reviewAsset = null,
+  onAssetCreated,
+  onAttemptRecorded,
 }) {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
@@ -84,6 +87,7 @@ export default function ToeflWritingMockTest({
   const [discussionResponse, setDiscussionResponse] = useState('');
   const [summary, setSummary] = useState(null);
   const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
+  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const sentenceItems = section?.sentenceItems || [];
   const activeSentence = sentenceItems[step];
@@ -105,6 +109,29 @@ export default function ToeflWritingMockTest({
     setEmailResponse('');
     setDiscussionResponse('');
     setSummary(null);
+    setActiveAsset(reviewAsset || null);
+
+    if (reviewAsset?.payload) {
+      try {
+        const savedSection = reviewAsset.payload.section || reviewAsset.payload;
+        const normalized = normalizeSection(savedSection);
+        if (normalized.sentenceItems.length === 0 || !normalized.emailTask.situation || !normalized.discussionTask.professorQuestion) {
+          throw new Error('저장된 Writing 모의고사 데이터가 비어 있습니다.');
+        }
+        setSection(normalized);
+        setBanks(normalized.sentenceItems.map((item) => item.words.map((_, index) => index)));
+        setArrangements(normalized.sentenceItems.map(() => []));
+        setSessionContext({
+          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
+          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
+        });
+        setStatus('ready');
+      } catch (err) {
+        setError(err.message || '저장된 Writing 모의고사를 불러오지 못했습니다.');
+        setStatus('error');
+      }
+      return;
+    }
 
     const vocabularyWords =
       vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
@@ -132,6 +159,21 @@ export default function ToeflWritingMockTest({
       setSection(normalized);
       setBanks(normalized.sentenceItems.map((item) => item.words.map((_, index) => index)));
       setArrangements(normalized.sentenceItems.map(() => []));
+      if (typeof onAssetCreated === 'function') {
+        const savedAsset = await onAssetCreated({
+          mode: 'toefl-writing-mock',
+          taskType: 'writing-mock',
+          title: 'TOEFL Writing Mock Test',
+          payload: { section: normalized },
+          metadata: {
+            targetScore,
+            sentenceCount: SENTENCE_COUNT,
+            vocabSampleCount: vocabularyWords.length,
+            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+          },
+        });
+        if (savedAsset) setActiveAsset(savedAsset);
+      }
       setStatus('ready');
     } catch (err) {
       setError(err.message || 'Writing 모의고사 생성 중 오류가 발생했습니다.');
@@ -142,7 +184,7 @@ export default function ToeflWritingMockTest({
   useEffect(() => {
     loadSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetScore]);
+  }, [targetScore, reviewAsset?.id]);
 
   const moveToArrangement = (wordIndex) => {
     if (status !== 'ready' || !activeSentence) return;
@@ -209,7 +251,7 @@ export default function ToeflWritingMockTest({
       });
       const emailScore = Number.isFinite(Number(evaluation?.emailScore)) ? Math.max(0, Math.min(5, Number(evaluation.emailScore))) : 0;
       const discussionScore = Number.isFinite(Number(evaluation?.discussionScore)) ? Math.max(0, Math.min(5, Number(evaluation.discussionScore))) : 0;
-      setSummary({
+      const summaryReport = {
         sentenceCorrect,
         sentenceTotal: sentenceResults.length,
         emailScore,
@@ -224,7 +266,28 @@ export default function ToeflWritingMockTest({
         strengths: Array.isArray(evaluation?.strengths) ? evaluation.strengths : [],
         improvements: Array.isArray(evaluation?.improvements) ? evaluation.improvements : [],
         nextSteps: Array.isArray(evaluation?.nextSteps) ? evaluation.nextSteps : [],
-      });
+      };
+      setSummary(summaryReport);
+      if (activeAsset && typeof onAttemptRecorded === 'function') {
+        await onAttemptRecorded(activeAsset, {
+          answers: {
+            sentenceArrangements: arrangements,
+            emailResponse,
+            discussionResponse,
+          },
+          results: {
+            sentenceResults,
+            feedback: summaryReport,
+          },
+          correctCount: sentenceCorrect,
+          totalCount: sentenceResults.length,
+          score: {
+            band: summaryReport.band,
+            emailScore,
+            discussionScore,
+          },
+        });
+      }
       setStatus('summary');
       playSound('COMPLETE');
     } catch (err) {
