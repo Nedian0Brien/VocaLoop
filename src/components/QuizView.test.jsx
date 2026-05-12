@@ -51,6 +51,14 @@ vi.mock('./ToeflReadingMockTest', () => ({
     default: () => <div>toefl-reading-mock-test</div>,
 }));
 
+vi.mock('./ToeflWritingTaskQuiz', () => ({
+    default: ({ taskType }) => <div>toefl-writing-task:{taskType}</div>,
+}));
+
+vi.mock('./ToeflWritingMockTest', () => ({
+    default: () => <div>toefl-writing-mock-test</div>,
+}));
+
 vi.mock('../utils/soundEffects', () => ({
     playSound: vi.fn(),
 }));
@@ -177,7 +185,7 @@ describe('QuizView', () => {
         expect(screen.getByText(/-quiz$/)).toBeTruthy();
     });
 
-    test('offers all 2026 TOEFL Reading task practice modes and opens each task', () => {
+    test('offers all TOEFL Reading and Writing practice modes and opens each task', () => {
         const renderQuizView = () => render(
             <QuizView
                 words={[
@@ -200,27 +208,55 @@ describe('QuizView', () => {
             />
         );
 
-        const { unmount } = renderQuizView();
+        let view = renderQuizView();
         expect(screen.getByText('Complete the Words')).toBeTruthy();
         expect(screen.getByText('Read in Daily Life')).toBeTruthy();
         expect(screen.getByText('Read an Academic Passage')).toBeTruthy();
         expect(screen.getByText('TOEFL Reading Mock Test')).toBeTruthy();
+        expect(screen.getByText('Build a Sentence')).toBeTruthy();
+        expect(screen.getByText('Write an Email')).toBeTruthy();
+        expect(screen.getByText('Write for an Academic Discussion')).toBeTruthy();
+        expect(screen.getByText('TOEFL Writing Mock Test')).toBeTruthy();
 
+        fireEvent.click(screen.getByText('Build a Sentence'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-build-quiz')).toBeTruthy();
+
+        view.unmount();
+        view = renderQuizView();
         fireEvent.click(screen.getByText('Read in Daily Life'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
         expect(screen.getByText('toefl-reading-task:daily-life')).toBeTruthy();
 
-        unmount();
-        renderQuizView();
+        view.unmount();
+        view = renderQuizView();
         fireEvent.click(screen.getByText('Read an Academic Passage'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
         expect(screen.getByText('toefl-reading-task:academic-passage')).toBeTruthy();
 
-        unmount();
-        renderQuizView();
+        view.unmount();
+        view = renderQuizView();
         fireEvent.click(screen.getByText('TOEFL Reading Mock Test'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
         expect(screen.getByText('toefl-reading-mock-test')).toBeTruthy();
+
+        view.unmount();
+        view = renderQuizView();
+        fireEvent.click(screen.getByText('Write an Email'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-writing-task:email')).toBeTruthy();
+
+        view.unmount();
+        view = renderQuizView();
+        fireEvent.click(screen.getByText('Write for an Academic Discussion'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-writing-task:academic-discussion')).toBeTruthy();
+
+        view.unmount();
+        view = renderQuizView();
+        fireEvent.click(screen.getByText('TOEFL Writing Mock Test'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+        expect(screen.getByText('toefl-writing-mock-test')).toBeTruthy();
     });
 
     test('shows TOEFL Reading mastery summary from accumulated practice stats', () => {

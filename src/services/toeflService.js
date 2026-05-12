@@ -68,6 +68,23 @@ const READING_TASK_SPECS = {
   },
 };
 
+const WRITING_TASK_SPECS = {
+  email: {
+    label: 'Write an Email',
+    timeLimitMinutes: 7,
+    purpose:
+      'a practical email for requesting information, making a recommendation, explaining a problem, or arranging a plan',
+    responseTarget: 'a clear email that fully addresses every bullet point in the situation',
+  },
+  'academic-discussion': {
+    label: 'Write for an Academic Discussion',
+    timeLimitMinutes: 10,
+    purpose:
+      'an online class discussion where the learner contributes an opinion after reading a professor prompt and two student posts',
+    responseTarget: 'at least 100 words with a clear opinion, support, and a connection to the discussion',
+  },
+};
+
 const MOCK_TASK_MIX = [
   {
     taskType: 'complete-words',
@@ -89,6 +106,12 @@ const MOCK_TASK_MIX = [
   },
 ];
 
+const clampScore = (score, min, max) => {
+  const n = Number(score);
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+};
+
 export const routeReadingMockDifficulty = ({ correct, total }) => {
   if (!total) return 'lower';
   return correct / total >= 0.7 ? 'upper' : 'lower';
@@ -105,6 +128,25 @@ export const estimateReadingBand = ({ correct, total, difficulty }) => {
   else if (accuracy >= 0.2) band = 2;
   if (difficulty === 'lower') return Math.min(band, 4);
   return band;
+};
+
+export const estimateWritingBand = ({
+  sentenceCorrect,
+  sentenceTotal,
+  emailScore,
+  discussionScore,
+}) => {
+  const sentenceRatio = sentenceTotal > 0 ? sentenceCorrect / sentenceTotal : 0;
+  const emailRatio = clampScore(emailScore, 0, 5) / 5;
+  const discussionRatio = clampScore(discussionScore, 0, 5) / 5;
+  const weighted = (sentenceRatio * 0.4) + (emailRatio * 0.3) + (discussionRatio * 0.3);
+
+  if (weighted >= 0.88) return 6;
+  if (weighted >= 0.72) return 5;
+  if (weighted >= 0.52) return 4;
+  if (weighted >= 0.34) return 3;
+  if (weighted >= 0.16) return 2;
+  return 1;
 };
 
 export const generateCompleteTheWordSet = async ({
@@ -392,6 +434,212 @@ Return ONLY valid JSON:
       "explanationKo": "Korean explanation of the answer."
     }
   ]
+}
+`;
+
+  return requestAiJson(prompt, aiConfig);
+};
+
+export const generateWritingTask = async ({
+  aiConfig,
+  taskType,
+  targetScore,
+  vocabularyWords = [],
+  pickedTopics = [],
+}) => {
+  const spec = WRITING_TASK_SPECS[taskType];
+  if (!spec) throw new Error(`Unsupported TOEFL Writing task: ${taskType}`);
+
+  const vocabBlock = formatVocabularyWordsBlock(vocabularyWords);
+  const topicBlock = formatTopicsBlock(pickedTopics);
+  const nonce = buildRandomNonce();
+
+  const prompt = `
+You are creating a 2026 TOEFL iBT Writing practice task: "${spec.label}".
+Learner target: TOEFL ${targetScore}+.
+
+Task purpose: ${spec.purpose}.
+Expected response: ${spec.responseTarget}.
+Time limit: ${spec.timeLimitMinutes} minutes.
+${vocabBlock}${topicBlock}
+DIVERSITY REQUIREMENTS:
+- Use realistic contexts and varied academic/campus/professional situations.
+- Avoid generic prompts about technology, climate, or education unless topic focus requires them.
+- Diversification token (do not output): ${nonce}
+
+Return ONLY valid JSON.
+For taskType "email", use this schema:
+{
+  "taskType": "email",
+  "title": "Short task title",
+  "situation": "A concise realistic situation paragraph.",
+  "requirements": ["bullet requirement 1", "bullet requirement 2", "bullet requirement 3"],
+  "recipient": "recipient role or name",
+  "timeLimitMinutes": 7,
+  "wordTarget": "No fixed word count; answer completely and politely."
+}
+
+For taskType "academic-discussion", use this schema:
+{
+  "taskType": "academic-discussion",
+  "title": "Short discussion title",
+  "course": "Course or field name",
+  "professorQuestion": "Professor prompt asking for the learner's contribution.",
+  "studentPosts": [
+    { "name": "Mina", "text": "Student opinion with a reason." },
+    { "name": "Daniel", "text": "Different student opinion with a reason." }
+  ],
+  "timeLimitMinutes": 10,
+  "wordTarget": "Write at least 100 words."
+}
+`;
+
+  return requestAiJson(prompt, aiConfig);
+};
+
+export const evaluateWritingResponse = async ({
+  aiConfig,
+  taskType,
+  task,
+  userResponse,
+  targetScore,
+}) => {
+  const spec = WRITING_TASK_SPECS[taskType];
+  if (!spec) throw new Error(`Unsupported TOEFL Writing task: ${taskType}`);
+
+  const prompt = `
+You are a TOEFL Writing rater and Korean tutor.
+Task type: ${spec.label}
+Learner target: TOEFL ${targetScore}+.
+Task JSON:
+${JSON.stringify(task)}
+
+Learner response:
+${userResponse}
+
+Score the response on a 0-5 practice rubric:
+- 5: fully addresses the task, well organized, strong grammar and vocabulary
+- 4: clear and mostly complete, minor language issues
+- 3: adequate but limited development or noticeable language issues
+- 2: partially addresses the task, weak organization or frequent errors
+- 1: very limited
+- 0: blank, unrelated, or not in English
+
+Return ONLY valid JSON:
+{
+  "score": 0,
+  "feedbackKo": "Concise Korean feedback.",
+  "strengths": ["strength1", "strength2"],
+  "improvements": ["improvement1", "improvement2"],
+  "nextSteps": ["next step1", "next step2"]
+}
+`;
+
+  return requestAiJson(prompt, aiConfig);
+};
+
+export const generateWritingMockSection = async ({
+  aiConfig,
+  targetScore,
+  sentenceCount = 10,
+  vocabularyWords = [],
+  pickedTopics = [],
+}) => {
+  const vocabBlock = formatVocabularyWordsBlock(vocabularyWords);
+  const topicBlock = formatTopicsBlock(pickedTopics);
+  const nonce = buildRandomNonce();
+
+  const prompt = `
+You are creating a reduced 2026 TOEFL iBT Writing mock test.
+Learner target: TOEFL ${targetScore}+.
+
+Create:
+1) ${sentenceCount} Build a Sentence items.
+2) One Write an Email task.
+3) One Write for an Academic Discussion task.
+${vocabBlock}${topicBlock}
+
+Build a Sentence rules:
+- Each target sentence should be 8-18 words.
+- "words" must contain all target words in scrambled order.
+- Use punctuation sparingly; omit punctuation tokens unless necessary.
+
+Writing task rules:
+- Email task should be practical and answerable in 7 minutes.
+- Academic discussion task should include professor prompt and two student posts, answerable in 10 minutes.
+- Diversification token (do not output): ${nonce}
+
+Return ONLY valid JSON:
+{
+  "sentenceItems": [
+    {
+      "id": 1,
+      "target": "A complete sentence.",
+      "words": ["scrambled", "word", "tokens"],
+      "hint": "Korean hint or paraphrase."
+    }
+  ],
+  "emailTask": {
+    "taskType": "email",
+    "title": "Short task title",
+    "situation": "A concise realistic situation paragraph.",
+    "requirements": ["bullet requirement 1", "bullet requirement 2", "bullet requirement 3"],
+    "recipient": "recipient role or name",
+    "timeLimitMinutes": 7,
+    "wordTarget": "No fixed word count; answer completely and politely."
+  },
+  "discussionTask": {
+    "taskType": "academic-discussion",
+    "title": "Short discussion title",
+    "course": "Course or field name",
+    "professorQuestion": "Professor prompt asking for the learner's contribution.",
+    "studentPosts": [
+      { "name": "Mina", "text": "Student opinion with a reason." },
+      { "name": "Daniel", "text": "Different student opinion with a reason." }
+    ],
+    "timeLimitMinutes": 10,
+    "wordTarget": "Write at least 100 words."
+  }
+}
+`;
+
+  return requestAiJson(prompt, aiConfig);
+};
+
+export const evaluateWritingMockSection = async ({
+  aiConfig,
+  emailTask,
+  discussionTask,
+  emailResponse,
+  discussionResponse,
+  sentenceCorrect,
+  sentenceTotal,
+  targetScore,
+}) => {
+  const prompt = `
+You are a TOEFL Writing rater and Korean tutor.
+Learner target: TOEFL ${targetScore}+.
+Build a Sentence result: ${sentenceCorrect}/${sentenceTotal} correct.
+
+Email task:
+${JSON.stringify(emailTask)}
+Email response:
+${emailResponse}
+
+Academic discussion task:
+${JSON.stringify(discussionTask)}
+Discussion response:
+${discussionResponse}
+
+Score emailScore and discussionScore from 0-5 using TOEFL-style practice criteria: task fulfillment, organization, development, language control.
+Return ONLY valid JSON:
+{
+  "emailScore": 0,
+  "discussionScore": 0,
+  "feedbackKo": "Overall Korean feedback.",
+  "strengths": ["strength1", "strength2"],
+  "improvements": ["improvement1", "improvement2"],
+  "nextSteps": ["next step1", "next step2"]
 }
 `;
 

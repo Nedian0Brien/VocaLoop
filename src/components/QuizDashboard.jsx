@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap, ChevronRight, Clock, BarChart3 } from './Icons';
+import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap, ChevronRight, Clock, BarChart3, Mail, Quote, FileText } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
 
@@ -185,12 +185,19 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
     { id: 'short', title: '주관식 퀴즈', description: '단어의 철자와 뜻을 직접 입력하여 암기 수준을 완벽하게 검증합니다.', icon: Edit3, color: 'purple' }
   ];
 
-  const toeflModes = [
+  const toeflReadingModes = [
     { id: 'toefl-reading-mock', title: 'TOEFL Reading Mock Test', description: 'Stage 1 결과에 따라 Stage 2 난이도가 갈리는 실전형 Reading 모의고사입니다.', icon: Target, color: 'purple', recommended: true },
     { id: 'toefl-complete', title: 'Complete the Words', description: '2026 TOEFL Reading의 단어 완성 task에 맞춰 문맥 속 빠진 철자를 완성합니다.', icon: Sparkles, color: 'blue', recommended: true },
     { id: 'toefl-daily-life', title: 'Read in Daily Life', description: '이메일, 공지, 일정표 등 실생활 텍스트에서 목적과 세부 정보를 빠르게 파악합니다.', icon: BookOpen, color: 'blue' },
     { id: 'toefl-academic-passage', title: 'Read an Academic Passage', description: '학술 지문을 읽고 중심 생각, 추론, 어휘 맥락, 수사적 관계를 풉니다.', icon: Zap, color: 'purple' }
   ];
+  const toeflWritingModes = [
+    { id: 'toefl-writing-mock', title: 'TOEFL Writing Mock Test', description: 'Build a Sentence 10문항, Email 1문항, Academic Discussion 1문항을 이어서 풉니다.', icon: FileText, color: 'purple', recommended: true },
+    { id: 'toefl-build', title: 'Build a Sentence', description: '주어진 토큰을 TOEFL 수준의 문법과 논리 흐름에 맞게 배열해 완성 문장을 만듭니다.', icon: Edit3, color: 'purple' },
+    { id: 'toefl-writing-email', title: 'Write an Email', description: '상황과 요구사항을 반영해 공손하고 목적이 분명한 이메일을 작성합니다.', icon: Mail, color: 'blue' },
+    { id: 'toefl-writing-discussion', title: 'Write for an Academic Discussion', description: '교수 질문과 학생 의견을 읽고 100단어 이상으로 학술 토론에 기여합니다.', icon: Quote, color: 'purple' }
+  ];
+  const allToeflModes = [...toeflReadingModes, ...toeflWritingModes];
 
   const accuracyTrend = history.length >= 2
     ? history[0].percentage - history[1].percentage
@@ -274,13 +281,13 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
             </div>
           </section>
 
-          {/* TOEFL Mastery Section */}
+          {/* TOEFL Reading Section */}
           <section>
             <SectionHeading
               icon={Sparkles}
               tone="brand"
-              title="Academic TOEFL"
-              subtitle="실전 대비 고난도 학술적 문해력 강화"
+              title="TOEFL Reading"
+              subtitle="2026 개정 Reading task와 실전 모의고사"
             />
             {hasReadingStats && (
               <Card variant="outlined" radius="card" padding="lg" className="mb-8">
@@ -314,7 +321,22 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
               </Card>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {toeflModes.map((mode) => (
+              {toeflReadingModes.map((mode) => (
+                <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
+              ))}
+            </div>
+          </section>
+
+          {/* TOEFL Writing Section */}
+          <section>
+            <SectionHeading
+              icon={Edit3}
+              tone="accent"
+              title="TOEFL Writing"
+              subtitle="2026 개정 Writing 3유형과 실전형 12문항 구성"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+              {toeflWritingModes.map((mode) => (
                 <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
               ))}
             </div>
@@ -334,7 +356,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount }) {
             <div className="space-y-4">
               {history.length > 0 ? (
                 history.map((entry, idx) => {
-                  const matched = [...vocabModes, ...toeflModes].find((m) => m.title === entry.mode);
+                  const matched = [...vocabModes, ...allToeflModes].find((m) => m.title === entry.mode);
                   const canRelaunch = matched && !matched.disabled && wordCount > 0;
                   return (
                     <HistoryItem

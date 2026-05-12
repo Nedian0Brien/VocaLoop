@@ -10,6 +10,8 @@ import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
 import ToeflReadingTaskQuiz from './ToeflReadingTaskQuiz';
 import ToeflReadingMockTest from './ToeflReadingMockTest';
+import ToeflWritingTaskQuiz from './ToeflWritingTaskQuiz';
+import ToeflWritingMockTest from './ToeflWritingMockTest';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
@@ -196,7 +198,7 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
     if (!selectedMode) return;
     const modeId = selectedMode.id;
 
-    if (modeId === 'toefl-complete' || modeId === 'toefl-build' || modeId === 'toefl-daily-life' || modeId === 'toefl-academic-passage' || modeId === 'toefl-reading-mock') {
+    if (modeId?.startsWith('toefl-')) {
       setToeflConfig({
         questionCount,
         targetScore,
@@ -505,6 +507,38 @@ export default function QuizView({ words, setView, user, aiMode, setAiMode, aiCo
                 <ToeflReadingMockTest
                   aiConfig={aiConfig}
                   questionCount={toeflConfig.questionCount}
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-writing-email' && (
+                <ToeflWritingTaskQuiz
+                  aiConfig={aiConfig}
+                  taskType="email"
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-writing-discussion' && (
+                <ToeflWritingTaskQuiz
+                  aiConfig={aiConfig}
+                  taskType="academic-discussion"
+                  targetScore={toeflConfig.targetScore}
+                  vocabSource={toeflConfig.vocabSource}
+                  topicSelection={toeflConfig.topicSelection}
+                  onExit={handleBackToModeSelect}
+                />
+              )}
+
+              {selectedMode.id === 'toefl-writing-mock' && (
+                <ToeflWritingMockTest
+                  aiConfig={aiConfig}
                   targetScore={toeflConfig.targetScore}
                   vocabSource={toeflConfig.vocabSource}
                   topicSelection={toeflConfig.topicSelection}

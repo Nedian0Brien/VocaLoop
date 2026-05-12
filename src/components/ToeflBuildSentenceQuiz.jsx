@@ -42,7 +42,7 @@ const DropPlaceholder = ({ active, drag }) => {
 };
 
 /**
- * TOEFL Build-a-Sentence — 단어 토큰을 올바른 순서로 배열해 문장을 완성.
+ * TOEFL Build a Sentence — 단어 토큰을 올바른 순서로 배열해 문장을 완성.
  *
  * UX
  *  - 문제마다 한국어 힌트(목표 문장 번역) 제공
@@ -429,7 +429,7 @@ export default function ToeflBuildSentenceQuiz({
     <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-surface-900 tracking-tight">Build-a-Sentence</h2>
+          <h2 className="text-2xl font-black text-surface-900 tracking-tight">Build a Sentence</h2>
           <p className="text-sm font-bold text-surface-500">
             단어를 클릭해 올바른 순서로 문장을 완성하세요. (문항 {currentIndex + 1}/{totalQuestions})
           </p>
