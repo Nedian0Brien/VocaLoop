@@ -206,6 +206,85 @@ body {
     animation: expandFromIcon 0.4s var(--ease-spring) forwards;
 }
 
+@keyframes wordBubbleIn {
+    from {
+        opacity: 0;
+        transform: translate3d(-0.35rem, -50%, 0) scale(0.82);
+        filter: blur(2px);
+    }
+    70% {
+        opacity: 1;
+        transform: translate3d(0.08rem, -50%, 0) scale(1.03);
+        filter: blur(0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, -50%, 0) scale(1);
+        filter: blur(0);
+    }
+}
+.animate-word-bubble-in {
+    animation: wordBubbleIn 180ms var(--ease-decel) both;
+    transform-origin: left center;
+}
+
+@keyframes wordBubbleOut {
+    from {
+        opacity: 1;
+        transform: translate3d(0, -50%, 0) scale(1);
+        filter: blur(0);
+    }
+    to {
+        opacity: 0;
+        transform: translate3d(-0.25rem, -50%, 0) scale(0.88);
+        filter: blur(1px);
+    }
+}
+.animate-word-bubble-out {
+    animation: wordBubbleOut 150ms var(--ease-decel) both;
+    transform-origin: left center;
+}
+
+@keyframes wordActionIn {
+    from {
+        opacity: 0;
+        transform: translate3d(-0.25rem, 0.15rem, 0) scale(0.72);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+.animate-word-action-in {
+    animation: wordActionIn 170ms var(--ease-spring) both;
+    animation-delay: var(--action-enter-delay, 0ms);
+}
+
+@keyframes wordActionOut {
+    from {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate3d(-0.2rem, 0.1rem, 0) scale(0.76);
+    }
+}
+.animate-word-action-out {
+    animation: wordActionOut 130ms var(--ease-decel) both;
+    animation-delay: var(--action-exit-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-word-bubble-in,
+    .animate-word-bubble-out,
+    .animate-word-action-in,
+    .animate-word-action-out {
+        animation-duration: 1ms;
+        animation-delay: 0ms;
+    }
+}
+
 @keyframes skeletonPulse {
     0%   { background-color: var(--color-surface-100); }
     50%  { background-color: var(--color-surface-200); }

@@ -239,6 +239,7 @@ export default function ToeflReadingTaskQuiz({
           onSaveWord={vocabCapture.saveWord}
           onExplainWord={vocabCapture.explainWord}
           onToggleUnderline={vocabCapture.toggleUnderline}
+          onClearSelection={vocabCapture.clearActiveWord}
           buildMetadata={() => ({
             source: 'toefl-reading-task',
             sourceLabel: taskCopy.title,

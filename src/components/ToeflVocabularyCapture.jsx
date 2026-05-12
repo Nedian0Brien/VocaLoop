@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, HelpCircle, Save } from './Icons';
 import {
   getVocabularyWordKey,
@@ -22,18 +22,66 @@ export function VocabularyCaptureText({
   onSaveWord,
   onExplainWord,
   onToggleUnderline,
+  onClearSelection,
   buildMetadata,
 }) {
   const captureId = useId();
+  const rootRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const [renderedActiveWordKey, setRenderedActiveWordKey] = useState(activeWordKey || '');
+  const [bubblePhase, setBubblePhase] = useState(activeWordKey ? 'enter' : 'idle');
   const tokens = useMemo(() => tokenizeVocabularyText(text), [text]);
+  const visibleActiveWordKey = activeWordKey || renderedActiveWordKey;
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    if (activeWordKey) {
+      setRenderedActiveWordKey(activeWordKey);
+      setBubblePhase('enter');
+      return;
+    }
+
+    if (!renderedActiveWordKey) {
+      setBubblePhase('idle');
+      return;
+    }
+
+    setBubblePhase('exit');
+    closeTimerRef.current = window.setTimeout(() => {
+      setRenderedActiveWordKey('');
+      setBubblePhase('idle');
+      closeTimerRef.current = null;
+    }, WORD_BUBBLE_EXIT_MS);
+  }, [activeWordKey, renderedActiveWordKey]);
+
+  useEffect(() => {
+    if (!activeWordKey || !onClearSelection) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (rootRef.current?.contains(event.target)) return;
+      onClearSelection();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [activeWordKey, onClearSelection]);
 
   return (
-    <p className={className}>
+    <p ref={rootRef} className={className}>
       {tokens.map((token, index) => {
         if (token.type !== 'word') return <React.Fragment key={`text-${index}`}>{token.value}</React.Fragment>;
 
         const tokenInstanceKey = `${captureId}-${token.key}-${token.start ?? index}`;
         const isActive = tokenInstanceKey === activeWordKey;
+        const shouldRenderBubble = tokenInstanceKey === visibleActiveWordKey;
         const isUnderlined = underlinedWordKeys?.has(token.key);
         return (
           <span key={tokenInstanceKey} className="relative inline-block align-baseline">
@@ -51,9 +99,10 @@ export function VocabularyCaptureText({
             >
               {token.value}
             </button>
-            {isActive && (
+            {shouldRenderBubble && (
               <VocabularyWordBubble
                 word={token.key}
+                phase={activeWordKey ? 'enter' : bubblePhase}
                 savingKeys={savingKeys}
                 savedKeys={savedKeys}
                 explainingKeys={explainingKeys}
@@ -218,6 +267,7 @@ function VocabularyWordBubble({
   onExplainWord,
   onToggleUnderline,
   buildMetadata,
+  phase = 'enter',
 }) {
   const key = getVocabularyWordKey(word);
   if (!key) return null;
@@ -271,6 +321,7 @@ function VocabularyWordBubble({
       onClick={(event) => event.stopPropagation()}
       className={[
         'radial-word-actions right-half-word-actions pointer-events-none absolute left-full top-1/2 z-30 ml-1 -translate-y-1/2',
+        phase === 'exit' ? 'animate-word-bubble-out' : 'animate-word-bubble-in',
         actionItems.length === 2 ? 'h-24 w-36' : 'h-32 w-40',
       ].join(' ')}
     >
@@ -283,6 +334,9 @@ function VocabularyWordBubble({
           isActive={item.isActive}
           isPrimary={item.isPrimary}
           arcPosition={actionPositions[index]}
+          phase={phase}
+          index={index}
+          actionCount={actionItems.length}
           onClick={item.onClick}
         />
       ))}
@@ -315,8 +369,13 @@ function RadialActionButton({
   isActive = false,
   isPrimary = false,
   arcPosition,
+  phase = 'enter',
+  index = 0,
+  actionCount = 1,
   onClick,
 }) {
+  const actionWidthVars = getActionWidthVars(label);
+
   return (
     <button
       type="button"
@@ -328,14 +387,18 @@ function RadialActionButton({
       style={{
         left: `${arcPosition?.left || 0}px`,
         top: `${arcPosition?.top || 0}px`,
+        '--action-enter-delay': `${index * ACTION_ENTER_STAGGER_MS}ms`,
+        '--action-exit-delay': `${Math.max(0, actionCount - index - 1) * ACTION_EXIT_STAGGER_MS}ms`,
+        ...actionWidthVars,
       }}
       className={[
         'right-arc-action group pointer-events-auto absolute inline-flex h-10 w-10 origin-left items-center justify-center overflow-hidden rounded-full border px-0',
         'text-sm font-black shadow-[var(--shadow-soft)] transition-all duration-150',
-        'hover:w-36 hover:justify-start hover:gap-2 hover:px-3',
-        'focus-visible:w-36 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
+        'hover:w-[var(--action-expanded-width)] hover:justify-start hover:gap-2 hover:px-3',
+        'focus-visible:w-[var(--action-expanded-width)] focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
         'disabled:cursor-not-allowed disabled:opacity-70',
+        phase === 'exit' ? 'animate-word-action-out pointer-events-none' : 'animate-word-action-in',
         isPrimary
           ? 'border-brand-600 bg-brand-600 text-white hover:bg-brand-700'
           : isActive
@@ -344,11 +407,33 @@ function RadialActionButton({
       ].join(' ')}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-      <span className="max-w-0 overflow-hidden whitespace-nowrap text-xs opacity-0 transition-all duration-150 group-hover:max-w-[5.5rem] group-hover:opacity-100 group-focus-visible:max-w-[5.5rem] group-focus-visible:opacity-100">
+      <span
+        data-action-label
+        className="max-w-0 overflow-hidden whitespace-nowrap text-xs opacity-0 transition-all duration-150 group-hover:max-w-[var(--action-label-width)] group-hover:opacity-100 group-focus-visible:max-w-[var(--action-label-width)] group-focus-visible:opacity-100"
+      >
         {label}
       </span>
     </button>
   );
+}
+
+const WORD_BUBBLE_EXIT_MS = 170;
+const ACTION_ENTER_STAGGER_MS = 35;
+const ACTION_EXIT_STAGGER_MS = 25;
+
+function getActionWidthVars(label) {
+  const labelUnits = Array.from(label || '').reduce((total, char) => {
+    if (/\s/.test(char)) return total + 0.45;
+    if (/^[A-Za-z0-9]$/.test(char)) return total + 0.62;
+    return total + 1;
+  }, 0);
+  const labelWidth = Math.ceil(Math.max(28, Math.min(120, labelUnits * 12)));
+  const expandedWidth = Math.ceil(Math.max(64, Math.min(176, labelWidth + 56)));
+
+  return {
+    '--action-label-width': `${labelWidth}px`,
+    '--action-expanded-width': `${expandedWidth}px`,
+  };
 }
 
 function UnderlineGlyph(props) {

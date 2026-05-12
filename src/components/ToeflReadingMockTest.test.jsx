@@ -137,7 +137,7 @@ describe('ToeflReadingMockTest', () => {
     expect(screen.queryByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeNull();
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('right-arc-action');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('h-10 w-10');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('hover:w-36');
+    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('hover:w-[var(--action-expanded-width)]');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('origin-left');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).dataset.arcPosition).toBe('upper');
     expect(screen.getByRole('button', { name: '밑줄' }).className).toContain('right-arc-action');
