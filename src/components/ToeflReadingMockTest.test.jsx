@@ -132,11 +132,13 @@ describe('ToeflReadingMockTest', () => {
     expect(actionBubble.className).toContain('right-half-word-actions');
     expect(actionBubble.className).toContain('left-full');
     expect(actionBubble.className).toContain('top-1/2');
+    expect(actionBubble.querySelector('[data-testid="right-arc-guide"]')).toBeTruthy();
     expect(wordButton.parentElement.className).toContain('relative');
     expect(screen.queryByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeNull();
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('right-arc-action');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('h-11 w-11');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('hover:w-28');
+    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('origin-left');
     expect(screen.getByRole('button', { name: '밑줄' }).className).toContain('right-arc-action');
     expect(screen.getByRole('button', { name: '밑줄' }).textContent).toContain('밑줄');
     expect(screen.queryByRole('button', { name: '뜻 설명' })).toBeNull();

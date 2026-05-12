@@ -251,11 +251,11 @@ function VocabularyWordBubble({
   }
 
   const positionClasses = actionItems.length === 2
-    ? ['right-arc-action--upper left-11 top-2', 'right-arc-action--lower left-11 bottom-2']
+    ? ['right-arc-action--upper left-8 top-3', 'right-arc-action--lower left-8 bottom-3']
     : [
-        'right-arc-action--upper left-10 top-1',
+        'right-arc-action--upper left-7 top-1',
         'right-arc-action--middle left-16 top-1/2 -translate-y-1/2',
-        'right-arc-action--lower left-10 bottom-1',
+        'right-arc-action--lower left-7 bottom-1',
       ];
 
   return (
@@ -268,6 +268,11 @@ function VocabularyWordBubble({
         actionItems.length === 2 ? 'h-24 w-28' : 'h-28 w-32',
       ].join(' ')}
     >
+      <span
+        data-testid="right-arc-guide"
+        aria-hidden="true"
+        className="absolute left-0 top-1/2 h-24 w-20 -translate-y-1/2 rounded-r-full border-y border-r border-brand-100/80"
+      />
       {actionItems.map((item, index) => (
         <RadialActionButton
           key={item.label}
@@ -319,7 +324,7 @@ function RadialActionButton({
       disabled={disabled}
       onClick={onClick}
       className={[
-        'right-arc-action group pointer-events-auto absolute inline-flex h-11 w-11 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border px-0',
+        'right-arc-action group pointer-events-auto absolute inline-flex h-11 w-11 origin-left items-center justify-center overflow-hidden rounded-full border px-0',
         'text-sm font-black shadow-[var(--shadow-soft)] transition-all duration-150',
         'hover:w-28 hover:justify-start hover:gap-2 hover:px-3',
         'focus-visible:w-28 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
