@@ -250,12 +250,15 @@ function VocabularyWordBubble({
     });
   }
 
-  const positionClasses = actionItems.length === 2
-    ? ['right-arc-action--upper left-8 top-3', 'right-arc-action--lower left-8 bottom-3']
+  const actionPositions = actionItems.length === 2
+    ? [
+        { name: 'upper', left: 20, top: -34 },
+        { name: 'lower', left: 50, top: 18 },
+      ]
     : [
-        'right-arc-action--upper left-7 top-1',
-        'right-arc-action--middle left-16 top-1/2 -translate-y-1/2',
-        'right-arc-action--lower left-7 bottom-1',
+        { name: 'upper', left: 18, top: -48 },
+        { name: 'middle', left: 62, top: -2 },
+        { name: 'lower', left: 18, top: 44 },
       ];
 
   return (
@@ -265,14 +268,9 @@ function VocabularyWordBubble({
       onClick={(event) => event.stopPropagation()}
       className={[
         'radial-word-actions right-half-word-actions pointer-events-none absolute left-full top-1/2 z-30 ml-1 -translate-y-1/2',
-        actionItems.length === 2 ? 'h-24 w-28' : 'h-28 w-32',
+        actionItems.length === 2 ? 'h-24 w-36' : 'h-32 w-40',
       ].join(' ')}
     >
-      <span
-        data-testid="right-arc-guide"
-        aria-hidden="true"
-        className="absolute left-0 top-1/2 h-24 w-20 -translate-y-1/2 rounded-r-full border-y border-r border-brand-100/80"
-      />
       {actionItems.map((item, index) => (
         <RadialActionButton
           key={item.label}
@@ -281,7 +279,7 @@ function VocabularyWordBubble({
           disabled={item.disabled}
           isActive={item.isActive}
           isPrimary={item.isPrimary}
-          positionClass={positionClasses[index]}
+          arcPosition={actionPositions[index]}
           onClick={item.onClick}
         />
       ))}
@@ -313,7 +311,7 @@ function RadialActionButton({
   disabled = false,
   isActive = false,
   isPrimary = false,
-  positionClass,
+  arcPosition,
   onClick,
 }) {
   return (
@@ -321,16 +319,20 @@ function RadialActionButton({
       type="button"
       aria-label={label}
       title={label}
+      data-arc-position={arcPosition?.name}
       disabled={disabled}
       onClick={onClick}
+      style={{
+        left: `${arcPosition?.left || 0}px`,
+        top: `${arcPosition?.top || 0}px`,
+      }}
       className={[
-        'right-arc-action group pointer-events-auto absolute inline-flex h-11 w-11 origin-left items-center justify-center overflow-hidden rounded-full border px-0',
+        'right-arc-action group pointer-events-auto absolute inline-flex h-10 w-10 origin-left items-center justify-center overflow-hidden rounded-full border px-0',
         'text-sm font-black shadow-[var(--shadow-soft)] transition-all duration-150',
         'hover:w-28 hover:justify-start hover:gap-2 hover:px-3',
         'focus-visible:w-28 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
         'disabled:cursor-not-allowed disabled:opacity-70',
-        positionClass,
         isPrimary
           ? 'border-brand-600 bg-brand-600 text-white hover:bg-brand-700'
           : isActive
