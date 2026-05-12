@@ -251,8 +251,12 @@ function VocabularyWordBubble({
   }
 
   const positionClasses = actionItems.length === 2
-    ? ['left-[32%] bottom-0', 'left-[68%] bottom-0']
-    : ['left-[18%] bottom-0', 'left-1/2 top-0', 'left-[82%] bottom-0'];
+    ? ['right-arc-action--upper left-11 top-2', 'right-arc-action--lower left-11 bottom-2']
+    : [
+        'right-arc-action--upper left-10 top-1',
+        'right-arc-action--middle left-16 top-1/2 -translate-y-1/2',
+        'right-arc-action--lower left-10 bottom-1',
+      ];
 
   return (
     <span
@@ -260,8 +264,8 @@ function VocabularyWordBubble({
       aria-label={`${key} 단어 액션`}
       onClick={(event) => event.stopPropagation()}
       className={[
-        'radial-word-actions pointer-events-none absolute left-1/2 bottom-full z-30 -translate-x-1/2',
-        actionItems.length === 2 ? 'h-20 w-32' : 'h-24 w-40',
+        'radial-word-actions right-half-word-actions pointer-events-none absolute left-full top-1/2 z-30 ml-1 -translate-y-1/2',
+        actionItems.length === 2 ? 'h-24 w-28' : 'h-28 w-32',
       ].join(' ')}
     >
       {actionItems.map((item, index) => (
@@ -315,8 +319,10 @@ function RadialActionButton({
       disabled={disabled}
       onClick={onClick}
       className={[
-        'pointer-events-auto absolute inline-flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full border',
-        'text-sm font-black shadow-[var(--shadow-soft)] transition duration-150',
+        'right-arc-action group pointer-events-auto absolute inline-flex h-11 w-11 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border px-0',
+        'text-sm font-black shadow-[var(--shadow-soft)] transition-all duration-150',
+        'hover:w-28 hover:justify-start hover:gap-2 hover:px-3',
+        'focus-visible:w-28 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
         'disabled:cursor-not-allowed disabled:opacity-70',
         positionClass,
@@ -327,8 +333,10 @@ function RadialActionButton({
             : 'border-brand-100 bg-white text-surface-700 hover:border-brand-300 hover:bg-brand-50',
       ].join(' ')}
     >
-      <Icon className="h-5 w-5" aria-hidden="true" />
-      <span className="sr-only">{label}</span>
+      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+      <span className="max-w-0 overflow-hidden whitespace-nowrap text-xs opacity-0 transition-all duration-150 group-hover:max-w-[5.5rem] group-hover:opacity-100 group-focus-visible:max-w-[5.5rem] group-focus-visible:opacity-100">
+        {label}
+      </span>
     </button>
   );
 }
