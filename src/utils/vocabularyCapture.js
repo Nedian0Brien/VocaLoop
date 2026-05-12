@@ -30,6 +30,7 @@ export const tokenizeVocabularyText = (value) => {
       type: 'word',
       value: match[0],
       key: getVocabularyWordKey(match[0]),
+      start: match.index,
     });
     lastIndex = match.index + match[0].length;
   }

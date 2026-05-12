@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Check, HelpCircle, Save } from './Icons';
 import {
   getVocabularyWordKey,
@@ -24,6 +24,7 @@ export function VocabularyCaptureText({
   onToggleUnderline,
   buildMetadata,
 }) {
+  const captureId = useId();
   const tokens = useMemo(() => tokenizeVocabularyText(text), [text]);
 
   return (
@@ -31,14 +32,15 @@ export function VocabularyCaptureText({
       {tokens.map((token, index) => {
         if (token.type !== 'word') return <React.Fragment key={`text-${index}`}>{token.value}</React.Fragment>;
 
-        const isActive = token.key === activeWordKey;
+        const tokenInstanceKey = `${captureId}-${token.key}-${token.start ?? index}`;
+        const isActive = tokenInstanceKey === activeWordKey;
         const isUnderlined = underlinedWordKeys?.has(token.key);
         return (
-          <span key={`${token.key}-${index}`} className="relative inline-block align-baseline">
+          <span key={tokenInstanceKey} className="relative inline-block align-baseline">
             <button
               type="button"
               aria-label={`${token.key} 단어 액션 열기`}
-              onClick={() => onSelectWord?.(token.key)}
+              onClick={() => onSelectWord?.(token.key, tokenInstanceKey)}
               className={[
                 'inline rounded-sm px-0.5 -mx-0.5 align-baseline font-semibold text-inherit',
                 'transition-colors duration-150',
@@ -95,10 +97,11 @@ export function useToeflVocabularyCapture({
     return keys;
   }, [existingWords]);
 
-  const selectWord = (value) => {
+  const selectWord = (value, instanceKey) => {
     const word = normalizeCapturedWord(value);
     if (word) {
-      setActiveWord((current) => (current === word ? '' : word));
+      const nextActiveWord = instanceKey || word;
+      setActiveWord((current) => (current === nextActiveWord ? '' : nextActiveWord));
     }
   };
 
@@ -329,8 +332,8 @@ function RadialActionButton({
       className={[
         'right-arc-action group pointer-events-auto absolute inline-flex h-10 w-10 origin-left items-center justify-center overflow-hidden rounded-full border px-0',
         'text-sm font-black shadow-[var(--shadow-soft)] transition-all duration-150',
-        'hover:w-28 hover:justify-start hover:gap-2 hover:px-3',
-        'focus-visible:w-28 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
+        'hover:w-36 hover:justify-start hover:gap-2 hover:px-3',
+        'focus-visible:w-36 focus-visible:justify-start focus-visible:gap-2 focus-visible:px-3',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
         'disabled:cursor-not-allowed disabled:opacity-70',
         isPrimary
