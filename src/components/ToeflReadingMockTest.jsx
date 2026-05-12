@@ -287,7 +287,6 @@ export default function ToeflReadingMockTest({
               onSaveWord={vocabCapture.saveWord}
               onExplainWord={vocabCapture.explainWord}
               onToggleUnderline={vocabCapture.toggleUnderline}
-              onClose={vocabCapture.clearActiveWord}
               buildMetadata={() => ({
                 source: 'toefl-reading-mock',
                 sourceLabel: 'TOEFL Reading Mock Test',

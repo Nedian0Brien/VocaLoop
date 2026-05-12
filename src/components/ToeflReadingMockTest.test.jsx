@@ -128,10 +128,11 @@ describe('ToeflReadingMockTest', () => {
 
     const actionBubble = screen.getByRole('menu', { name: 'stimulus 단어 액션' });
     expect(actionBubble.className).toContain('absolute');
+    expect(actionBubble.className).toContain('radial-word-actions');
     expect(wordButton.parentElement.className).toContain('relative');
     expect(screen.queryByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeNull();
-    expect(screen.getByRole('button', { name: '단어장에 저장' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '밑줄' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('rounded-full');
+    expect(screen.getByRole('button', { name: '밑줄' }).className).toContain('rounded-full');
     expect(screen.queryByRole('button', { name: '뜻 설명' })).toBeNull();
     expect(screen.queryByText('자극')).toBeNull();
 

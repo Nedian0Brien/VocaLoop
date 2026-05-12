@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, HelpCircle, Save, X } from './Icons';
-import { Button } from '../design-system';
+import { Check, HelpCircle, Save } from './Icons';
 import {
   getVocabularyWordKey,
   normalizeCapturedWord,
@@ -23,7 +22,6 @@ export function VocabularyCaptureText({
   onSaveWord,
   onExplainWord,
   onToggleUnderline,
-  onClose,
   buildMetadata,
 }) {
   const tokens = useMemo(() => tokenizeVocabularyText(text), [text]);
@@ -65,7 +63,6 @@ export function VocabularyCaptureText({
                 onSaveWord={onSaveWord}
                 onExplainWord={onExplainWord}
                 onToggleUnderline={onToggleUnderline}
-                onClose={onClose}
                 buildMetadata={buildMetadata}
               />
             )}
@@ -100,7 +97,9 @@ export function useToeflVocabularyCapture({
 
   const selectWord = (value) => {
     const word = normalizeCapturedWord(value);
-    if (word) setActiveWord(word);
+    if (word) {
+      setActiveWord((current) => (current === word ? '' : word));
+    }
   };
 
   const clearActiveWord = () => setActiveWord('');
@@ -215,7 +214,6 @@ function VocabularyWordBubble({
   onSaveWord,
   onExplainWord,
   onToggleUnderline,
-  onClose,
   buildMetadata,
 }) {
   const key = getVocabularyWordKey(word);
@@ -227,6 +225,34 @@ function VocabularyWordBubble({
   const isUnderlined = underlinedWordKeys.has(key);
   const explanation = explanations[key];
   const error = errors[key];
+  const actionItems = [
+    {
+      label: isSaving ? '저장 중' : isSaved ? '저장됨' : '단어장에 저장',
+      icon: isSaved ? Check : Save,
+      disabled: isSaving || isSaved,
+      isPrimary: !isSaved,
+      onClick: () => onSaveWord(key, buildMetadata?.(key) || {}),
+    },
+    {
+      label: isUnderlined ? '밑줄 해제' : '밑줄',
+      icon: UnderlineGlyph,
+      isActive: isUnderlined,
+      onClick: () => onToggleUnderline(key),
+    },
+  ];
+
+  if (canExplain) {
+    actionItems.push({
+      label: isExplaining ? '불러오는 중' : '뜻 설명',
+      icon: HelpCircle,
+      disabled: isExplaining,
+      onClick: () => onExplainWord(key, buildMetadata?.(key) || {}),
+    });
+  }
+
+  const positionClasses = actionItems.length === 2
+    ? ['left-[32%] bottom-0', 'left-[68%] bottom-0']
+    : ['left-[18%] bottom-0', 'left-1/2 top-0', 'left-[82%] bottom-0'];
 
   return (
     <span
@@ -234,56 +260,25 @@ function VocabularyWordBubble({
       aria-label={`${key} 단어 액션`}
       onClick={(event) => event.stopPropagation()}
       className={[
-        'absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2',
-        'w-[calc(100vw-2rem)] max-w-xs rounded-md border border-brand-100 bg-white p-2 text-left',
-        'shadow-[var(--shadow-elevated)] sm:w-max sm:max-w-sm',
+        'radial-word-actions pointer-events-none absolute left-1/2 bottom-full z-30 -translate-x-1/2',
+        actionItems.length === 2 ? 'h-20 w-32' : 'h-24 w-40',
       ].join(' ')}
     >
-      <span className="flex flex-wrap items-center gap-2">
-        <Button
-          variant={isSaved ? 'secondary' : 'primary'}
-          size="md"
-          disabled={isSaving || isSaved}
-          loading={isSaving}
-          onClick={() => onSaveWord(key, buildMetadata?.(key) || {})}
-          leftIcon={isSaved ? Check : Save}
-          className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
-        >
-          {isSaving ? '저장 중' : isSaved ? '저장됨' : '단어장에 저장'}
-        </Button>
-        <Button
-          variant={isUnderlined ? 'dark' : 'secondary'}
-          size="md"
-          onClick={() => onToggleUnderline(key)}
-          className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
-        >
-          {isUnderlined ? '밑줄 해제' : '밑줄'}
-        </Button>
-        {canExplain && (
-          <Button
-            variant="secondary"
-            size="md"
-            loading={isExplaining}
-            disabled={isExplaining}
-            onClick={() => onExplainWord(key, buildMetadata?.(key) || {})}
-            leftIcon={HelpCircle}
-            className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
-          >
-            {isExplaining ? '불러오는 중' : '뜻 설명'}
-          </Button>
-        )}
-        <button
-          type="button"
-          aria-label={`${key} 액션 닫기`}
-          onClick={onClose}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-surface-400 hover:bg-surface-50 hover:text-surface-700"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </span>
+      {actionItems.map((item, index) => (
+        <RadialActionButton
+          key={item.label}
+          label={item.label}
+          Icon={item.icon}
+          disabled={item.disabled}
+          isActive={item.isActive}
+          isPrimary={item.isPrimary}
+          positionClass={positionClasses[index]}
+          onClick={item.onClick}
+        />
+      ))}
       {error && <span className="mt-2 block text-sm font-bold text-danger-500">{error}</span>}
       {explanation && canExplain && (
-        <span className="mt-2 block rounded-md border border-surface-100 bg-surface-50 p-3">
+        <span className="pointer-events-auto absolute left-1/2 top-full mt-2 block w-56 -translate-x-1/2 rounded-md border border-surface-100 bg-white p-3 text-left shadow-[var(--shadow-soft)]">
           {explanation.meaning_ko && (
             <span className="block text-sm font-black text-surface-900">{explanation.meaning_ko}</span>
           )}
@@ -299,6 +294,49 @@ function VocabularyWordBubble({
           )}
         </span>
       )}
+    </span>
+  );
+}
+
+function RadialActionButton({
+  label,
+  Icon,
+  disabled = false,
+  isActive = false,
+  isPrimary = false,
+  positionClass,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        'pointer-events-auto absolute inline-flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full border',
+        'text-sm font-black shadow-[var(--shadow-soft)] transition duration-150',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+        'disabled:cursor-not-allowed disabled:opacity-70',
+        positionClass,
+        isPrimary
+          ? 'border-brand-600 bg-brand-600 text-white hover:bg-brand-700'
+          : isActive
+            ? 'border-surface-900 bg-surface-900 text-white'
+            : 'border-brand-100 bg-white text-surface-700 hover:border-brand-300 hover:bg-brand-50',
+      ].join(' ')}
+    >
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+    </button>
+  );
+}
+
+function UnderlineGlyph(props) {
+  return (
+    <span {...props} aria-hidden="true" className={`${props.className || ''} flex items-center justify-center underline decoration-2 underline-offset-4`}>
+      U
     </span>
   );
 }
