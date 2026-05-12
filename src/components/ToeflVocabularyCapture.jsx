@@ -12,7 +12,19 @@ export function VocabularyCaptureText({
   className,
   activeWordKey,
   underlinedWordKeys,
+  savingKeys = new Set(),
+  savedKeys = new Set(),
+  explainingKeys = new Set(),
+  existingWordKeys = new Set(),
+  explanations = {},
+  errors = {},
+  canExplain = false,
   onSelectWord,
+  onSaveWord,
+  onExplainWord,
+  onToggleUnderline,
+  onClose,
+  buildMetadata,
 }) {
   const tokens = useMemo(() => tokenizeVocabularyText(text), [text]);
 
@@ -24,21 +36,40 @@ export function VocabularyCaptureText({
         const isActive = token.key === activeWordKey;
         const isUnderlined = underlinedWordKeys?.has(token.key);
         return (
-          <button
-            key={`${token.key}-${index}`}
-            type="button"
-            aria-label={`${token.key} 단어 액션 열기`}
-            onClick={() => onSelectWord?.(token.key)}
-            className={[
-              'inline rounded-sm px-0.5 -mx-0.5 align-baseline font-semibold text-inherit',
-              'transition-colors duration-150',
-              'hover:bg-brand-100 focus-visible:bg-brand-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400',
-              isActive ? 'bg-brand-100 ring-1 ring-brand-200' : '',
-              isUnderlined ? 'underline decoration-brand-500 decoration-2 underline-offset-4' : '',
-            ].join(' ')}
-          >
-            {token.value}
-          </button>
+          <span key={`${token.key}-${index}`} className="relative inline-block align-baseline">
+            <button
+              type="button"
+              aria-label={`${token.key} 단어 액션 열기`}
+              onClick={() => onSelectWord?.(token.key)}
+              className={[
+                'inline rounded-sm px-0.5 -mx-0.5 align-baseline font-semibold text-inherit',
+                'transition-colors duration-150',
+                'hover:bg-brand-100 focus-visible:bg-brand-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400',
+                isActive ? 'bg-brand-100 ring-1 ring-brand-200' : '',
+                isUnderlined ? 'underline decoration-brand-500 decoration-2 underline-offset-4' : '',
+              ].join(' ')}
+            >
+              {token.value}
+            </button>
+            {isActive && (
+              <VocabularyWordBubble
+                word={token.key}
+                savingKeys={savingKeys}
+                savedKeys={savedKeys}
+                explainingKeys={explainingKeys}
+                underlinedWordKeys={underlinedWordKeys}
+                existingWordKeys={existingWordKeys}
+                explanations={explanations}
+                errors={errors}
+                canExplain={canExplain}
+                onSaveWord={onSaveWord}
+                onExplainWord={onExplainWord}
+                onToggleUnderline={onToggleUnderline}
+                onClose={onClose}
+                buildMetadata={buildMetadata}
+              />
+            )}
+          </span>
         );
       })}
     </p>
@@ -171,7 +202,7 @@ export function useToeflVocabularyCapture({
   };
 }
 
-export function ToeflVocabularyActionBar({
+function VocabularyWordBubble({
   word,
   savingKeys,
   savedKeys,
@@ -198,75 +229,76 @@ export function ToeflVocabularyActionBar({
   const error = errors[key];
 
   return (
-    <div className="rounded-md border border-brand-100 bg-white p-3 shadow-[var(--shadow-soft)]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="truncate text-base font-black text-surface-900">{key}</p>
-          <p className="text-xs font-semibold text-surface-500">
-            풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <span
+      role="menu"
+      aria-label={`${key} 단어 액션`}
+      onClick={(event) => event.stopPropagation()}
+      className={[
+        'absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2',
+        'w-[calc(100vw-2rem)] max-w-xs rounded-md border border-brand-100 bg-white p-2 text-left',
+        'shadow-[var(--shadow-elevated)] sm:w-max sm:max-w-sm',
+      ].join(' ')}
+    >
+      <span className="flex flex-wrap items-center gap-2">
+        <Button
+          variant={isSaved ? 'secondary' : 'primary'}
+          size="md"
+          disabled={isSaving || isSaved}
+          loading={isSaving}
+          onClick={() => onSaveWord(key, buildMetadata?.(key) || {})}
+          leftIcon={isSaved ? Check : Save}
+          className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
+        >
+          {isSaving ? '저장 중' : isSaved ? '저장됨' : '단어장에 저장'}
+        </Button>
+        <Button
+          variant={isUnderlined ? 'dark' : 'secondary'}
+          size="md"
+          onClick={() => onToggleUnderline(key)}
+          className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
+        >
+          {isUnderlined ? '밑줄 해제' : '밑줄'}
+        </Button>
+        {canExplain && (
           <Button
-            variant={isSaved ? 'secondary' : 'primary'}
+            variant="secondary"
             size="md"
-            disabled={isSaving || isSaved}
-            loading={isSaving}
-            onClick={() => onSaveWord(key, buildMetadata?.(key) || {})}
-            leftIcon={isSaved ? Check : Save}
-            className="min-h-11"
+            loading={isExplaining}
+            disabled={isExplaining}
+            onClick={() => onExplainWord(key, buildMetadata?.(key) || {})}
+            leftIcon={HelpCircle}
+            className="min-h-11 flex-1 whitespace-nowrap sm:flex-none"
           >
-            {isSaving ? '저장 중' : isSaved ? '저장됨' : '단어장에 저장'}
+            {isExplaining ? '불러오는 중' : '뜻 설명'}
           </Button>
-          <Button
-            variant={isUnderlined ? 'dark' : 'secondary'}
-            size="md"
-            onClick={() => onToggleUnderline(key)}
-            className="min-h-11"
-          >
-            {isUnderlined ? '밑줄 해제' : '밑줄'}
-          </Button>
-          {canExplain && (
-            <Button
-              variant="secondary"
-              size="md"
-              loading={isExplaining}
-              disabled={isExplaining}
-              onClick={() => onExplainWord(key, buildMetadata?.(key) || {})}
-              leftIcon={HelpCircle}
-              className="min-h-11"
-            >
-              {isExplaining ? '불러오는 중' : '뜻 설명'}
-            </Button>
-          )}
-          <button
-            type="button"
-            aria-label={`${key} 액션 닫기`}
-            onClick={onClose}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-surface-400 hover:bg-surface-50 hover:text-surface-700"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      {error && <p className="mt-3 text-sm font-bold text-danger-500">{error}</p>}
+        )}
+        <button
+          type="button"
+          aria-label={`${key} 액션 닫기`}
+          onClick={onClose}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-surface-400 hover:bg-surface-50 hover:text-surface-700"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </span>
+      {error && <span className="mt-2 block text-sm font-bold text-danger-500">{error}</span>}
       {explanation && canExplain && (
-        <div className="mt-3 rounded-md border border-surface-100 bg-surface-50 p-3">
+        <span className="mt-2 block rounded-md border border-surface-100 bg-surface-50 p-3">
           {explanation.meaning_ko && (
-            <p className="text-sm font-black text-surface-900">{explanation.meaning_ko}</p>
+            <span className="block text-sm font-black text-surface-900">{explanation.meaning_ko}</span>
           )}
           {Array.isArray(explanation.definitions) && explanation.definitions.length > 0 && (
-            <p className="mt-1 text-sm font-semibold leading-relaxed text-surface-600">
+            <span className="mt-1 block text-sm font-semibold leading-relaxed text-surface-600">
               {explanation.definitions[0]}
-            </p>
+            </span>
           )}
           {Array.isArray(explanation.examples) && explanation.examples[0]?.en && (
-            <p className="mt-2 text-xs font-semibold leading-relaxed text-surface-500">
+            <span className="mt-2 block text-xs font-semibold leading-relaxed text-surface-500">
               {explanation.examples[0].en}
-            </p>
+            </span>
           )}
-        </div>
+        </span>
       )}
-    </div>
+    </span>
   );
 }

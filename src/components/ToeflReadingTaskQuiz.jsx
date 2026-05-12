@@ -6,7 +6,6 @@ import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
 import {
-  ToeflVocabularyActionBar,
   useToeflVocabularyCapture,
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
@@ -229,34 +228,29 @@ export default function ToeflReadingTaskQuiz({
           text={setData?.stimulus}
           activeWordKey={vocabCapture.activeWord}
           underlinedWordKeys={vocabCapture.underlinedKeys}
+          savingKeys={vocabCapture.savingKeys}
+          savedKeys={vocabCapture.savedKeys}
+          explainingKeys={vocabCapture.explainingKeys}
+          existingWordKeys={vocabCapture.existingWordKeys}
+          explanations={vocabCapture.explanations}
+          errors={vocabCapture.errors}
+          canExplain={checked}
           onSelectWord={vocabCapture.selectWord}
+          onSaveWord={vocabCapture.saveWord}
+          onExplainWord={vocabCapture.explainWord}
+          onToggleUnderline={vocabCapture.toggleUnderline}
+          onClose={vocabCapture.clearActiveWord}
+          buildMetadata={() => ({
+            source: 'toefl-reading-task',
+            sourceLabel: taskCopy.title,
+            taskType,
+            questionId: currentQuestion?.id,
+            title: setData?.title,
+            contextText: setData?.stimulus,
+          })}
           className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
         />
       </section>
-
-      <ToeflVocabularyActionBar
-        word={vocabCapture.activeWord}
-        savingKeys={vocabCapture.savingKeys}
-        savedKeys={vocabCapture.savedKeys}
-        explainingKeys={vocabCapture.explainingKeys}
-        underlinedWordKeys={vocabCapture.underlinedKeys}
-        existingWordKeys={vocabCapture.existingWordKeys}
-        explanations={vocabCapture.explanations}
-        errors={vocabCapture.errors}
-        onSaveWord={vocabCapture.saveWord}
-        onExplainWord={vocabCapture.explainWord}
-        onToggleUnderline={vocabCapture.toggleUnderline}
-        onClose={vocabCapture.clearActiveWord}
-        canExplain={checked}
-        buildMetadata={() => ({
-          source: 'toefl-reading-task',
-          sourceLabel: taskCopy.title,
-          taskType,
-          questionId: currentQuestion?.id,
-          title: setData?.title,
-          contextText: setData?.stimulus,
-        })}
-      />
 
       {currentQuestion && (
         <section className="space-y-4">

@@ -81,7 +81,10 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
 
     fireEvent.click(wordButton);
 
-    expect(screen.getByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeTruthy();
+    const actionBubble = screen.getByRole('menu', { name: 'migration 단어 액션' });
+    expect(actionBubble.className).toContain('absolute');
+    expect(wordButton.parentElement.className).toContain('relative');
+    expect(screen.queryByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeNull();
     expect(screen.getByRole('button', { name: '단어장에 저장' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '밑줄' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '뜻 설명' })).toBeNull();
