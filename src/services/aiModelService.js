@@ -189,12 +189,61 @@ export const callAiModel = async ({
   throw new Error(`지원하지 않는 AI Provider: ${provider}`);
 };
 
-export const parseJsonOutput = (rawText) => {
-  const text = String(rawText || '').trim();
-  const withoutFence = text
-    .replace(/^```json\s*/i, '')
-    .replace(/```$/, '')
-    .trim();
+const stripJsonFence = (value) => String(value || '')
+  .trim()
+  .replace(/^```(?:json)?\s*/i, '')
+  .replace(/```\s*$/i, '')
+  .trim();
 
-  return JSON.parse(withoutFence);
+const extractFirstJsonValue = (value) => {
+  const text = stripJsonFence(value);
+  const start = text.search(/[\[{]/);
+  if (start === -1) return text;
+
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === '{') {
+      stack.push('}');
+    } else if (char === '[') {
+      stack.push(']');
+    } else if (char === '}' || char === ']') {
+      if (stack[stack.length - 1] !== char) break;
+      stack.pop();
+      if (stack.length === 0) return text.slice(start, index + 1);
+    }
+  }
+
+  return text.slice(start);
+};
+
+export const parseJsonOutput = (rawText) => {
+  const text = stripJsonFence(rawText);
+
+  try {
+    return JSON.parse(text);
+  } catch (firstError) {
+    const candidate = extractFirstJsonValue(text);
+    if (candidate !== text) {
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        // Preserve the original parser error; it usually points to the model response issue most clearly.
+      }
+    }
+    throw firstError;
+  }
 };
