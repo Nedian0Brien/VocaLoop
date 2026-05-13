@@ -1,11 +1,9 @@
-import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 // Components
 import Header from './components/Header';
 import LoginScreen from './components/LoginScreen';
-import QuizView from './components/QuizView';
-import AccountSettings from './components/AccountSettings';
 import VocabularyDashboard from './components/VocabularyDashboard';
 import { Loader2, Check, RotateCw } from './components/Icons';
 
@@ -17,6 +15,9 @@ import { useFolderCommands } from './hooks/useFolderCommands';
 import { useVocabularyCommands } from './hooks/useVocabularyCommands';
 import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig } from './services/aiModelService';
 import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutocompleteService';
+
+const AccountSettings = React.lazy(() => import('./components/AccountSettings'));
+const QuizView = React.lazy(() => import('./components/QuizView'));
 
 // --- System Constants ---
 const loadConfig = (envKey, localKey) => {
@@ -44,6 +45,15 @@ const VIEW_TO_PATH = { study: '/study', dashboard: '/' };
 
 const getViewFromPath = () =>
     PATH_TO_VIEW[window.location.pathname] ?? 'dashboard';
+
+const RouteFallback = ({ label = 'Loading view...' }) => (
+    <div className="flex min-h-[320px] items-center justify-center text-center text-surface-500">
+        <div>
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-brand-600" aria-hidden="true" />
+            <p className="text-sm font-bold">{label}</p>
+        </div>
+    </div>
+);
 
 // --- Main App Component ---
 function App() {
@@ -289,22 +299,24 @@ function App() {
             {wordSuggestionPortal}
 
             {showSettings && (
-                <AccountSettings
-                    user={user}
-                    words={words}
-                    folders={folders}
-                    onClose={() => setShowSettings(false)}
-                    onLogout={handleLogout}
-                    showNotification={showNotification}
-                    aiSettings={accountAiSettings}
-                    onAiSettingsChange={setAccountAiSettings}
-                    onCreateFolder={handleCreateFolder}
-                    onRenameFolder={handleRenameFolder}
-                    onDeleteFolder={handleDeleteFolder}
-                    onUserUpdate={handleUserUpdate}
-                    onDataReset={handleDataReset}
-                    onAccountDeleted={handleAccountDeleted}
-                />
+                <Suspense fallback={<RouteFallback label="Loading settings..." />}>
+                    <AccountSettings
+                        user={user}
+                        words={words}
+                        folders={folders}
+                        onClose={() => setShowSettings(false)}
+                        onLogout={handleLogout}
+                        showNotification={showNotification}
+                        aiSettings={accountAiSettings}
+                        onAiSettingsChange={setAccountAiSettings}
+                        onCreateFolder={handleCreateFolder}
+                        onRenameFolder={handleRenameFolder}
+                        onDeleteFolder={handleDeleteFolder}
+                        onUserUpdate={handleUserUpdate}
+                        onDataReset={handleDataReset}
+                        onAccountDeleted={handleAccountDeleted}
+                    />
+                </Suspense>
             )}
 
             <main className="max-w-6xl mx-auto px-4 pt-8">
@@ -337,18 +349,20 @@ function App() {
                     />
                 )}
                 {view === 'study' && (
-                    <QuizView
-                        words={words}
-                        setView={navigate}
-                        user={user}
-                        aiMode={aiMode}
-                        setAiMode={setAiMode}
-                        aiConfig={activeAiConfig}
-                        folders={folders}
-                        onUpdateLearningRate={handleUpdateLearningRate}
-                        onSaveVocabularyWord={handleSaveVocabularyWord}
-                        onExplainVocabularyWord={handleExplainVocabularyWord}
-                    />
+                    <Suspense fallback={<RouteFallback label="Loading study..." />}>
+                        <QuizView
+                            words={words}
+                            setView={navigate}
+                            user={user}
+                            aiMode={aiMode}
+                            setAiMode={setAiMode}
+                            aiConfig={activeAiConfig}
+                            folders={folders}
+                            onUpdateLearningRate={handleUpdateLearningRate}
+                            onSaveVocabularyWord={handleSaveVocabularyWord}
+                            onExplainVocabularyWord={handleExplainVocabularyWord}
+                        />
+                    </Suspense>
                 )}
             </main>
         </div>
