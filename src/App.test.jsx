@@ -131,6 +131,7 @@ describe('App backend session bootstrap', () => {
     });
 
     afterEach(() => {
+        vi.restoreAllMocks();
         cleanup();
         vi.unstubAllGlobals();
         resetDictionaryAutocompleteCache();
@@ -219,6 +220,7 @@ describe('App backend session bootstrap', () => {
     });
 
     test('login hydration failure keeps the login screen visible', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         authApi.getCurrentUser.mockRejectedValue({ status: 401, message: 'Not authenticated' });
         authApi.login.mockResolvedValue({
             user: { id: 1, email: 'login@example.com', display_name: 'Login User' },
@@ -240,6 +242,7 @@ describe('App backend session bootstrap', () => {
 
         expect(screen.queryByTestId('header')).toBeNull();
         expect(screen.getByText('login-screen')).toBeTruthy();
+        expect(consoleError).toHaveBeenCalledWith('Email Login Error:', expect.any(Error));
     });
 
     test('signup keeps the app on the login screen until hydration succeeds', async () => {
@@ -278,6 +281,7 @@ describe('App backend session bootstrap', () => {
     });
 
     test('signup hydration failure keeps the login screen visible', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         authApi.getCurrentUser.mockRejectedValue({ status: 401, message: 'Not authenticated' });
         authApi.signup.mockResolvedValue({
             user: { id: 2, email: 'signup@example.com', display_name: 'Signup User' },
@@ -299,6 +303,7 @@ describe('App backend session bootstrap', () => {
 
         expect(screen.queryByTestId('header')).toBeNull();
         expect(screen.getByText('login-screen')).toBeTruthy();
+        expect(consoleError).toHaveBeenCalledWith('Email Signup Error:', expect.any(Error));
     });
 
     test('folder and word mutations go through backend apis and update local state', async () => {

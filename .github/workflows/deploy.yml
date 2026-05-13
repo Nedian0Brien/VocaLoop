@@ -5,12 +5,18 @@ on:
     branches:
       - main
 
+env:
+  NPM_CONFIG_FUND: 'false'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main
+
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -58,6 +64,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main
+
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -83,6 +92,8 @@ jobs:
             git reset --hard origin/main
 
             # 의존성 설치 및 빌드
+            export NPM_CONFIG_FUND=false
+            export PIP_DISABLE_PIP_VERSION_CHECK=1
             npm install
             npm run build:clean
             python3 -m pip install --user -r backend/requirements.txt
