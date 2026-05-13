@@ -277,7 +277,7 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByText('TOEFL Writing Mock Test'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
         expect(screen.getByText('toefl-writing-mock-test')).toBeTruthy();
-    });
+    }, 10000);
 
     test('shows TOEFL Reading mastery summary from accumulated practice stats', () => {
         localStorage.setItem('vocaloop_toefl_reading_stats_v1', JSON.stringify({

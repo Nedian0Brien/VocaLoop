@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 
 // Components
 import Header from './components/Header';
@@ -24,6 +25,7 @@ import {
 import { createWord, deleteWord, listWords, updateWord } from './services/wordApi';
 import { createFolder, deleteFolder, listFolders, reorderFolders, updateFolder } from './services/folderApi';
 import { getSettings } from './services/settingsApi';
+import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutocompleteService';
 import {
     buildVocabularyPayload,
     getVocabularyWordKey,
@@ -96,34 +98,6 @@ const sortWordsByNewest = (items) =>
 const MAX_WORD_SUGGESTIONS = 5;
 const MIN_WORD_SUGGESTION_LENGTH = 2;
 
-const normalizeAutocompleteText = (value) =>
-    String(value || '').trim().toLowerCase();
-
-const buildWordAutocompleteSuggestions = (words, query) => {
-    const normalizedQuery = normalizeAutocompleteText(query);
-    if (normalizedQuery.length < MIN_WORD_SUGGESTION_LENGTH) return [];
-
-    const seen = new Set();
-    return words
-        .map((word) => {
-            const label = String(word?.word || '').trim();
-            const normalizedLabel = normalizeAutocompleteText(label);
-            return { ...word, word: label, normalizedLabel };
-        })
-        .filter((word) => {
-            if (!word.word || seen.has(word.normalizedLabel)) return false;
-            seen.add(word.normalizedLabel);
-            return word.normalizedLabel.includes(normalizedQuery);
-        })
-        .sort((a, b) => {
-            const aPrefix = a.normalizedLabel.startsWith(normalizedQuery) ? 0 : 1;
-            const bPrefix = b.normalizedLabel.startsWith(normalizedQuery) ? 0 : 1;
-            if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-            return a.normalizedLabel.localeCompare(b.normalizedLabel);
-        })
-        .slice(0, MAX_WORD_SUGGESTIONS);
-};
-
 const sortFoldersForDisplay = (items) =>
     [...items].sort((a, b) => {
         if (a.order !== undefined && b.order !== undefined && a.order !== b.order) {
@@ -174,6 +148,8 @@ function App() {
     const [loginLoading, setLoginLoading] = useState(false);
     const [inputWord, setInputWord] = useState('');
     const [isWordSuggestOpen, setIsWordSuggestOpen] = useState(false);
+    const [wordAutocompleteSuggestions, setWordAutocompleteSuggestions] = useState([]);
+    const [wordSuggestionPanelStyle, setWordSuggestionPanelStyle] = useState({});
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [notification, setNotification] = useState(null);
     const [aiMode, setAiMode] = useState(false);
@@ -185,13 +161,57 @@ function App() {
     const [accountAiSettings, setAccountAiSettings] = useState(DEFAULT_AI_SETTINGS_LOADED);
 
     const windowSize = useWindowSize();
+    const wordInputRef = useRef(null);
     const activeAiConfig = useMemo(() => getActiveAiConfig(accountAiSettings), [accountAiSettings]);
     const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS.gemini;
-    const wordAutocompleteSuggestions = useMemo(
-        () => buildWordAutocompleteSuggestions(words, inputWord),
-        [words, inputWord]
-    );
     const shouldShowWordSuggestions = isWordSuggestOpen && !isAnalyzing && wordAutocompleteSuggestions.length > 0;
+    const updateWordSuggestionPanel = useCallback(() => {
+        if (!wordInputRef.current || typeof window === 'undefined') return;
+        const rect = wordInputRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || rect.right || 320;
+        const width = Math.min(Math.max(rect.width || wordInputRef.current.offsetWidth || 260, 260), Math.max(viewportWidth - 32, 260));
+        const left = Math.max(16, Math.min(rect.left || 16, viewportWidth - width - 16));
+        setWordSuggestionPanelStyle({
+            top: `${Math.max(rect.bottom + 8, 8)}px`,
+            left: `${left}px`,
+            width: `${width}px`,
+        });
+    }, []);
+
+    useEffect(() => {
+        let isCurrent = true;
+
+        if (!isWordSuggestOpen || isAnalyzing || inputWord.trim().length < MIN_WORD_SUGGESTION_LENGTH) {
+            setWordAutocompleteSuggestions([]);
+            return () => {
+                isCurrent = false;
+            };
+        }
+
+        getDictionaryAutocompleteSuggestions(inputWord, { limit: MAX_WORD_SUGGESTIONS })
+            .then((suggestions) => {
+                if (isCurrent) setWordAutocompleteSuggestions(suggestions);
+            })
+            .catch((error) => {
+                console.warn('Dictionary autocomplete failed:', error);
+                if (isCurrent) setWordAutocompleteSuggestions([]);
+            });
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [inputWord, isAnalyzing, isWordSuggestOpen]);
+
+    useEffect(() => {
+        if (!shouldShowWordSuggestions) return undefined;
+        updateWordSuggestionPanel();
+        window.addEventListener('resize', updateWordSuggestionPanel);
+        window.addEventListener('scroll', updateWordSuggestionPanel, true);
+        return () => {
+            window.removeEventListener('resize', updateWordSuggestionPanel);
+            window.removeEventListener('scroll', updateWordSuggestionPanel, true);
+        };
+    }, [shouldShowWordSuggestions, updateWordSuggestionPanel, inputWord]);
     // 카드 단일 컬럼은 sm 미만(좁은 폰)에서만. 그 이상은 항상 2-컬럼 카드.
     const isMobile = windowSize.width < 640;
     // 사이드바는 lg 이상에서만 표시. 그 미만에서는 모바일 picker로 폴더 선택.
@@ -709,6 +729,51 @@ function App() {
         </div>
     ) : null;
 
+    const wordSuggestionPortal = shouldShowWordSuggestions && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                id="word-autocomplete-suggestions"
+                role="listbox"
+                aria-label="단어 자동완성 제안"
+                style={wordSuggestionPanelStyle}
+                className="fixed z-[1000] max-h-72 overflow-y-auto rounded-md border border-surface-200 bg-white shadow-[var(--shadow-elevated)]"
+            >
+                {wordAutocompleteSuggestions.map((suggestion) => (
+                    <button
+                        key={suggestion.word}
+                        type="button"
+                        role="option"
+                        aria-label={`${suggestion.word} 자동완성 선택`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                            setInputWord(suggestion.word);
+                            setIsWordSuggestOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-brand-50 focus:bg-brand-50 focus:outline-none"
+                    >
+                        <span className="min-w-0">
+                            <span className="block truncate text-sm font-black text-surface-900">
+                                {suggestion.word}
+                            </span>
+                            <span className="block truncate text-xs font-semibold text-surface-500">
+                                {suggestion.meaning_ko}
+                            </span>
+                        </span>
+                        {suggestion.pos && (
+                            <span className="shrink-0 rounded-sm bg-surface-100 px-2 py-1 text-[11px] font-black text-surface-500">
+                                {suggestion.pos}
+                            </span>
+                        )}
+                    </button>
+                ))}
+                <div className="border-t border-surface-100 px-3 py-1.5 text-[11px] font-semibold text-surface-400">
+                    사전 데이터: krdict-reader
+                </div>
+            </div>,
+            document.body
+        )
+        : null;
+
     if (loading) {
         return (
             <>
@@ -740,6 +805,7 @@ function App() {
         <div className="min-h-screen pb-20">
             <Header view={view} setView={navigate} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
+            {wordSuggestionPortal}
 
             {showSettings && (
                 <AccountSettings
@@ -801,6 +867,7 @@ function App() {
                                             <Search className="h-5 w-5 text-surface-400" aria-hidden="true" />
                                         </div>
                                         <input
+                                            ref={wordInputRef}
                                             type="text"
                                             value={inputWord}
                                             onChange={(e) => {
@@ -819,48 +886,6 @@ function App() {
                                             className="block w-full pl-10 pr-3 py-3 border border-surface-300 rounded-md leading-5 bg-surface-50 placeholder-surface-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
                                             disabled={isAnalyzing}
                                         />
-                                        {shouldShowWordSuggestions && (
-                                            <div
-                                                id="word-autocomplete-suggestions"
-                                                role="listbox"
-                                                aria-label="단어 자동완성 제안"
-                                                className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-md border border-surface-200 bg-white shadow-[var(--shadow-card)]"
-                                            >
-                                                {wordAutocompleteSuggestions.map((suggestion) => {
-                                                    const folder = folders.find((it) => it.id === suggestion.folderId);
-                                                    return (
-                                                        <button
-                                                            key={suggestion.id ?? suggestion.normalizedLabel}
-                                                            type="button"
-                                                            role="option"
-                                                            aria-label={`${suggestion.word} 자동완성 선택`}
-                                                            onMouseDown={(event) => event.preventDefault()}
-                                                            onClick={() => {
-                                                                setInputWord(suggestion.word);
-                                                                setIsWordSuggestOpen(false);
-                                                            }}
-                                                            className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-brand-50 focus:bg-brand-50 focus:outline-none"
-                                                        >
-                                                            <span className="min-w-0">
-                                                                <span className="block truncate text-sm font-black text-surface-900">
-                                                                    {suggestion.word}
-                                                                </span>
-                                                                {suggestion.meaning_ko && (
-                                                                    <span className="block truncate text-xs font-semibold text-surface-500">
-                                                                        {suggestion.meaning_ko}
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                            {folder && (
-                                                                <span className="shrink-0 rounded-sm bg-surface-100 px-2 py-1 text-[11px] font-black text-surface-500">
-                                                                    {folder.name}
-                                                                </span>
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
                                     </div>
                                     <button
                                         type="submit"
