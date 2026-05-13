@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BookOpen, Check, Sparkles, XCircle } from './Icons';
 import { generateReadingTaskSet } from '../services/toeflService';
 import { playSound } from '../utils/soundEffects';
-import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
+import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
 import {
   useToeflVocabularyCapture,
   VocabularyCaptureText,
@@ -58,15 +58,11 @@ export default function ToeflReadingTaskQuiz({
   onAttemptRecorded,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
-  const [status, setStatus] = useState('loading');
-  const [error, setError] = useState('');
   const [setData, setSetData] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [checked, setChecked] = useState(false);
   const [results, setResults] = useState([]);
-  const [activeAsset, setActiveAsset] = useState(reviewAsset);
-  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
   const vocabCapture = useToeflVocabularyCapture({
     existingWords,
     onSaveVocabularyWord,
@@ -76,84 +72,56 @@ export default function ToeflReadingTaskQuiz({
   const currentQuestion = setData?.questions?.[currentIndex];
   const totalQuestions = setData?.questions?.length || 0;
 
-  const loadQuestions = async () => {
-    setStatus('loading');
-    setError('');
-    setSetData(null);
-    setActiveAsset(reviewAsset || null);
-    setCurrentIndex(0);
-    setSelectedIndex(null);
-    setChecked(false);
-    setResults([]);
-
-    if (reviewAsset?.payload) {
-      try {
-        const normalized = normalizeSet(reviewAsset.payload, reviewAsset.taskType || taskType);
-        if (normalized.questions.length === 0 || !normalized.stimulus) {
-          throw new Error('저장된 문제 데이터가 비어 있습니다.');
-        }
-        setSetData(normalized);
-        setSessionContext({
-          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
-          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
-        });
-        setStatus('ready');
-      } catch (err) {
-        setError(err.message || '저장된 Reading 문제를 불러오지 못했습니다.');
-        setStatus('error');
+  const { activeAsset, error, reload: loadQuestions, sessionContext, setStatus, status } = useToeflQuizSession({
+    reviewAsset,
+    vocabSource,
+    topicSelection,
+    onAssetCreated,
+    resetSession: () => {
+      setSetData(null);
+      setCurrentIndex(0);
+      setSelectedIndex(null);
+      setChecked(false);
+      setResults([]);
+    },
+    loadReview: (asset) => {
+      const normalized = normalizeSet(asset.payload, asset.taskType || taskType);
+      if (normalized.questions.length === 0 || !normalized.stimulus) {
+        throw new Error('저장된 문제 데이터가 비어 있습니다.');
       }
-      return;
-    }
-
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-
-    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
-
-    try {
-      const data = await generateReadingTaskSet({
+      return normalized;
+    },
+    generateNew: ({ vocabularyWords, pickedTopics }) =>
+      generateReadingTaskSet({
         aiConfig,
         taskType,
         questionCount,
         targetScore,
         vocabularyWords,
         pickedTopics,
-      });
-      const normalized = normalizeSet(data, taskType);
-      if (normalized.questions.length === 0 || !normalized.stimulus) {
-        throw new Error('문제 데이터가 비어 있습니다.');
-      }
-      setSetData(normalized);
-      const savedAsset = await onAssetCreated?.({
-        mode: taskType === 'academic-passage' ? 'toefl-academic-passage' : 'toefl-daily-life',
-        taskType,
-        title: normalized.title,
-        payload: normalized,
-        metadata: {
-          targetScore,
-          questionCount,
-          vocabSampleCount: vocabularyWords.length,
-          pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
-        },
-      });
-      if (savedAsset) setActiveAsset(savedAsset);
-      setStatus('ready');
-    } catch (err) {
-      setError(err.message || 'Reading 문제 생성 중 오류가 발생했습니다.');
-      setStatus('error');
-    }
-  };
-
-  useEffect(() => {
-    loadQuestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskType, questionCount, targetScore, reviewAsset?.id]);
+      }).then((data) => {
+        const normalized = normalizeSet(data, taskType);
+        if (normalized.questions.length === 0 || !normalized.stimulus) {
+          throw new Error('문제 데이터가 비어 있습니다.');
+        }
+        return normalized;
+      }),
+    buildAsset: (normalized, { vocabularyWords, pickedTopics }) => ({
+      mode: taskType === 'academic-passage' ? 'toefl-academic-passage' : 'toefl-daily-life',
+      taskType,
+      title: normalized.title,
+      payload: normalized,
+      metadata: {
+        targetScore,
+        questionCount,
+        vocabSampleCount: vocabularyWords.length,
+        pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+      },
+    }),
+    onReady: (normalized) => setSetData(normalized),
+    errorMessage: reviewAsset ? '저장된 Reading 문제를 불러오지 못했습니다.' : 'Reading 문제 생성 중 오류가 발생했습니다.',
+    dependencies: [taskType, questionCount, targetScore, reviewAsset?.id],
+  });
 
   const correctCount = useMemo(
     () => results.filter((result) => Boolean(result?.correct)).length,

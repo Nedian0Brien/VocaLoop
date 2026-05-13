@@ -1,35 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { X, Settings, Layers, Hash, Sparkles, Play, Volume2, Target, BookOpen, Plus, Edit3, CheckCircle } from './Icons';
 import CompactFolderPicker from './CompactFolderPicker';
 import { Button, Badge } from '../design-system';
 import {
-  loadTopics,
-  addTopic as addTopicToStore,
-  removeTopic as removeTopicFromStore,
-  updateTopic as updateTopicInStore,
-} from '../utils/topicSets';
-
-const STORAGE_KEYS = {
-  QUESTION_COUNT: 'vocaloop_quiz_q_count',
-  AI_MODE:        'vocaloop_quiz_ai_mode',
-  TARGET_SCORE:   'vocaloop_quiz_target_score',
-  SOUND_ENABLED:  'vocaloop_quiz_sound_enabled',
-  MIXED_MODES:    'vocaloop_quiz_mixed_modes',
-  STUDY_SET_SIZE: 'vocaloop_quiz_study_set_size',
-  // 새 옵션 — TOEFL 전용 다양성 강화
-  VOCAB_MODE:     'vocaloop_quiz_vocab_mode',     // 'off' | 'all' | 'folders'
-  VOCAB_FOLDERS:  'vocaloop_quiz_vocab_folders',  // JSON [number]
-  VOCAB_SAMPLE:   'vocaloop_quiz_vocab_sample',   // number
-  TOPIC_ENABLED:  'vocaloop_quiz_topic_enabled',  // 'true' | 'false'
-  TOPIC_IDS:      'vocaloop_quiz_topic_ids',      // JSON [string]
-  TOPIC_PICK:     'vocaloop_quiz_topic_pick',     // number (1~2)
-};
-
-const VOCAB_SAMPLE_MIN = 5;
-const VOCAB_SAMPLE_MAX = 25;
-const VOCAB_SAMPLE_DEFAULT = 12;
-const DEFAULT_STUDY_SET_SIZE = 5;
-const DEFAULT_MIXED_MODES = ['multiple', 'short', 'complete-word'];
+  VOCAB_SAMPLE_MAX,
+  VOCAB_SAMPLE_MIN,
+} from './quizConfig/quizConfigConstants';
+import { useQuizConfigState } from './quizConfig/useQuizConfigState';
 const MIXED_MODE_OPTIONS = [
   {
     id: 'multiple',
@@ -198,263 +175,73 @@ export default function QuizConfigModal({
   onStart,
   initialAiMode,
 }) {
-  const [selectedFolderIds, setSelectedFolderIds] = useState([]);
-  const [questionCount, setQuestionCount] = useState(10);
-  const [targetScore, setTargetScore] = useState(100);
-  const [aiMode, setAiMode] = useState(initialAiMode);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [mixedModeIds, setMixedModeIds] = useState(DEFAULT_MIXED_MODES);
-  const [studySetSize, setStudySetSize] = useState(DEFAULT_STUDY_SET_SIZE);
-
-  // 새 옵션: 단어 소스
-  const [vocabMode, setVocabMode] = useState('off'); // 'off' | 'all' | 'folders'
-  const [vocabFolderIds, setVocabFolderIds] = useState([]);
-  const [vocabSampleSize, setVocabSampleSize] = useState(VOCAB_SAMPLE_DEFAULT);
-
-  // 새 옵션: 주제 분야
-  const [topicEnabled, setTopicEnabled] = useState(false);
-  const [topics, setTopics] = useState([]);
-  const [selectedTopicIds, setSelectedTopicIds] = useState([]);
-  const [topicPickCount, setTopicPickCount] = useState(1);
-  const [newTopicLabel, setNewTopicLabel] = useState('');
-  const [newTopicDesc, setNewTopicDesc] = useState('');
-  const [topicError, setTopicError] = useState('');
-  const [editingTopic, setEditingTopic] = useState(null); // { id, label, description } | null
-
-  const isToefl = mode?.id?.startsWith('toefl');
-  const isMixed = mode?.id === 'mixed';
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const savedQCount  = localStorage.getItem(STORAGE_KEYS.QUESTION_COUNT);
-    const savedAiMode  = localStorage.getItem(STORAGE_KEYS.AI_MODE);
-    const savedTarget  = localStorage.getItem(STORAGE_KEYS.TARGET_SCORE);
-    const savedSound   = localStorage.getItem(STORAGE_KEYS.SOUND_ENABLED);
-
-    if (savedQCount) setQuestionCount(Number(savedQCount));
-    if (savedAiMode !== null) setAiMode(savedAiMode === 'true');
-    if (savedTarget) setTargetScore(Number(savedTarget));
-    if (savedSound !== null) setSoundEnabled(savedSound === 'true');
-    const savedStudySetSizeRaw = localStorage.getItem(STORAGE_KEYS.STUDY_SET_SIZE);
-    const savedStudySetSize = Number(savedStudySetSizeRaw);
-    setStudySetSize(
-      savedStudySetSizeRaw !== null && Number.isFinite(savedStudySetSize)
-        ? Math.max(1, Math.round(savedStudySetSize))
-        : DEFAULT_STUDY_SET_SIZE
-    );
-    try {
-      const savedMixedModes = JSON.parse(localStorage.getItem(STORAGE_KEYS.MIXED_MODES) || '[]');
-      const normalized = Array.isArray(savedMixedModes)
-        ? DEFAULT_MIXED_MODES.filter((id) => savedMixedModes.includes(id))
-        : [];
-      setMixedModeIds(normalized.length > 0 ? normalized : DEFAULT_MIXED_MODES);
-    } catch {
-      setMixedModeIds(DEFAULT_MIXED_MODES);
-    }
-
-    setSelectedFolderIds([]);
-
-    // 새 옵션 로드 (TOEFL 모드일 때만 의미가 있지만, 모달이 열릴 때 초기화 일관성을 위해 전부 로드)
-    const savedVocabMode    = localStorage.getItem(STORAGE_KEYS.VOCAB_MODE);
-    const savedVocabFolders = localStorage.getItem(STORAGE_KEYS.VOCAB_FOLDERS);
-    const savedVocabSample  = localStorage.getItem(STORAGE_KEYS.VOCAB_SAMPLE);
-    const savedTopicOn      = localStorage.getItem(STORAGE_KEYS.TOPIC_ENABLED);
-    const savedTopicIds     = localStorage.getItem(STORAGE_KEYS.TOPIC_IDS);
-    const savedTopicPick    = localStorage.getItem(STORAGE_KEYS.TOPIC_PICK);
-
-    setVocabMode(savedVocabMode === 'all' || savedVocabMode === 'folders' ? savedVocabMode : 'off');
-    setVocabFolderIds(() => {
-      try {
-        const parsed = JSON.parse(savedVocabFolders || '[]');
-        return Array.isArray(parsed) ? parsed.map(Number).filter((n) => !Number.isNaN(n)) : [];
-      } catch {
-        return [];
-      }
-    });
-    setVocabSampleSize(() => {
-      const n = Number(savedVocabSample);
-      if (!Number.isFinite(n)) return VOCAB_SAMPLE_DEFAULT;
-      return Math.max(VOCAB_SAMPLE_MIN, Math.min(VOCAB_SAMPLE_MAX, Math.round(n)));
-    });
-
-    setTopicEnabled(savedTopicOn === 'true');
-    setTopics(loadTopics());
-    setSelectedTopicIds(() => {
-      try {
-        const parsed = JSON.parse(savedTopicIds || '[]');
-        return Array.isArray(parsed) ? parsed.filter((it) => typeof it === 'string') : [];
-      } catch {
-        return [];
-      }
-    });
-    setTopicPickCount(() => {
-      const n = Number(savedTopicPick);
-      if (!Number.isFinite(n)) return 1;
-      return Math.max(1, Math.min(3, Math.round(n)));
-    });
-
-    setNewTopicLabel('');
-    setNewTopicDesc('');
-    setTopicError('');
-    setEditingTopic(null);
-  }, [isOpen]);
-
-  const filteredWords = selectedFolderIds.length > 0
-    ? words.filter(w => selectedFolderIds.includes(w.folderId))
-    : words;
-
-  const maxQuestions = isToefl ? 10 : Math.max(1, filteredWords.length);
-  const maxStudySetSize = Math.max(1, filteredWords.length);
-  const countValue = isMixed ? Math.min(studySetSize, maxStudySetSize) : questionCount;
-  const countTitle = isMixed ? '학습 세트 크기' : '문항 개수';
-  const countSubtitle = isMixed ? '한 번에 집중할 단어 묶음 크기를 정하세요' : '퀴즈당 출제될 문제 수를 정하세요';
-  const countBadge = isMixed ? 'Words' : 'Items';
-
-  useEffect(() => {
-    if (isOpen) {
-      if (questionCount > maxQuestions && !isToefl) {
-        setQuestionCount(Math.min(10, maxQuestions));
-      }
-      if (isMixed && studySetSize > maxStudySetSize) {
-        setStudySetSize(maxStudySetSize);
-      }
-    }
-  }, [isOpen, isMixed, maxQuestions, maxStudySetSize, questionCount, studySetSize, isToefl]);
-
-  // TOEFL 단어 풀 — 선택된 source 에 따라 결정
-  const toeflVocabPool = useMemo(() => {
-    if (!isToefl || vocabMode === 'off') return [];
-    if (vocabMode === 'all') return words;
-    return words.filter((w) => vocabFolderIds.includes(w.folderId));
-  }, [isToefl, vocabMode, vocabFolderIds, words]);
-
-  // 단어 소스 폴더 토글
-  const toggleVocabFolder = (folderId) => {
-    setVocabFolderIds((prev) =>
-      prev.includes(folderId) ? prev.filter((id) => id !== folderId) : [...prev, folderId]
-    );
-  };
-
-  const toggleTopic = (topicId) => {
-    setSelectedTopicIds((prev) =>
-      prev.includes(topicId) ? prev.filter((id) => id !== topicId) : [...prev, topicId]
-    );
-  };
-
-  const handleAddTopic = () => {
-    setTopicError('');
-    try {
-      const next = addTopicToStore(topics, { label: newTopicLabel, description: newTopicDesc });
-      setTopics(next);
-      setNewTopicLabel('');
-      setNewTopicDesc('');
-    } catch (err) {
-      setTopicError(err.message || '분야 추가에 실패했습니다.');
-    }
-  };
-
-  const handleRemoveTopic = (id) => {
-    setTopicError('');
-    try {
-      const next = removeTopicFromStore(topics, id);
-      setTopics(next);
-      setSelectedTopicIds((prev) => prev.filter((it) => it !== id));
-    } catch (err) {
-      setTopicError(err.message || '분야 삭제에 실패했습니다.');
-    }
-  };
-
-  const startEditTopic = (topic) => {
-    setEditingTopic({ id: topic.id, label: topic.label, description: topic.description || '' });
-    setTopicError('');
-  };
-
-  const commitEditTopic = () => {
-    if (!editingTopic) return;
-    setTopicError('');
-    try {
-      const next = updateTopicInStore(topics, editingTopic.id, {
-        label: editingTopic.label,
-        description: editingTopic.description,
-      });
-      setTopics(next);
-      setEditingTopic(null);
-    } catch (err) {
-      setTopicError(err.message || '분야 수정에 실패했습니다.');
-    }
-  };
-
-  const handleStart = () => {
-    localStorage.setItem(STORAGE_KEYS.QUESTION_COUNT, questionCount.toString());
-    localStorage.setItem(STORAGE_KEYS.AI_MODE, aiMode.toString());
-    localStorage.setItem(STORAGE_KEYS.TARGET_SCORE, targetScore.toString());
-    localStorage.setItem(STORAGE_KEYS.SOUND_ENABLED, soundEnabled.toString());
-    if (isMixed) {
-      localStorage.setItem(STORAGE_KEYS.MIXED_MODES, JSON.stringify(mixedModeIds));
-      localStorage.setItem(STORAGE_KEYS.STUDY_SET_SIZE, String(countValue));
-    }
-
-    if (isToefl) {
-      localStorage.setItem(STORAGE_KEYS.VOCAB_MODE, vocabMode);
-      localStorage.setItem(STORAGE_KEYS.VOCAB_FOLDERS, JSON.stringify(vocabFolderIds));
-      localStorage.setItem(STORAGE_KEYS.VOCAB_SAMPLE, vocabSampleSize.toString());
-      localStorage.setItem(STORAGE_KEYS.TOPIC_ENABLED, topicEnabled.toString());
-      localStorage.setItem(STORAGE_KEYS.TOPIC_IDS, JSON.stringify(selectedTopicIds));
-      localStorage.setItem(STORAGE_KEYS.TOPIC_PICK, topicPickCount.toString());
-    }
-
-    onStart({
-      questionCount,
-      selectedFolderIds,
-      aiMode,
-      targetScore,
-      soundEnabled,
-      adaptiveModes: isMixed ? mixedModeIds : [],
-      studySetSize: isMixed ? countValue : 0,
-      // TOEFL 다양성 옵션
-      vocabSource: isToefl
-        ? { mode: vocabMode, folderIds: vocabFolderIds, sampleSize: vocabSampleSize, pool: toeflVocabPool }
-        : { mode: 'off', folderIds: [], sampleSize: 0, pool: [] },
-      topicSelection: isToefl
-        ? {
-            enabled: topicEnabled,
-            allTopics: topics,
-            selectedIds: selectedTopicIds,
-            pickCount: topicPickCount,
-          }
-        : { enabled: false, allTopics: [], selectedIds: [], pickCount: 0 },
-    });
-  };
-
-  const toggleFolder = (folderId) => {
-    setSelectedFolderIds(prev =>
-      prev.includes(folderId) ? prev.filter(id => id !== folderId) : [...prev, folderId]
-    );
-  };
-
-  const toggleMixedMode = (modeId) => {
-    setMixedModeIds((prev) => {
-      if (prev.includes(modeId)) {
-        return prev.length === 1 ? prev : prev.filter((id) => id !== modeId);
-      }
-      return DEFAULT_MIXED_MODES.filter((id) => [...prev, modeId].includes(id));
-    });
-  };
+  const {
+    aiMode,
+    commitEditTopic,
+    countBadge,
+    countSubtitle,
+    countTitle,
+    countValue,
+    editingTopic,
+    filteredWords,
+    handleAddTopic,
+    handleRemoveTopic,
+    handleStart,
+    isMixed,
+    isToefl,
+    maxQuestions,
+    maxStudySetSize,
+    mixedModeIds,
+    newTopicDesc,
+    newTopicLabel,
+    selectedFolderIds,
+    selectedTopicIds,
+    setAiMode,
+    setEditingTopic,
+    setNewTopicDesc,
+    setNewTopicLabel,
+    setQuestionCount,
+    setSelectedFolderIds,
+    setSelectedTopicIds,
+    setSoundEnabled,
+    setStudySetSize,
+    setTargetScore,
+    setTopicEnabled,
+    setTopicError,
+    setTopicPickCount,
+    setVocabFolderIds,
+    setVocabMode,
+    setVocabSampleSize,
+    soundEnabled,
+    startDisabled,
+    startEditTopic,
+    targetScore,
+    toeflVocabPool,
+    toggleFolder,
+    toggleMixedMode,
+    toggleTopic,
+    toggleVocabFolder,
+    topicEnabled,
+    topicError,
+    topicPickCount,
+    topics,
+    vocabFolderIds,
+    vocabMode,
+    vocabPoolWarning,
+    vocabSampleSize,
+  } = useQuizConfigState({
+    isOpen,
+    mode,
+    words,
+    initialAiMode,
+    onStart,
+  });
 
   if (!isOpen || !mode) return null;
 
   const headerGradient = mode.color === 'blue'
     ? 'bg-gradient-to-br from-brand-600 to-indigo-pair-700'
     : 'bg-gradient-to-br from-accent-600 to-indigo-pair-700';
-
-  const startDisabled = (!isToefl && filteredWords.length === 0) || (isMixed && mixedModeIds.length === 0);
-  // TOEFL 단어 소스가 켜졌는데 풀이 비어있으면 경고만 노출 (시작은 가능, 단어 미사용으로 fallback)
-  const vocabPoolWarning =
-    isToefl && vocabMode !== 'off' && toeflVocabPool.length === 0
-      ? vocabMode === 'all'
-        ? '단어장이 비어있어 단어 기반 출제가 불가합니다. 기본 출제로 진행됩니다.'
-        : '선택한 폴더에 단어가 없습니다. 다른 폴더를 선택하거나 옵션을 꺼주세요.'
-      : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden" role="dialog" aria-modal="true">

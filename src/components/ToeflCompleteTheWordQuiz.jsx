@@ -8,8 +8,21 @@ import {
 import { generateWordData } from '../services/geminiService';
 import { createWord } from '../services/wordApi';
 import { playSound } from '../utils/soundEffects';
-import { sampleWords, pickRandomTopics } from '../utils/topicSets';
 import { Button } from '../design-system';
+import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import {
+  buildCompleteQuestionResults,
+  buildCompleteUserAnswers,
+  formatCompleteResultsPayload,
+  getBlankResults,
+  getBlankSegments,
+  getEditableIndices,
+  getFilledBlankCount,
+  getQuestionCorrectness,
+  initializeCompleteAnswers,
+  isBlankCorrect,
+  prepareCompleteQuestions,
+} from '../services/toefl/completeWordEngine';
 
 const FONT_SCALE_STORAGE_KEY = 'vocaloop_toefl_complete_font_scale';
 
@@ -19,58 +32,6 @@ const FONT_SCALE_STYLES = {
   3: { paragraph: 'text-2xl leading-[1.9] md:text-[1.75rem]',  cell: 'w-8 h-8 text-xl md:w-10 md:h-10 md:text-2xl' },
   4: { paragraph: 'text-[1.8rem] leading-[1.9] md:text-[2rem]',cell: 'w-9 h-9 text-2xl md:w-11 md:h-11 md:text-[1.7rem]' },
   5: { paragraph: 'text-[2rem] leading-[1.9] md:text-[2.2rem]',cell: 'w-10 h-10 text-2xl md:w-12 md:h-12 md:text-[2rem]' },
-};
-
-const prepareCompleteQuestions = (questions, blanksPerQuestion) =>
-  (questions || []).map((question) => ({
-    ...question,
-    blanks:
-      question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
-        ...blank,
-        segments: getBlankSegments(blank.answer || ''),
-      })) || [],
-  }));
-
-const getPrefixRevealCount = (letterCount) => {
-  if (letterCount <= 3) return 1;
-  if (letterCount <= 6) return 2;
-  return 3;
-};
-
-const getBlankSegments = (answer = '') => {
-  const safeAnswer = String(answer);
-  if (!safeAnswer) return [{ type: 'editable', value: '' }];
-
-  const chars = safeAnswer.split('');
-  const editableIndexes = chars
-    .map((char, index) => (/^[a-zA-Z]$/.test(char) ? index : null))
-    .filter((index) => index !== null);
-
-  if (editableIndexes.length === 0) {
-    return chars.map((char) => ({ type: 'fixed', value: char, inputIndex: null }));
-  }
-
-  const hiddenSet = new Set(editableIndexes);
-  const revealedIndexes = new Set();
-  const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
-
-  editableIndexes.slice(0, prefixRevealCount).forEach((index) => {
-    hiddenSet.delete(index);
-    revealedIndexes.add(index);
-  });
-
-  if (hiddenSet.size === 0) {
-    const middleOrder = Math.floor(editableIndexes.length / 2);
-    hiddenSet.add(editableIndexes[middleOrder]);
-    revealedIndexes.delete(editableIndexes[middleOrder]);
-  }
-
-  return chars.map((char, index) => {
-    const isAlphabet = /^[a-zA-Z]$/.test(char);
-    if (!isAlphabet) return { type: 'fixed', value: char, inputIndex: null };
-    if (revealedIndexes.has(index)) return { type: 'fixed', value: char, inputIndex: null };
-    return { type: 'editable', value: '', inputIndex: index };
-  });
 };
 
 const renderParagraphWithInputs = ({
@@ -213,8 +174,6 @@ export default function ToeflCompleteTheWordQuiz({
   onAssetCreated,
   onAttemptRecorded,
 }) {
-  const [status, setStatus] = useState('loading');
-  const [error, setError] = useState('');
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
@@ -223,7 +182,6 @@ export default function ToeflCompleteTheWordQuiz({
   const [summary, setSummary] = useState(null);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
   const [fontScaleLevel, setFontScaleLevel] = useState(() => {
     const saved = Number(localStorage.getItem(FONT_SCALE_STORAGE_KEY));
     if (!Number.isFinite(saved)) return 3;
@@ -233,148 +191,76 @@ export default function ToeflCompleteTheWordQuiz({
   const [incorrectWords, setIncorrectWords] = useState(new Set());
   const [savingWords, setSavingWords] = useState(new Set());
   const [savedWords, setSavedWords] = useState(new Set());
-  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const blanksPerQuestion = 10;
   const inputRefs = useRef({});
   const currentQuestion = questions[currentIndex];
 
   const initializeAnswers = (questionList) => {
-    const answerMatrix = questionList.map((question) =>
-      question.blanks.map((blank) => new Array((blank.answer || '').length).fill(''))
-    );
-    setAnswers(answerMatrix);
+    setAnswers(initializeCompleteAnswers(questionList));
   };
 
-  const loadQuestions = async () => {
-    setStatus('loading');
-    setError('');
-    setFeedback('');
-    setSummary(null);
-    setActiveAsset(reviewAsset || null);
-
-    if (reviewAsset?.payload?.questions) {
-      try {
-        const cleanedQuestions = prepareCompleteQuestions(reviewAsset.payload.questions, blanksPerQuestion);
-        if (cleanedQuestions.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
-        setQuestions(cleanedQuestions);
-        initializeAnswers(cleanedQuestions);
-        setCurrentIndex(0);
-        setChecked(false);
-        setSessionContext({
-          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
-          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
-        });
-        setStatus('ready');
-      } catch (err) {
-        setError(err.message || '저장된 Complete the Words 문제를 불러오지 못했습니다.');
-        setStatus('error');
-      }
-      return;
-    }
-
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-
-    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
-
-    try {
-      const data = await generateCompleteTheWordSet({
-        aiConfig, questionCount, blanksPerQuestion, targetScore,
+  const { activeAsset, error, reload: loadQuestions, sessionContext, setStatus, status } = useToeflQuizSession({
+    reviewAsset,
+    vocabSource,
+    topicSelection,
+    onAssetCreated,
+    resetSession: () => {
+      setFeedback('');
+      setSummary(null);
+    },
+    loadReview: (asset) => {
+      const cleanedQuestions = prepareCompleteQuestions(asset.payload.questions, blanksPerQuestion);
+      if (cleanedQuestions.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
+      return cleanedQuestions;
+    },
+    generateNew: ({ vocabularyWords, pickedTopics }) =>
+      generateCompleteTheWordSet({
+        aiConfig,
+        questionCount,
+        blanksPerQuestion,
+        targetScore,
         vocabularyWords,
         pickedTopics,
-      });
-      const cleanedQuestions = prepareCompleteQuestions(data.questions, blanksPerQuestion);
+      }).then((data) => prepareCompleteQuestions(data.questions, blanksPerQuestion)),
+    buildAsset: (cleanedQuestions, { vocabularyWords, pickedTopics }) => ({
+      mode: 'toefl-complete',
+      taskType: 'complete-words',
+      title: 'Complete the Words',
+      payload: { questions: cleanedQuestions },
+      metadata: {
+        targetScore,
+        questionCount,
+        blanksPerQuestion,
+        vocabSampleCount: vocabularyWords.length,
+        pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+      },
+    }),
+    onReady: (cleanedQuestions) => {
       setQuestions(cleanedQuestions);
       initializeAnswers(cleanedQuestions);
       setCurrentIndex(0);
       setChecked(false);
-      const savedAsset = await onAssetCreated?.({
-        mode: 'toefl-complete',
-        taskType: 'complete-words',
-        title: 'Complete the Words',
-        payload: { questions: cleanedQuestions },
-        metadata: {
-          targetScore,
-          questionCount,
-          blanksPerQuestion,
-          vocabSampleCount: vocabularyWords.length,
-          pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
-        },
-      });
-      if (savedAsset) setActiveAsset(savedAsset);
-      setStatus('ready');
-    } catch (err) {
-      setError(err.message || '문제 생성 중 오류가 발생했습니다.');
-      setStatus('error');
-    }
-  };
-
-  useEffect(() => { loadQuestions(); }, [questionCount, targetScore, aiConfig, reviewAsset?.id]);
+    },
+    errorMessage: reviewAsset ? '저장된 Complete the Words 문제를 불러오지 못했습니다.' : '문제 생성 중 오류가 발생했습니다.',
+    dependencies: [questionCount, targetScore, aiConfig, reviewAsset?.id],
+  });
   useEffect(() => { localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScaleLevel)); }, [fontScaleLevel]);
 
   const totalQuestions = questions.length;
   const currentAnswers = answers[currentIndex] || [];
 
-  const filledBlankCount = currentQuestion
-    ? currentQuestion.blanks.reduce((count, blank, index) => {
-        const blankAnswers = currentAnswers[index] || [];
-        const editableIndices = (blank.segments || []).filter((segment) => segment.type === 'editable');
-        const isFilled =
-          editableIndices.length > 0 &&
-          editableIndices.every((segment) => (blankAnswers[segment.inputIndex] || '').trim().length > 0);
-        return count + (isFilled ? 1 : 0);
-      }, 0)
-    : 0;
+  const filledBlankCount = getFilledBlankCount(currentQuestion, currentAnswers);
   const remainingBlankCount = currentQuestion ? currentQuestion.blanks.length - filledBlankCount : 0;
-
-  const getEditableIndices = (blank) =>
-    (blank?.segments || [])
-      .filter((segment) => segment.type === 'editable')
-      .map((segment) => segment.inputIndex);
 
   const correctness = useMemo(() => {
     if (!currentQuestion || !checked) return null;
-    const correctCount = currentQuestion.blanks.reduce((count, blank, index) => {
-      const blankAnswers = currentAnswers[index] || [];
-      const editableIndices = (blank.segments || [])
-        .filter((segment) => segment.type === 'editable')
-        .map((segment) => segment.inputIndex);
-
-      const isCorrect = editableIndices.every((inputIndex) => {
-        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-        return userAnswer === targetAnswer;
-      });
-
-      return count + (isCorrect ? 1 : 0);
-    }, 0);
-    return {
-      correctCount,
-      total: currentQuestion.blanks.length,
-      isPerfect: correctCount === currentQuestion.blanks.length,
-    };
+    return getQuestionCorrectness(currentQuestion, currentAnswers);
   }, [checked, currentQuestion, currentAnswers]);
 
   const blankResults = useMemo(() => {
     if (!currentQuestion || !checked) return [];
-    return currentQuestion.blanks.map((blank, index) => {
-      const blankAnswers = currentAnswers[index] || [];
-      const editableIndices = getEditableIndices(blank);
-      const isCorrect = editableIndices.every((inputIndex) => {
-        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-        return userAnswer === targetAnswer;
-      });
-      return { isCorrect };
-    });
+    return getBlankResults(currentQuestion, currentAnswers);
   }, [checked, currentQuestion, currentAnswers]);
 
   const focusInputByKey = (key) => {
@@ -483,13 +369,9 @@ export default function ToeflCompleteTheWordQuiz({
     const newIncorrectWords = new Set(incorrectWords);
     currentQuestion.blanks.forEach((blank, index) => {
       const blankAnswers = currentAnswers[index] || [];
-      const editableIndices = getEditableIndices(blank);
-      const isCorrect = editableIndices.every((inputIndex) => {
-        const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-        const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-        return userAnswer === targetAnswer;
-      });
-      if (!isCorrect && blank.answer) newIncorrectWords.add(blank.answer.toLowerCase().trim());
+      if (!isBlankCorrect(blank, blankAnswers) && blank.answer) {
+        newIncorrectWords.add(blank.answer.toLowerCase().trim());
+      }
     });
     setIncorrectWords(newIncorrectWords);
   };
@@ -499,14 +381,7 @@ export default function ToeflCompleteTheWordQuiz({
 
     setIsGeneratingFeedback(true);
     try {
-      const userAnswers = currentAnswers.map((blankAnswers, blankIndex) => {
-        const blank = currentQuestion.blanks[blankIndex];
-        const segments = getBlankSegments(blank.answer);
-        return segments.map((segment) => {
-          if (segment.type === 'fixed') return segment.value;
-          return blankAnswers[segment.inputIndex] || '';
-        }).join('');
-      });
+      const userAnswers = buildCompleteUserAnswers(currentQuestion, currentAnswers);
 
       const result = await generateCompleteTheWordFeedback({
         aiConfig, question: currentQuestion, userAnswers,
@@ -529,33 +404,8 @@ export default function ToeflCompleteTheWordQuiz({
     }
 
     setIsGeneratingSummary(true);
-    let totalCorrect = 0;
-    let totalBlanks = 0;
-    const questionResults = questions.map((question, index) => {
-      const questionAnswers = answers[index] || [];
-      const correctCount = question.blanks.reduce((count, blank, blankIndex) => {
-        const blankAnswers = questionAnswers[blankIndex] || [];
-        const editableIndices = (blank.segments || [])
-          .filter((segment) => segment.type === 'editable')
-          .map((segment) => segment.inputIndex);
-        const isCorrect = editableIndices.every((inputIndex) => {
-          const userAnswer = (blankAnswers[inputIndex] || '').toLowerCase();
-          const targetAnswer = (blank.answer[inputIndex] || '').toLowerCase();
-          return userAnswer === targetAnswer;
-        });
-        return count + (isCorrect ? 1 : 0);
-      }, 0);
-      totalCorrect += correctCount;
-      totalBlanks += question.blanks.length;
-      return {
-        questionIndex: index,
-        correctCount,
-        total: question.blanks.length,
-      };
-    });
-    const resultPayload = questionResults
-      .map((result, index) => `Q${index + 1}: ${result.correctCount}/${result.total}`)
-      .join(' | ');
+    const { questionResults, totalBlanks, totalCorrect } = buildCompleteQuestionResults(questions, answers);
+    const resultPayload = formatCompleteResultsPayload(questionResults);
 
     onAttemptRecorded?.(activeAsset, {
       answers: { blanks: answers },

@@ -6,8 +6,8 @@ import {
   generateBuildSentenceSummary,
 } from '../services/toeflService';
 import { playSound } from '../utils/soundEffects';
-import { sampleWords, pickRandomTopics } from '../utils/topicSets';
 import { Button } from '../design-system';
+import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
 
 /**
  * 드래그 인서션 placeholder — flexbox + width 트랜지션으로 옆 단어를 부드럽게 밀어냄.
@@ -61,8 +61,6 @@ export default function ToeflBuildSentenceQuiz({
   onAssetCreated,
   onAttemptRecorded,
 }) {
-  const [status, setStatus] = useState('loading'); // loading | ready | checking | feedback | summary | error
-  const [error, setError] = useState('');
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [bank, setBank] = useState([]);          // 사용 가능한 단어 인덱스
@@ -71,8 +69,6 @@ export default function ToeflBuildSentenceQuiz({
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState([]);     // 각 문항 채점 결과 boolean
   const [attempts, setAttempts] = useState([]);
-  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
-  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   // 드래그 상태 (pointer events 기반).
   // - dragInfoRef: pointerdown 시점 정보. threshold 통과 전에는 null이 아닌 ref.
@@ -93,86 +89,54 @@ export default function ToeflBuildSentenceQuiz({
     setArrangement([]);
   };
 
-  const loadQuestions = async () => {
-    setStatus('loading');
-    setError('');
-    setFeedback(null);
-    setSummary(null);
-    setResults([]);
-    setAttempts([]);
-    setActiveAsset(reviewAsset || null);
-
-    if (reviewAsset?.payload?.questions) {
-      try {
-        const cleaned = (reviewAsset.payload.questions || []).filter((q) => Array.isArray(q.words) && q.target);
-        if (cleaned.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
-        setQuestions(cleaned);
-        setCurrentIndex(0);
-        initialize(cleaned);
-        setSessionContext({
-          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
-          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
-        });
-        setStatus('ready');
-      } catch (err) {
-        setError(err.message || '저장된 TOEFL 문제를 불러오지 못했습니다.');
-        setStatus('error');
-      }
-      return;
-    }
-
-    // 매 세션마다 단어/주제를 랜덤 픽 — toeflService 프롬프트에 다양성 입력 주입.
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-
-    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
-
-    try {
-      const data = await generateBuildSentenceSet({
+  const { activeAsset, error, reload: loadQuestions, sessionContext, setStatus, status } = useToeflQuizSession({
+    reviewAsset,
+    vocabSource,
+    topicSelection,
+    onAssetCreated,
+    resetSession: () => {
+      setFeedback(null);
+      setSummary(null);
+      setResults([]);
+      setAttempts([]);
+    },
+    loadReview: (asset) => {
+      const cleaned = (asset.payload.questions || []).filter((question) => Array.isArray(question.words) && question.target);
+      if (cleaned.length === 0) throw new Error('저장된 문제 데이터가 비어 있습니다.');
+      return cleaned;
+    },
+    generateNew: ({ vocabularyWords, pickedTopics }) =>
+      generateBuildSentenceSet({
         aiConfig,
         questionCount,
         targetScore,
         vocabularyWords,
         pickedTopics,
-      });
-      const cleaned = (data?.questions || []).filter((q) => Array.isArray(q.words) && q.target);
-      if (cleaned.length === 0) throw new Error('문제 데이터가 비어 있습니다.');
+      }).then((data) => {
+        const cleaned = (data?.questions || []).filter((question) => Array.isArray(question.words) && question.target);
+        if (cleaned.length === 0) throw new Error('문제 데이터가 비어 있습니다.');
+        return cleaned;
+      }),
+    buildAsset: (cleaned, { vocabularyWords, pickedTopics }) => ({
+      mode: 'toefl-build',
+      taskType: 'build-sentence',
+      title: 'Build a Sentence',
+      payload: { questions: cleaned },
+      metadata: {
+        targetScore,
+        questionCount,
+        vocabSampleCount: vocabularyWords.length,
+        pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+      },
+    }),
+    onReady: (cleaned) => {
       setQuestions(cleaned);
       setCurrentIndex(0);
       initialize(cleaned);
-      if (typeof onAssetCreated === 'function') {
-        const savedAsset = await onAssetCreated({
-          mode: 'toefl-build',
-          taskType: 'build-sentence',
-          title: 'Build a Sentence',
-          payload: { questions: cleaned },
-          metadata: {
-            targetScore,
-            questionCount,
-            vocabSampleCount: vocabularyWords.length,
-            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
-          },
-        });
-        if (savedAsset) setActiveAsset(savedAsset);
-      }
-      setStatus('ready');
-    } catch (err) {
-      setError(err.message || '문제 생성 중 오류가 발생했습니다.');
-      setStatus('error');
-    }
-  };
-
-  useEffect(() => {
-    loadQuestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionCount, targetScore, reviewAsset?.id]);
+    },
+    errorMessage: reviewAsset ? '저장된 TOEFL 문제를 불러오지 못했습니다.' : '문제 생성 중 오류가 발생했습니다.',
+    dependencies: [questionCount, targetScore, reviewAsset?.id],
+  });
 
   const moveToArrangement = (idx) => {
     if (status !== 'ready') return;
