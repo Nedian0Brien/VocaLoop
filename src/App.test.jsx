@@ -124,6 +124,10 @@ describe('App backend session bootstrap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ entries: [] }),
+        }));
     });
 
     afterEach(() => {
@@ -460,6 +464,41 @@ describe('App backend session bootstrap', () => {
                 }),
             );
         });
+    });
+
+    test('does not emit React key warnings while rendering the generating word card', async () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+        geminiService.generateWordData.mockImplementation(
+            () => new Promise(() => {}),
+        );
+
+        render(<App />);
+
+        const input = await screen.findByPlaceholderText('Enter an English word (e.g., Epiphany)');
+        fireEvent.change(input, { target: { value: 'Ephemeral' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+        await screen.findByText('단어 생성 중...');
+
+        const keyWarning = consoleErrorSpy.mock.calls.find((call) =>
+            String(call[0] || '').includes('Each child in a list should have a unique "key" prop')
+        );
+        consoleErrorSpy.mockRestore();
+        expect(keyWarning).toBeUndefined();
     });
 
     test('suggests words from the English-Korean dictionary instead of saved vocabulary', async () => {

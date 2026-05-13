@@ -2,16 +2,9 @@ import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { Brain, ArrowLeft, Volume2, Trophy, Sparkles } from './Icons';
 import QuizDashboard from './QuizDashboard';
 import QuizConfigModal from './QuizConfigModal';
-import MultipleChoiceQuiz from './MultipleChoiceQuiz';
-import ShortAnswerQuiz from './ShortAnswerQuiz';
-import CompleteWordQuiz from './CompleteWordQuiz';
 import QuizResult from './QuizResult';
-import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
-import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
-import ToeflReadingTaskQuiz from './ToeflReadingTaskQuiz';
-import ToeflReadingMockTest from './ToeflReadingMockTest';
-import ToeflWritingTaskQuiz from './ToeflWritingTaskQuiz';
-import ToeflWritingMockTest from './ToeflWritingMockTest';
+import QuizModeContent from './QuizModeContent';
+import { TOEFL_MODE_TITLES } from './quizModeRegistry';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
@@ -90,17 +83,6 @@ const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
       </div>
     </Card>
   );
-};
-
-const TOEFL_MODE_TITLES = {
-  'toefl-complete': 'Complete the Words',
-  'toefl-build': 'Build a Sentence',
-  'toefl-daily-life': 'Read in Daily Life',
-  'toefl-academic-passage': 'Read an Academic Passage',
-  'toefl-reading-mock': 'TOEFL Reading Mock Test',
-  'toefl-writing-email': 'Write an Email',
-  'toefl-writing-discussion': 'Write for an Academic Discussion',
-  'toefl-writing-mock': 'TOEFL Writing Mock Test',
 };
 
 export default function QuizView({
@@ -482,189 +464,28 @@ export default function QuizView({
             </div>
           ) : (
             <div className="quiz-container">
-              {selectedMode.id === 'multiple' && (
-                <MultipleChoiceQuiz
-                  word={queue[currentIndex]}
-                  allWords={words}
-                  onAnswer={handleAnswer}
-                  progress={{ current: currentIndex + 1, total: queue.length }}
-                  stats={stats}
-                  aiMode={aiMode}
-                  aiConfig={aiConfig}
-                  soundEnabled={soundEnabled}
-                />
-              )}
-
-              {selectedMode.id === 'mixed' && adaptiveMode === 'multiple' && (
-                <MultipleChoiceQuiz
-                  word={adaptiveTask.word}
-                  allWords={words}
-                  onAnswer={handleAnswer}
-                  progress={adaptiveProgress}
-                  stats={stats}
-                  aiMode={aiMode}
-                  aiConfig={aiConfig}
-                  soundEnabled={soundEnabled}
-                />
-              )}
-
-              {selectedMode.id === 'short' && (
-                <ShortAnswerQuiz
-                  word={queue[currentIndex]}
-                  onAnswer={handleAnswer}
-                  progress={{ current: currentIndex + 1, total: queue.length }}
-                  stats={stats}
-                  aiMode={aiMode}
-                  aiConfig={aiConfig}
-                  soundEnabled={soundEnabled}
-                />
-              )}
-
-              {selectedMode.id === 'mixed' && adaptiveMode === 'short' && (
-                <ShortAnswerQuiz
-                  word={adaptiveTask.word}
-                  onAnswer={handleAnswer}
-                  progress={adaptiveProgress}
-                  stats={stats}
-                  aiMode={aiMode}
-                  aiConfig={aiConfig}
-                  soundEnabled={soundEnabled}
-                />
-              )}
-
-              {selectedMode.id === 'mixed' && adaptiveMode === 'complete-word' && (
-                <CompleteWordQuiz
-                  word={adaptiveTask.word}
-                  onAnswer={handleAnswer}
-                  progress={adaptiveProgress}
-                  stats={stats}
-                  aiMode={aiMode}
-                  soundEnabled={soundEnabled}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-complete' && (
-                <ToeflCompleteTheWordQuiz
-                  aiConfig={aiConfig}
-                  questionCount={toeflConfig.questionCount}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  user={user}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-build' && (
-                <ToeflBuildSentenceQuiz
-                  aiConfig={aiConfig}
-                  questionCount={toeflConfig.questionCount}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-daily-life' && (
-                <ToeflReadingTaskQuiz
-                  aiConfig={aiConfig}
-                  taskType="daily-life"
-                  questionCount={toeflConfig.questionCount}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  existingWords={words}
-                  onSaveVocabularyWord={onSaveVocabularyWord}
-                  onExplainVocabularyWord={onExplainVocabularyWord}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-academic-passage' && (
-                <ToeflReadingTaskQuiz
-                  aiConfig={aiConfig}
-                  taskType="academic-passage"
-                  questionCount={toeflConfig.questionCount}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  existingWords={words}
-                  onSaveVocabularyWord={onSaveVocabularyWord}
-                  onExplainVocabularyWord={onExplainVocabularyWord}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-reading-mock' && (
-                <ToeflReadingMockTest
-                  aiConfig={aiConfig}
-                  questionCount={toeflConfig.questionCount}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  existingWords={words}
-                  onSaveVocabularyWord={onSaveVocabularyWord}
-                  onExplainVocabularyWord={onExplainVocabularyWord}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-writing-email' && (
-                <ToeflWritingTaskQuiz
-                  aiConfig={aiConfig}
-                  taskType="email"
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-writing-discussion' && (
-                <ToeflWritingTaskQuiz
-                  aiConfig={aiConfig}
-                  taskType="academic-discussion"
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
-
-              {selectedMode.id === 'toefl-writing-mock' && (
-                <ToeflWritingMockTest
-                  aiConfig={aiConfig}
-                  targetScore={toeflConfig.targetScore}
-                  vocabSource={toeflConfig.vocabSource}
-                  topicSelection={toeflConfig.topicSelection}
-                  onExit={handleBackToModeSelect}
-                  reviewAsset={reviewAsset}
-                  onAssetCreated={handleToeflAssetCreated}
-                  onAttemptRecorded={handleToeflAttemptRecorded}
-                />
-              )}
+              <QuizModeContent
+                selectedMode={selectedMode}
+                adaptiveMode={adaptiveMode}
+                adaptiveTask={adaptiveTask}
+                adaptiveProgress={adaptiveProgress}
+                queue={queue}
+                currentIndex={currentIndex}
+                stats={stats}
+                words={words}
+                aiMode={aiMode}
+                aiConfig={aiConfig}
+                soundEnabled={soundEnabled}
+                onAnswer={handleAnswer}
+                toeflConfig={toeflConfig}
+                onExit={handleBackToModeSelect}
+                user={user}
+                reviewAsset={reviewAsset}
+                onAssetCreated={handleToeflAssetCreated}
+                onAttemptRecorded={handleToeflAttemptRecorded}
+                onSaveVocabularyWord={onSaveVocabularyWord}
+                onExplainVocabularyWord={onExplainVocabularyWord}
+              />
             </div>
           )}
         </div>
