@@ -458,4 +458,62 @@ describe('App backend session bootstrap', () => {
             );
         });
     });
+
+    test('suggests saved vocabulary words while adding a new word', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([
+            {
+                id: 101,
+                word: 'Epiphany',
+                meaning_ko: '깨달음',
+                created_at: '2026-04-01T00:00:00Z',
+                learning_rate: 0,
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+            {
+                id: 102,
+                word: 'Epidemic',
+                meaning_ko: '유행병',
+                created_at: '2026-04-02T00:00:00Z',
+                learning_rate: 0,
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+            {
+                id: 103,
+                word: 'Serendipity',
+                meaning_ko: '뜻밖의 발견',
+                created_at: '2026-04-03T00:00:00Z',
+                learning_rate: 0,
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+        ]);
+        folderApi.listFolders.mockResolvedValue([]);
+
+        render(<App />);
+
+        const input = await screen.findByPlaceholderText('Enter an English word (e.g., Epiphany)');
+
+        fireEvent.change(input, { target: { value: 'epi' } });
+
+        expect(await screen.findByRole('listbox', { name: '단어 자동완성 제안' })).toBeTruthy();
+        expect(screen.getByRole('option', { name: /Epiphany 자동완성 선택/ })).toBeTruthy();
+        expect(screen.getByRole('option', { name: /Epidemic 자동완성 선택/ })).toBeTruthy();
+        expect(screen.queryByRole('option', { name: /Serendipity 자동완성 선택/ })).toBeNull();
+
+        fireEvent.click(screen.getByRole('option', { name: /Epiphany 자동완성 선택/ }));
+
+        expect(input.value).toBe('Epiphany');
+        expect(screen.queryByRole('listbox', { name: '단어 자동완성 제안' })).toBeNull();
+    });
 });
