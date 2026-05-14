@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Clock, FileText, Loader2, RotateCw } from './Icons';
+import { Loader2 } from './Icons';
 import ToeflReviewDetail from './ToeflReviewDetail';
 import ToeflReviewPanel from './ToeflReviewPanel';
-import { Badge, Button, Card, SectionHeading, Stat } from '../design-system';
 import { getToeflAsset, listToeflAssets } from '../services/toeflAssetApi';
 import { listToeflReviewItems, updateToeflReviewItem } from '../services/toeflReviewApi';
 
@@ -12,6 +11,12 @@ const isDue = (item) => {
   if (!item?.dueAt || item.status === 'mastered') return false;
   return new Date(item.dueAt).getTime() <= Date.now();
 };
+
+const actionButtonClass = [
+  'inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium',
+  'transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-surface-900',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+].join(' ');
 
 export default function ToeflReviewView({ onStartAssetReview }) {
   const [reviewItems, setReviewItems] = useState([]);
@@ -55,9 +60,6 @@ export default function ToeflReviewView({ onStartAssetReview }) {
       active: activeItems.length,
       saved: toeflAssets.length,
       mastered: reviewItems.filter((item) => item.status === 'mastered').length,
-      masteryRate: reviewItems.length > 0
-        ? Math.round((reviewItems.filter((item) => item.status === 'mastered').length / reviewItems.length) * 100)
-        : 0,
       nextItem: dueItems[0] || activeItems[0] || null,
     };
   }, [reviewItems, toeflAssets]);
@@ -118,167 +120,85 @@ export default function ToeflReviewView({ onStartAssetReview }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <section className="relative overflow-hidden rounded-3xl bg-surface-900 text-white shadow-[var(--shadow-elevated)]">
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-pill bg-brand-500/20 blur-[90px]" />
-        <div className="absolute bottom-0 left-1/3 h-52 w-52 rounded-pill bg-accent-500/15 blur-[80px]" />
-
-        <div className="relative grid grid-cols-1 gap-8 p-7 sm:p-9 lg:grid-cols-[minmax(0,1fr)_340px] lg:p-10">
-          <div className="max-w-3xl">
-            <Badge tone="brand" style="dot" size="md" className="mb-5">Review System</Badge>
-            <div className="flex items-start gap-5">
-              <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/10 text-brand-100 ring-1 ring-white/10 sm:grid">
-                <RotateCw className="h-7 w-7" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-                  Review Queue
-                </h2>
-                <p className="mt-4 max-w-2xl text-base font-bold leading-relaxed text-surface-300">
-                  오늘 볼 오답, 아직 진행 중인 약점, 저장해둔 TOEFL 세트를 한 화면에서 정리합니다.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="primary"
-                size="lg"
-                leftIcon={RotateCw}
-                disabled={!metrics.nextItem}
-                onClick={() => metrics.nextItem && setSelectedReviewItem(metrics.nextItem)}
-              >
-                오늘 복습 시작
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                leftIcon={FileText}
-                onClick={() => setActiveTab('saved')}
-                disabled={metrics.saved === 0}
-                className="!bg-white/10 !text-white hover:!bg-white/15"
-              >
-                저장 문제 보기
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                leftIcon={RotateCw}
-                onClick={() => loadReviewData()}
-                disabled={isLoading}
-                className="!text-surface-200 hover:!bg-white/10 hover:!text-white"
-              >
-                새로고침
-              </Button>
-            </div>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div className="border-b border-surface-200 pb-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-surface-900">Review</h2>
+            <p className="mt-1 text-sm text-surface-600">
+              TOEFL 오답과 저장 문제를 복습합니다.
+            </p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-            <p className="text-2xs font-black uppercase tracking-widest text-brand-100">Today's load</p>
-            <div className="mt-5 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-6xl font-black tracking-tight tabular-nums text-white">{metrics.due}</p>
-                <p className="mt-1 text-xs font-black uppercase tracking-widest text-surface-300">due items</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-black tabular-nums text-white">{metrics.masteryRate}%</p>
-                <p className="mt-1 text-2xs font-black uppercase tracking-widest text-surface-400">mastery</p>
-              </div>
-            </div>
-            <div className="mt-6 h-2 overflow-hidden rounded-pill bg-black/25">
-              <div
-                className="h-full rounded-pill bg-brand-400 transition-all duration-700"
-                style={{ width: `${Math.min(metrics.masteryRate, 100)}%` }}
-              />
-            </div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-2xl bg-white/10 p-3">
-                <p className="text-lg font-black tabular-nums">{metrics.active}</p>
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">active</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-3">
-                <p className="text-lg font-black tabular-nums">{metrics.saved}</p>
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">saved</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-3">
-                <p className="text-lg font-black tabular-nums">{metrics.mastered}</p>
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">done</p>
-              </div>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`${actionButtonClass} bg-surface-900 text-white hover:bg-surface-800`}
+              disabled={!metrics.nextItem}
+              onClick={() => metrics.nextItem && setSelectedReviewItem(metrics.nextItem)}
+            >
+              오늘 복습 시작
+            </button>
+            <button
+              type="button"
+              className={`${actionButtonClass} border border-surface-300 bg-white text-surface-900 hover:bg-surface-50`}
+              onClick={() => setActiveTab('saved')}
+              disabled={metrics.saved === 0}
+            >
+              저장 문제
+            </button>
+            <button
+              type="button"
+              className={`${actionButtonClass} border border-surface-300 bg-white text-surface-900 hover:bg-surface-50`}
+              onClick={() => loadReviewData()}
+              disabled={isLoading}
+            >
+              새로고침
+            </button>
           </div>
         </div>
-      </section>
+
+        <dl className="mt-5 grid grid-cols-2 border border-surface-200 bg-white md:grid-cols-4">
+          <div className="border-b border-r border-surface-200 p-4 md:border-b-0">
+            <dt className="text-sm text-surface-500">Due today</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-surface-900">{metrics.due}</dd>
+          </div>
+          <div className="border-b border-surface-200 p-4 md:border-b-0 md:border-r">
+            <dt className="text-sm text-surface-500">Active mistakes</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-surface-900">{metrics.active}</dd>
+          </div>
+          <div className="border-r border-surface-200 p-4">
+            <dt className="text-sm text-surface-500">Saved sets</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-surface-900">{metrics.saved}</dd>
+          </div>
+          <div className="p-4">
+            <dt className="text-sm text-surface-500">Mastered</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-surface-900">{metrics.mastered}</dd>
+          </div>
+        </dl>
+      </div>
 
       {error && (
-        <Card variant="outlined" radius="card" padding="md" className="!border-danger-200 bg-danger-50">
-          <p className="text-sm font-bold text-danger-600">{error}</p>
-        </Card>
+        <div className="rounded-md border border-danger-200 bg-danger-50 px-4 py-3">
+          <p className="text-sm font-medium text-danger-700">{error}</p>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
-          {isLoading ? (
-            <Card variant="elevated" radius="card" padding="xl" className="text-center">
-              <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-brand-600" aria-hidden="true" />
-              <p className="text-sm font-black text-surface-500">Review 데이터를 불러오는 중입니다...</p>
-            </Card>
-          ) : (
-            <ToeflReviewPanel
-              reviewItems={reviewItems}
-              toeflAssets={toeflAssets}
-              onSelectReviewItem={setSelectedReviewItem}
-              onSelectToeflAsset={startAssetReview}
-              activeTab={activeTab}
-              onActiveTabChange={setActiveTab}
-            />
-          )}
+      {isLoading ? (
+        <div className="rounded-lg border border-surface-200 bg-white px-4 py-12 text-center">
+          <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-surface-500" aria-hidden="true" />
+          <p className="text-sm text-surface-600">Review 데이터를 불러오는 중입니다.</p>
         </div>
-
-        <aside className="space-y-5">
-          <Card variant="elevated" radius="card" padding="lg" className="!p-6">
-            <SectionHeading
-              icon={Clock}
-              tone="indigo"
-              title="Review rhythm"
-              subtitle="복습 큐 상태"
-              className="!mb-6 !px-0"
-            />
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Priority</p>
-                <p className="mt-1 text-xl font-black text-surface-900">
-                  {metrics.due > 0 ? `${metrics.due} due today` : 'No due items'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Queue shape</p>
-                <p className="mt-1 text-sm font-bold leading-relaxed text-surface-600">
-                  {metrics.active > 0
-                    ? `${metrics.active} active mistakes remain before they move into mastered.`
-                    : 'Active mistakes will appear here after TOEFL attempts.'}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-            <Stat title="Due Today" value={metrics.due} subValue="items" icon={Clock} tone="brand" />
-            <Stat title="Saved Sets" value={metrics.saved} subValue="sets" icon={FileText} tone="accent" />
-          </div>
-
-          <Card variant="outlined" radius="card" padding="lg" className="!border-dashed !p-6">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-success-50 text-success-600">
-                <CheckCircle className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-surface-900">Mastered</p>
-                <p className="text-xs font-bold text-surface-400">{metrics.mastered} review items</p>
-              </div>
-            </div>
-          </Card>
-        </aside>
-      </div>
+      ) : (
+        <ToeflReviewPanel
+          reviewItems={reviewItems}
+          toeflAssets={toeflAssets}
+          onSelectReviewItem={setSelectedReviewItem}
+          onSelectToeflAsset={startAssetReview}
+          activeTab={activeTab}
+          onActiveTabChange={setActiveTab}
+        />
+      )}
     </div>
   );
 }
