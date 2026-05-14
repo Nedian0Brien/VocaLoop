@@ -213,6 +213,32 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     });
   });
 
+  test('forces Academic Passage generation to five questions', async () => {
+    render(
+      <ToeflReadingTaskQuiz
+        aiConfig={{ provider: 'gemini', apiKey: 'test-key' }}
+        taskType="academic-passage"
+        questionCount={1}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={vi.fn()}
+        onExplainVocabularyWord={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Migration Study');
+
+    expect(toeflService.generateReadingTaskSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: 'academic-passage',
+        questionCount: 5,
+      })
+    );
+  });
+
   test('loads a saved reading asset for review without generating a new set', async () => {
     toeflService.generateReadingTaskSet.mockClear();
 

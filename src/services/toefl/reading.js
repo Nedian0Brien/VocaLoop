@@ -14,9 +14,10 @@ const READING_TASK_SPECS = {
   },
   'academic-passage': {
     label: 'Read an Academic Passage',
-    stimulus: 'a TOEFL-style academic passage',
+    stimulus: 'TOEFL-style academic passage',
     questionTypes: 'main idea, detail, inference, vocabulary-in-context, rhetorical purpose, and idea relationship',
     length: '140-220 words',
+    fixedQuestionCount: 5,
   },
 };
 
@@ -160,13 +161,15 @@ export const generateReadingTaskSet = async ({
   const vocabBlock = formatVocabularyWordsBlock(vocabularyWords);
   const topicBlock = formatTopicsBlock(pickedTopics);
   const nonce = buildRandomNonce();
+  const generatedQuestionCount = spec.fixedQuestionCount || questionCount;
 
   const prompt = `
 You are creating practice for the 2026 TOEFL iBT Reading task "${spec.label}".
 Learner target: TOEFL ${targetScore}+.
 
-Create one ${spec.stimulus} (${spec.length}) and ${questionCount} multiple-choice questions.
+Create one ${spec.stimulus} (${spec.length}) and ${generatedQuestionCount} multiple-choice questions.
 Question types to cover: ${spec.questionTypes}.
+The "questions" array must contain exactly ${generatedQuestionCount} items, all answerable from that one stimulus.
 ${vocabBlock}${topicBlock}
 PERSONALIZATION:
 - If learner vocabulary is provided, weave several words naturally into the text or answer explanations.

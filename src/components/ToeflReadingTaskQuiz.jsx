@@ -42,6 +42,9 @@ const normalizeSet = (data, taskType) => ({
     .filter((question) => question.prompt && question.options.length >= 2),
 });
 
+const resolveQuestionCount = (taskType, questionCount) =>
+  taskType === 'academic-passage' ? 5 : questionCount;
+
 export default function ToeflReadingTaskQuiz({
   aiConfig,
   taskType,
@@ -58,6 +61,7 @@ export default function ToeflReadingTaskQuiz({
   onAttemptRecorded,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
+  const effectiveQuestionCount = resolveQuestionCount(taskType, questionCount);
   const [setData, setSetData] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -95,7 +99,7 @@ export default function ToeflReadingTaskQuiz({
       generateReadingTaskSet({
         aiConfig,
         taskType,
-        questionCount,
+        questionCount: effectiveQuestionCount,
         targetScore,
         vocabularyWords,
         pickedTopics,
@@ -113,14 +117,14 @@ export default function ToeflReadingTaskQuiz({
       payload: normalized,
       metadata: {
         targetScore,
-        questionCount,
+        questionCount: effectiveQuestionCount,
         vocabSampleCount: vocabularyWords.length,
         pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
       },
     }),
     onReady: (normalized) => setSetData(normalized),
     errorMessage: reviewAsset ? '저장된 Reading 문제를 불러오지 못했습니다.' : 'Reading 문제 생성 중 오류가 발생했습니다.',
-    dependencies: [taskType, questionCount, targetScore, reviewAsset?.id],
+    dependencies: [taskType, effectiveQuestionCount, targetScore, reviewAsset?.id],
   });
 
   const correctCount = useMemo(
