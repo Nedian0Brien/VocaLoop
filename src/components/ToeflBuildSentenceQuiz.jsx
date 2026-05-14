@@ -8,6 +8,12 @@ import {
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import {
+  buildSentenceAttempt,
+  canSubmitBuildSentence,
+  getBuildSentenceRequiredTokenCount,
+  hasBuildSentenceFrame,
+} from '../services/toefl/buildSentenceUtils';
 
 /**
  * 드래그 인서션 placeholder — flexbox + width 트랜지션으로 옆 단어를 부드럽게 밀어냄.
@@ -45,7 +51,7 @@ const DropPlaceholder = ({ active, drag }) => {
  * TOEFL Build a Sentence — 단어 토큰을 올바른 순서로 배열해 문장을 완성.
  *
  * UX
- *  - 문제마다 한국어 힌트(목표 문장 번역) 제공
+ *  - ETS형 문맥/문장 프레임을 우선 표시하고, 이전 저장 문제는 한국어 힌트 fallback 제공
  *  - 단어 은행에서 클릭하면 답안 영역으로 이동, 답안 단어 클릭하면 은행으로 복귀
  *  - 정답 확인은 AI 채점(`generateBuildSentenceFeedback`) 사용 — 정확/의미동등 모두 정답 처리
  *  - 마지막 문항 후 종합 리포트 (`generateBuildSentenceSummary`)
@@ -282,7 +288,7 @@ export default function ToeflBuildSentenceQuiz({
 
   const handleCheck = async () => {
     if (!currentQuestion || arrangement.length === 0 || status === 'checking') return;
-    const userAttempt = arrangement.map((i) => currentQuestion.words[i]).join(' ');
+    const userAttempt = buildSentenceAttempt(currentQuestion, arrangement);
     setAttempts((prev) => {
       const next = [...prev];
       next[currentIndex] = userAttempt;
@@ -349,7 +355,7 @@ export default function ToeflBuildSentenceQuiz({
       questionIndex: index,
       target: question.target,
       attempt: attempts[index] || (index === currentIndex
-        ? arrangement.map((wordIndex) => question.words[wordIndex]).join(' ')
+        ? buildSentenceAttempt(question, arrangement)
         : ''),
       correct: Boolean(results[index]),
     }));
@@ -384,6 +390,8 @@ export default function ToeflBuildSentenceQuiz({
 
   const totalQuestions = questions.length;
   const correctCount = results.filter(Boolean).length;
+  const requiredTokenCount = getBuildSentenceRequiredTokenCount(currentQuestion);
+  const isFramedQuestion = hasBuildSentenceFrame(currentQuestion);
 
   if (status === 'loading') {
     return (
@@ -452,7 +460,7 @@ export default function ToeflBuildSentenceQuiz({
 
   const isChecking = status === 'checking';
   const isFeedback = status === 'feedback';
-  const canCheck = arrangement.length > 0 && status === 'ready';
+  const canCheck = canSubmitBuildSentence(currentQuestion, arrangement, status);
 
   return (
     <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -483,13 +491,33 @@ export default function ToeflBuildSentenceQuiz({
         </div>
       </div>
 
-      {/* 힌트 */}
-      <div className="bg-surface-50 rounded-md p-4 md:p-6 border border-surface-100">
-        <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Hint (Korean)</p>
-        <p className="text-base md:text-lg font-bold text-surface-800 leading-relaxed">
-          {currentQuestion.hint || '힌트가 제공되지 않았습니다.'}
-        </p>
-      </div>
+      {currentQuestion.context || currentQuestion.sentenceFrame ? (
+        <div className="bg-surface-50 rounded-md p-4 md:p-6 border border-surface-100 space-y-4">
+          {currentQuestion.context && (
+            <div>
+              <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Context</p>
+              <p className="text-base md:text-lg font-bold text-surface-800 leading-relaxed">
+                {currentQuestion.context}
+              </p>
+            </div>
+          )}
+          {currentQuestion.sentenceFrame && (
+            <div>
+              <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Sentence Frame</p>
+              <p className="text-base md:text-lg font-black text-surface-900 leading-relaxed">
+                {currentQuestion.sentenceFrame}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-surface-50 rounded-md p-4 md:p-6 border border-surface-100">
+          <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Hint (Korean)</p>
+          <p className="text-base md:text-lg font-bold text-surface-800 leading-relaxed">
+            {currentQuestion.hint || '힌트가 제공되지 않았습니다.'}
+          </p>
+        </div>
+      )}
 
       {/* 답안 영역 */}
       <div>
@@ -626,7 +654,7 @@ export default function ToeflBuildSentenceQuiz({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
         <div className="text-sm text-surface-600 flex items-center gap-3">
           <span className="px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-xs">
-            배치 {arrangement.length}개
+            배치 {arrangement.length}{isFramedQuestion ? `/${requiredTokenCount}` : ''}개
           </span>
           <span className="px-3 py-1 rounded-pill bg-surface-100 text-surface-700 font-black text-xs">
             남은 단어 {bank.length}개

@@ -8,6 +8,11 @@ import {
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import {
+  buildSentenceAttempt,
+  getBuildSentenceRequiredTokenCount,
+  hasBuildSentenceFrame,
+} from '../services/toefl/buildSentenceUtils';
 
 const SENTENCE_COUNT = 10;
 
@@ -15,6 +20,9 @@ const normalizeSentenceItem = (item, index) => ({
   id: item?.id || index + 1,
   target: String(item?.target || ''),
   words: Array.isArray(item?.words) ? item.words.map(String).filter(Boolean) : [],
+  answer: Array.isArray(item?.answer) ? item.answer.map(String).filter(Boolean) : [],
+  context: item?.context || '',
+  sentenceFrame: item?.sentenceFrame || '',
   hint: item?.hint || '',
 });
 
@@ -91,6 +99,13 @@ export default function ToeflWritingMockTest({
   const isDiscussionStep = step === sentenceItems.length + 1;
   const activeBank = banks[step] || [];
   const activeArrangement = arrangements[step] || [];
+  const activeRequiredTokenCount = getBuildSentenceRequiredTokenCount(activeSentence);
+  const activeIsFramedQuestion = hasBuildSentenceFrame(activeSentence);
+  const activeSentenceIncomplete = activeSentence && (
+    activeIsFramedQuestion
+      ? activeArrangement.length !== activeRequiredTokenCount
+      : activeArrangement.length === 0
+  );
 
   const emailWordCount = useMemo(() => countWords(emailResponse), [emailResponse]);
   const discussionWordCount = useMemo(() => countWords(discussionResponse), [discussionResponse]);
@@ -194,7 +209,7 @@ export default function ToeflWritingMockTest({
   };
 
   const getSentenceResults = () => sentenceItems.map((item, index) => {
-    const attempt = (arrangements[index] || []).map((wordIndex) => item.words[wordIndex]).join(' ');
+    const attempt = buildSentenceAttempt(item, arrangements[index] || []);
     return {
       id: item.id,
       target: item.target,
@@ -369,8 +384,13 @@ export default function ToeflWritingMockTest({
               <p className="text-xs font-black uppercase tracking-widest text-surface-400">Build a Sentence</p>
             </div>
             <p className="text-base md:text-lg font-bold text-surface-800 leading-relaxed">
-              {activeSentence.hint || 'Arrange the words into a complete sentence.'}
+              {activeSentence.context || activeSentence.hint || 'Arrange the words into a complete sentence.'}
             </p>
+            {activeSentence.sentenceFrame && (
+              <p className="mt-4 text-base md:text-lg font-black text-surface-900 leading-relaxed">
+                {activeSentence.sentenceFrame}
+              </p>
+            )}
           </section>
 
           <section className="space-y-4">
@@ -403,6 +423,11 @@ export default function ToeflWritingMockTest({
                   ))
                 )}
               </div>
+              {activeIsFramedQuestion && (
+                <p className="mt-2 text-2xs font-black uppercase tracking-widest text-surface-400">
+                  Slots {activeArrangement.length}/{activeRequiredTokenCount}
+                </p>
+              )}
             </div>
 
             <div>
@@ -492,7 +517,7 @@ export default function ToeflWritingMockTest({
           onClick={handleNext}
           disabled={
             status === 'checking'
-            || (activeSentence && activeArrangement.length === 0)
+            || activeSentenceIncomplete
             || (isEmailStep && !emailResponse.trim())
             || (isDiscussionStep && !discussionResponse.trim())
           }

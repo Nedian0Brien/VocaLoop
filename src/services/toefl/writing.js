@@ -54,28 +54,41 @@ export const generateBuildSentenceSet = async ({
   const nonce = buildRandomNonce();
 
   const prompt = `
-You are creating a TOEFL "Build-a-Sentence" practice set for a learner targeting ${targetScore}+.
-Generate ${questionCount} sentence-reconstruction questions.
+You are creating an ETS-style Build a Sentence practice set for a learner targeting TOEFL ${targetScore}+.
+Generate exactly ${questionCount} sentence-reconstruction questions.
 
 For each question:
-1) "target": a complete academic sentence (10-20 words) using TOEFL-level vocabulary and structure.
-2) "words": array containing ALL words from the target sentence in SCRAMBLED order. Include punctuation as separate tokens only when necessary; otherwise omit punctuation. Optionally add 1-2 plausible distractor words to make the task harder, but keep it solvable.
-3) "hint": one-sentence Korean translation/paraphrase of the target.
-4) Topics may include science, history, social science, humanities — TOEFL-style.
+1) "context": one short English setup sentence or question that gives a realistic situation.
+2) "sentenceFrame": the sentence/question to complete, with each missing word or phrase represented by "_____". Keep any fixed words and punctuation in the frame.
+3) "target": the complete correct sentence or question after the blanks are filled.
+4) "words": scrambled array containing every answer token as words or phrases. Optionally add 0-2 plausible distractors, but keep the item solvable.
+5) "answer": array of the exact tokens that fill the blanks in order. Its length must match the number of "_____" blanks in sentenceFrame.
 ${vocabBlock}${topicBlock}
-DIVERSITY REQUIREMENTS (CRITICAL — different from previous sessions):
-- Use a mix of sentence structures (cause/effect, contrast, sequence, comparison, definition).
-- Avoid recycling the same subjects ("Researchers", "Scientists") across all sentences.
-- Vary verbs and avoid the most predictable academic collocations within a single set.
+
+AUTHENTICITY REQUIREMENTS:
+- Use English context only. Do not provide Korean translations, Korean paraphrases, or Korean hint text.
+- Most items should be everyday campus, work, travel, or social situations; use academic settings only occasionally.
+- Include questions and short responses, not only declarative sentences.
+- Use words or phrases as movable tokens, such as "any books", "to be", "very engaging", or "the last chapter".
+- Keep targets concise: usually 5-12 words, with 3-7 movable tokens.
+- Avoid advanced academic vocabulary unless the context naturally requires it.
+- Incorrect distractors should create common word-order or grammar traps.
+- Do not ask for opinions or explanations in Build a Sentence.
+- Do not create standalone long academic sentences with all words scrambled.
+- Do not provide Korean translations.
+- Diversify sentence patterns across the set.
 - Diversification token (do not output): ${nonce}
 
 Return ONLY valid JSON:
 {
   "questions": [
     {
-      "target": "Researchers concluded that climate change significantly accelerates species migration patterns.",
-      "words": ["that", "Researchers", "migration", "species", "significantly", "accelerates", "concluded", "patterns", "change", "climate"],
-      "hint": "연구원들은 기후 변화가 종의 이동 패턴을 크게 가속화한다고 결론지었다."
+      "id": 1,
+      "context": "I'm planning a trip to Europe this summer.",
+      "sentenceFrame": "_____ _____ book your _____ _____ ?",
+      "target": "Did you book your flight yet?",
+      "words": ["flight", "Did", "already", "yet", "you"],
+      "answer": ["Did", "you", "flight", "yet"]
     }
   ]
 }
@@ -94,8 +107,9 @@ Target sentence: "${target}"
 User's attempt: "${userAttempt}"
 
 Decide if the attempt:
-- exactly matches the target, OR
-- is grammatically valid AND semantically equivalent to the target.
+- uses the same required tokens in the same order as the target.
+- Ignore only capitalization, extra spaces, and spacing before punctuation.
+- Do not accept semantic paraphrases, substituted words, missing fixed words, reordered tokens, or extra distractors.
 
 Return JSON only:
 {
@@ -246,9 +260,14 @@ Create:
 ${vocabBlock}${topicBlock}
 
 Build a Sentence rules:
-- Each target sentence should be 8-18 words.
-- "words" must contain all target words in scrambled order.
-- Use punctuation sparingly; omit punctuation tokens unless necessary.
+- Use the same ETS-style Build a Sentence schema as standalone practice.
+- Each item needs "context", "sentenceFrame", "target", "words", and "answer".
+- Use English context only. Do not provide Korean translations.
+- Most items should be everyday campus, work, travel, or social situations.
+- Include questions and short responses, not only declarative sentences.
+- "words" must contain all answer tokens in scrambled order and may include 0-2 plausible distractors.
+- "answer" must list the exact tokens that fill the blanks in order.
+- Keep targets concise: usually 5-12 words, with 3-7 movable tokens.
 
 Writing task rules:
 - Email task should be practical and answerable in 7 minutes.
@@ -260,9 +279,11 @@ Return ONLY valid JSON:
   "sentenceItems": [
     {
       "id": 1,
-      "target": "A complete sentence.",
-      "words": ["scrambled", "word", "tokens"],
-      "hint": "Korean hint or paraphrase."
+      "context": "I'm going to study at the library this afternoon.",
+      "sentenceFrame": "_____ _____ _____ _____ _____ _____ ?",
+      "target": "Do you need to borrow any books?",
+      "words": ["to", "do", "borrow", "any books", "you", "need"],
+      "answer": ["Do", "you", "need", "to", "borrow", "any books"]
     }
   ],
   "emailTask": {
