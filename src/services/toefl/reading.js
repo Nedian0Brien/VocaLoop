@@ -15,11 +15,26 @@ const READING_TASK_SPECS = {
   'academic-passage': {
     label: 'Read an Academic Passage',
     stimulus: 'TOEFL-style academic passage',
-    questionTypes: 'main idea, detail, inference, vocabulary-in-context, rhetorical purpose, and idea relationship',
+    questionTypes: 'vocabulary-in-context, factual detail, inference, rhetorical purpose, and idea relationship',
     length: '140-220 words',
     fixedQuestionCount: 5,
   },
 };
+
+const ACADEMIC_PASSAGE_BLUEPRINT = `
+Academic Passage question blueprint (follow exactly, one question per numbered slot, in this order):
+1. vocabulary-context: Ask "The word/phrase X in the passage is closest in meaning to..." and choose an academic word or phrase whose meaning is clear from context.
+2. detail: Ask for directly supported information, or use a TOEFL-style negative factual stem such as "Which of the following is NOT mentioned...".
+3. inference: Use "infer", "imply", or "suggest" and require a small logical step from the passage, not outside knowledge.
+4. rhetorical-purpose: Ask why the author mentions a specific example, comparison, study, or detail.
+5. idea-relationship: Ask how two paragraphs, claims, processes, or ideas are related, such as cause/effect, example/generalization, contrast, or problem/solution.
+
+Academic Passage constraints:
+- Use exactly these skillTag values in the same order: vocabulary-context, detail, inference, rhetorical-purpose, idea-relationship.
+- Do not use Daily Life-only skill tags such as scanning or practical-interpretation.
+- Every incorrect option must be plausible but contradicted, unsupported, too broad, too narrow, or based on a minor detail.
+- Avoid questions that require prior knowledge; every answer must be supported by the passage alone.
+`;
 
 const MOCK_TASK_MIX = [
   {
@@ -170,6 +185,7 @@ Learner target: TOEFL ${targetScore}+.
 Create one ${spec.stimulus} (${spec.length}) and ${generatedQuestionCount} multiple-choice questions.
 Question types to cover: ${spec.questionTypes}.
 The "questions" array must contain exactly ${generatedQuestionCount} items, all answerable from that one stimulus.
+${taskType === 'academic-passage' ? ACADEMIC_PASSAGE_BLUEPRINT : ''}
 ${vocabBlock}${topicBlock}
 PERSONALIZATION:
 - If learner vocabulary is provided, weave several words naturally into the text or answer explanations.
@@ -192,7 +208,7 @@ Return ONLY valid JSON:
       "prompt": "Question stem",
       "options": ["A", "B", "C", "D"],
       "answerIndex": 0,
-      "skillTag": "scanning | detail | main-idea | inference | vocabulary-context | rhetorical-structure | practical-interpretation",
+      "skillTag": "scanning | detail | main-idea | inference | vocabulary-context | rhetorical-purpose | idea-relationship | practical-interpretation",
       "explanationKo": "Korean explanation of why the answer is correct.",
       "saveableWords": ["optional", "words"]
     }
