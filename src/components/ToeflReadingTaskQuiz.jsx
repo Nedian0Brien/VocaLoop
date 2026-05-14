@@ -5,6 +5,7 @@ import { playSound } from '../utils/soundEffects';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
 import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import ToeflQuestionSetNavigator from './ToeflQuestionSetNavigator';
 import {
   useToeflVocabularyCapture,
   VocabularyCaptureText,
@@ -64,7 +65,7 @@ export default function ToeflReadingTaskQuiz({
   const effectiveQuestionCount = resolveQuestionCount(taskType, questionCount);
   const [setData, setSetData] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [checked, setChecked] = useState(false);
   const [results, setResults] = useState([]);
   const vocabCapture = useToeflVocabularyCapture({
@@ -75,6 +76,16 @@ export default function ToeflReadingTaskQuiz({
 
   const currentQuestion = setData?.questions?.[currentIndex];
   const totalQuestions = setData?.questions?.length || 0;
+  const selectedIndex = selectedAnswers[currentIndex] ?? null;
+  const answeredStates = useMemo(
+    () => Array.from({ length: totalQuestions }, (_, index) => selectedAnswers[index] !== null && selectedAnswers[index] !== undefined),
+    [selectedAnswers, totalQuestions]
+  );
+  const answeredCount = useMemo(
+    () => answeredStates.filter(Boolean).length,
+    [answeredStates]
+  );
+  const allQuestionsAnswered = totalQuestions > 0 && answeredCount === totalQuestions;
 
   const { activeAsset, error, reload: loadQuestions, sessionContext, setStatus, status } = useToeflQuizSession({
     reviewAsset,
@@ -84,7 +95,7 @@ export default function ToeflReadingTaskQuiz({
     resetSession: () => {
       setSetData(null);
       setCurrentIndex(0);
-      setSelectedIndex(null);
+      setSelectedAnswers([]);
       setChecked(false);
       setResults([]);
     },
@@ -122,7 +133,13 @@ export default function ToeflReadingTaskQuiz({
         pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
       },
     }),
-    onReady: (normalized) => setSetData(normalized),
+    onReady: (normalized) => {
+      setSetData(normalized);
+      setCurrentIndex(0);
+      setSelectedAnswers(new Array(normalized.questions.length).fill(null));
+      setChecked(false);
+      setResults([]);
+    },
     errorMessage: reviewAsset ? '저장된 Reading 문제를 불러오지 못했습니다.' : 'Reading 문제 생성 중 오류가 발생했습니다.',
     dependencies: [taskType, effectiveQuestionCount, targetScore, reviewAsset?.id],
   });
@@ -132,33 +149,43 @@ export default function ToeflReadingTaskQuiz({
     [results]
   );
 
-  const handleCheck = () => {
-    if (!currentQuestion || selectedIndex === null || checked) return;
-    const correct = selectedIndex === currentQuestion.answerIndex;
-    const result = {
-      questionId: currentQuestion.id,
-      correct,
-      selectedIndex,
-      answerIndex: currentQuestion.answerIndex,
-      skillTag: currentQuestion.skillTag,
-    };
-    setResults((prev) => {
+  const buildResults = () =>
+    (setData?.questions || []).map((question, index) => {
+      const answerIndex = selectedAnswers[index];
+      return {
+        questionId: question.id,
+        correct: answerIndex === question.answerIndex,
+        selectedIndex: answerIndex,
+        answerIndex: question.answerIndex,
+        skillTag: question.skillTag,
+      };
+    });
+
+  const handleSelectAnswer = (answerIndex) => {
+    if (checked) return;
+    setSelectedAnswers((prev) => {
       const next = [...prev];
-      next[currentIndex] = result;
+      next[currentIndex] = answerIndex;
       return next;
     });
-    setChecked(true);
-    playSound(correct ? 'SUCCESS' : 'FAIL');
   };
 
-  const handleNext = () => {
-    if (currentIndex < totalQuestions - 1) {
-      setCurrentIndex((index) => index + 1);
-      setSelectedIndex(null);
-      setChecked(false);
-      return;
-    }
-    const finalResults = results.filter(Boolean);
+  const handleNavigate = (nextIndex) => {
+    if (nextIndex < 0 || nextIndex >= totalQuestions) return;
+    setCurrentIndex(nextIndex);
+  };
+
+  const handleCheck = () => {
+    if (!currentQuestion || checked || !allQuestionsAnswered) return;
+    const finalResults = buildResults();
+    setResults(finalResults);
+    setChecked(true);
+    playSound(finalResults.every((result) => result.correct) ? 'SUCCESS' : 'FAIL');
+  };
+
+  const handleReport = () => {
+    if (!checked) return;
+    const finalResults = results.length > 0 ? results.filter(Boolean) : buildResults();
     const finalCorrect = finalResults.filter((result) => Boolean(result?.correct)).length;
     const finalTotal = finalResults.length;
     recordToeflReadingAttempt({
@@ -245,6 +272,14 @@ export default function ToeflReadingTaskQuiz({
         </div>
       </div>
 
+      <ToeflQuestionSetNavigator
+        answeredStates={answeredStates}
+        currentIndex={currentIndex}
+        isRevealed={checked}
+        onNavigate={handleNavigate}
+        totalQuestions={totalQuestions}
+      />
+
       <section className="rounded-md border border-surface-100 bg-surface-50 p-5 md:p-7">
         <div className="mb-4 flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-brand-600" aria-hidden="true" />
@@ -297,8 +332,10 @@ export default function ToeflReadingTaskQuiz({
                 <button
                   key={`${currentQuestion.id}-${option}`}
                   type="button"
+                  data-selected={isSelected ? 'true' : 'false'}
+                  aria-pressed={isSelected}
                   disabled={checked}
-                  onClick={() => setSelectedIndex(index)}
+                  onClick={() => handleSelectAnswer(index)}
                   className={[
                     'w-full text-left rounded-md border px-4 py-3 font-bold transition-all',
                     isCorrect
@@ -330,16 +367,23 @@ export default function ToeflReadingTaskQuiz({
                 {currentQuestion.explanationKo}
               </p>
             </div>
-          )}
+            )}
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm font-bold text-surface-500">
+              {checked
+                ? '전체 문항의 정답과 해설을 확인할 수 있습니다.'
+                : allQuestionsAnswered
+                  ? '모든 문항을 풀었습니다. 이제 한 번에 정답을 확인하세요.'
+                  : `남은 문항 ${totalQuestions - answeredCount}개를 풀면 정답 확인이 열립니다.`}
+            </p>
             {!checked ? (
-              <Button variant="primary" size="md" onClick={handleCheck} disabled={selectedIndex === null}>
+              <Button variant="primary" size="md" onClick={handleCheck} disabled={!allQuestionsAnswered}>
                 정답 확인
               </Button>
             ) : (
-              <Button variant="primary" size="md" onClick={handleNext}>
-                {currentIndex < totalQuestions - 1 ? '다음 문항' : '리포트 보기'}
+              <Button variant="primary" size="md" onClick={handleReport}>
+                리포트 보기
               </Button>
             )}
           </div>

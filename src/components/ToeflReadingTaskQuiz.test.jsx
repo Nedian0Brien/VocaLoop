@@ -213,6 +213,87 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     });
   });
 
+  test('lets learners move across passage questions and checks answers only after the full set is solved', async () => {
+    toeflService.generateReadingTaskSet.mockResolvedValueOnce({
+      taskType: 'academic-passage',
+      title: 'Ocean Study',
+      stimulusLabel: 'Academic passage',
+      stimulus: 'Researchers studied ocean currents and coastal ecosystems.',
+      topicTags: ['earth-science'],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'What did researchers study?',
+          options: ['Ocean currents', 'Mountain rocks', 'Urban parks', 'Desert winds'],
+          answerIndex: 0,
+          skillTag: 'detail',
+          explanationKo: '지문에서 ocean currents를 연구했다고 말합니다.',
+        },
+        {
+          id: 'q2',
+          prompt: 'Which ecosystem is mentioned?',
+          options: ['Forest', 'Coastal', 'Tundra', 'Grassland'],
+          answerIndex: 1,
+          skillTag: 'vocabulary-context',
+          explanationKo: 'coastal ecosystems가 언급됩니다.',
+        },
+        {
+          id: 'q3',
+          prompt: 'What field is the passage closest to?',
+          options: ['Architecture', 'Earth science', 'Music theory', 'Law'],
+          answerIndex: 1,
+          skillTag: 'inference',
+          explanationKo: '해류와 생태계 연구는 지구과학과 가깝습니다.',
+        },
+      ],
+    });
+
+    render(
+      <ToeflReadingTaskQuiz
+        aiConfig={{ provider: 'gemini', apiKey: 'test-key' }}
+        taskType="academic-passage"
+        questionCount={1}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={vi.fn()}
+        onExplainVocabularyWord={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Ocean Study');
+    const checkButton = screen.getByRole('button', { name: '정답 확인' });
+    expect(checkButton.disabled).toBe(true);
+    expect(screen.getByText('풀이 0/3')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ocean currents' }));
+    expect(screen.getByText('풀이 1/3')).toBeTruthy();
+    expect(checkButton.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '다음 문항' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Coastal' }));
+    expect(screen.getByText('풀이 2/3')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '이전 문항' }));
+    expect(screen.getByRole('button', { name: 'Ocean currents' }).dataset.selected).toBe('true');
+    expect(screen.queryByText('정답입니다')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '문항 3로 이동' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Architecture' }));
+    expect(screen.getByText('풀이 3/3')).toBeTruthy();
+    expect(checkButton.disabled).toBe(false);
+
+    fireEvent.click(checkButton);
+    expect(screen.getByText('오답입니다')).toBeTruthy();
+    expect(screen.getByText('해류와 생태계 연구는 지구과학과 가깝습니다.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '이전 문항' }));
+    expect(screen.getByText('정답입니다')).toBeTruthy();
+    expect(screen.getByText('coastal ecosystems가 언급됩니다.')).toBeTruthy();
+  });
+
   test('forces Academic Passage generation to five questions', async () => {
     render(
       <ToeflReadingTaskQuiz
