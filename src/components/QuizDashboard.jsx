@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3, RotateCw } from './Icons';
+import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3 } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
+import ToeflReviewPanel from './ToeflReviewPanel';
 import {
   QUIZ_MODE_BY_ID,
-  TOEFL_MODE_TITLES,
   TOEFL_READING_LABELS,
   TOEFL_READING_MODES,
   TOEFL_WRITING_MODES,
@@ -136,38 +136,15 @@ const HistoryItem = ({ entry, onSelect }) => {
   );
 };
 
-const ToeflAssetItem = ({ asset, onSelect }) => {
-  const createdAt = asset?.createdAt || asset?.created_at;
-  const dateText = createdAt ? new Date(createdAt).toLocaleDateString() : 'Saved';
-  const modeLabel = TOEFL_MODE_TITLES[asset?.mode] || asset?.mode || 'TOEFL';
-
-  return (
-    <Card
-      variant="elevated"
-      radius="xl"
-      padding="sm"
-      hover
-      as="button"
-      onClick={() => onSelect?.(asset)}
-      aria-label={`${asset?.title || modeLabel} 복습하기`}
-      className="group !p-5 w-full text-left"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-2xs font-black text-surface-400 uppercase tracking-widest">{dateText}</span>
-        <Badge tone="brand" size="xs">Review</Badge>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-black text-surface-800 truncate">{asset?.title || modeLabel}</p>
-          <p className="mt-1 text-2xs font-black uppercase tracking-widest text-surface-400">{modeLabel}</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-surface-300 group-hover:translate-x-1 group-hover:text-brand-500 transition-all shrink-0" aria-hidden="true" />
-      </div>
-    </Card>
-  );
-};
-
-export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAssets = [], onSelectToeflAsset }) {
+export default function QuizDashboard({
+  onSelectMode,
+  stats,
+  wordCount,
+  toeflAssets = [],
+  toeflReviewItems = [],
+  onSelectToeflAsset,
+  onSelectToeflReviewItem,
+}) {
   const [history, setHistory] = useState([]);
   const [readingSummary, setReadingSummary] = useState(() => summarizeToeflReadingStats());
 
@@ -357,28 +334,12 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
 
         {/* Sidebar: Recent Activity */}
         <aside className="space-y-8">
-          <section>
-            <div className="flex items-center gap-3 mb-8 px-2">
-              <div className="w-10 h-10 rounded-md bg-brand-50 grid place-items-center text-brand-600 shadow-[var(--shadow-soft)]">
-                <RotateCw className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <h3 className="text-xl font-black text-surface-900 tracking-tight">TOEFL Review</h3>
-            </div>
-
-            <div className="space-y-4">
-              {toeflAssets.length > 0 ? (
-                toeflAssets.slice(0, 5).map((asset) => (
-                  <ToeflAssetItem key={asset.id} asset={asset} onSelect={onSelectToeflAsset} />
-                ))
-              ) : (
-                <Card variant="outlined" radius="card" padding="lg" className="text-center !border-dashed">
-                  <p className="text-surface-400 text-sm font-bold leading-relaxed">
-                    아직 저장된 TOEFL 문제가 없습니다.<br />AI 문제를 풀면 여기에 쌓입니다.
-                  </p>
-                </Card>
-              )}
-            </div>
-          </section>
+          <ToeflReviewPanel
+            reviewItems={toeflReviewItems}
+            toeflAssets={toeflAssets}
+            onSelectReviewItem={onSelectToeflReviewItem}
+            onSelectToeflAsset={onSelectToeflAsset}
+          />
 
           <section>
             <div className="flex items-center gap-3 mb-8 px-2">

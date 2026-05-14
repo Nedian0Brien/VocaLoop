@@ -4,6 +4,7 @@ import QuizDashboard from './QuizDashboard';
 import QuizConfigModal from './QuizConfigModal';
 import QuizResult from './QuizResult';
 import QuizModeContent from './QuizModeContent';
+import ToeflReviewDetail from './ToeflReviewDetail';
 import { TOEFL_MODE_TITLES } from './quizModeRegistry';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
@@ -15,7 +16,8 @@ import {
   startNextAdaptiveSet,
   resolveAdaptiveAnswer,
 } from '../services/adaptiveQuizService';
-import { createToeflAsset, createToeflAttempt, listToeflAssets } from '../services/toeflAssetApi';
+import { createToeflAsset, createToeflAttempt, getToeflAsset, listToeflAssets } from '../services/toeflAssetApi';
+import { listToeflReviewItems, updateToeflReviewItem } from '../services/toeflReviewApi';
 
 /**
  * 상단 상태 칩 — Sound / AI 토글 표시.
@@ -101,7 +103,10 @@ export default function QuizView({
   const [selectedMode, setSelectedMode] = useState(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [reviewAsset, setReviewAsset] = useState(null);
+  const [selectedReviewItem, setSelectedReviewItem] = useState(null);
+  const [isUpdatingReviewItem, setIsUpdatingReviewItem] = useState(false);
   const [toeflAssets, setToeflAssets] = useState([]);
+  const [toeflReviewItems, setToeflReviewItems] = useState([]);
 
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -190,9 +195,24 @@ export default function QuizView({
     }
   }, [user]);
 
+  const refreshToeflReviewItems = useCallback(async () => {
+    if (!user) {
+      setToeflReviewItems([]);
+      return;
+    }
+    try {
+      const items = await listToeflReviewItems({ scope: 'all', limit: 100 });
+      setToeflReviewItems(Array.isArray(items) ? items : []);
+    } catch (error) {
+      console.warn('Failed to load TOEFL review items', error);
+      setToeflReviewItems([]);
+    }
+  }, [user]);
+
   useEffect(() => {
     refreshToeflAssets();
-  }, [refreshToeflAssets]);
+    refreshToeflReviewItems();
+  }, [refreshToeflAssets, refreshToeflReviewItems]);
 
   const handleToeflAssetCreated = useCallback(async (payload) => {
     if (!user) return null;
@@ -210,17 +230,20 @@ export default function QuizView({
     const assetId = asset?.id;
     if (!user || !assetId) return null;
     try {
-      return await createToeflAttempt(assetId, payload);
+      const attempt = await createToeflAttempt(assetId, payload);
+      await refreshToeflReviewItems();
+      return attempt;
     } catch (error) {
       console.warn('Failed to record TOEFL attempt', error);
       return null;
     }
-  }, [user]);
+  }, [refreshToeflReviewItems, user]);
 
   const handleBackToModeSelect = useCallback(() => {
     setQuizState('select');
     setSelectedMode(null);
     setReviewAsset(null);
+    setSelectedReviewItem(null);
     setQueue([]);
     setCurrentIndex(0);
     setAdaptiveSession(null);
@@ -308,6 +331,43 @@ export default function QuizView({
     }));
     setShowConfigModal(false);
     setQuizState('quiz');
+  };
+
+  const handleToeflReviewItemSelect = (item) => {
+    setSelectedReviewItem(item);
+    setReviewAsset(null);
+    setSelectedMode(null);
+    setShowConfigModal(false);
+    setQuizState('toefl-review');
+  };
+
+  const handleOpenReviewAsset = (item) => {
+    const asset = toeflAssets.find((candidate) => candidate.id === item?.assetId || candidate.id === item?.asset_id);
+    if (asset) {
+      handleToeflAssetSelect(asset);
+      return;
+    }
+    const assetId = item?.assetId || item?.asset_id;
+    if (!assetId) return;
+    getToeflAsset(assetId)
+      .then((loadedAsset) => {
+        if (loadedAsset) handleToeflAssetSelect(loadedAsset);
+      })
+      .catch((error) => console.warn('Failed to load TOEFL review asset', error));
+  };
+
+  const handleMarkReviewItem = async (item, result) => {
+    if (!item?.id) return;
+    setIsUpdatingReviewItem(true);
+    try {
+      const updated = await updateToeflReviewItem(item.id, { result });
+      setSelectedReviewItem(updated);
+      await refreshToeflReviewItems();
+    } catch (error) {
+      console.warn('Failed to update TOEFL review item', error);
+    } finally {
+      setIsUpdatingReviewItem(false);
+    }
   };
 
   const handleAnswer = (isCorrect) => {
@@ -405,7 +465,19 @@ export default function QuizView({
           stats={dashboardStats}
           wordCount={words.length}
           toeflAssets={toeflAssets}
+          toeflReviewItems={toeflReviewItems}
           onSelectToeflAsset={handleToeflAssetSelect}
+          onSelectToeflReviewItem={handleToeflReviewItemSelect}
+        />
+      )}
+
+      {quizState === 'toefl-review' && (
+        <ToeflReviewDetail
+          item={selectedReviewItem}
+          onBack={handleBackToModeSelect}
+          onMark={handleMarkReviewItem}
+          onOpenAsset={handleOpenReviewAsset}
+          updating={isUpdatingReviewItem}
         />
       )}
 

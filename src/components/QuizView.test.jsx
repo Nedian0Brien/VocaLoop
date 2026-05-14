@@ -6,8 +6,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const toeflAssetApi = vi.hoisted(() => ({
     listToeflAssets: vi.fn(),
+    getToeflAsset: vi.fn(),
     createToeflAsset: vi.fn(),
     createToeflAttempt: vi.fn(),
+}));
+
+const toeflReviewApi = vi.hoisted(() => ({
+    listToeflReviewItems: vi.fn(),
+    updateToeflReviewItem: vi.fn(),
 }));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
@@ -75,6 +81,7 @@ vi.mock('../utils/soundEffects', () => ({
 }));
 
 vi.mock('../services/toeflAssetApi', () => toeflAssetApi);
+vi.mock('../services/toeflReviewApi', () => toeflReviewApi);
 
 import QuizView from './QuizView';
 
@@ -88,8 +95,11 @@ afterEach(() => {
 describe('QuizView', () => {
     beforeEach(() => {
         toeflAssetApi.listToeflAssets.mockResolvedValue([]);
+        toeflAssetApi.getToeflAsset.mockResolvedValue(null);
         toeflAssetApi.createToeflAsset.mockResolvedValue(null);
         toeflAssetApi.createToeflAttempt.mockResolvedValue(null);
+        toeflReviewApi.listToeflReviewItems.mockResolvedValue([]);
+        toeflReviewApi.updateToeflReviewItem.mockResolvedValue(null);
     });
 
     test('renders the study dashboard and enters quiz mode', () => {
@@ -347,6 +357,7 @@ describe('QuizView', () => {
             />
         );
 
+        fireEvent.click(await screen.findByRole('tab', { name: /Saved 1/ }));
         await screen.findByText('Campus Notice Review');
         fireEvent.click(screen.getByRole('button', { name: 'Campus Notice Review 복습하기' }));
 
@@ -355,5 +366,86 @@ describe('QuizView', () => {
             expect(screen.getByText('review-asset:Campus Notice Review')).toBeTruthy();
         });
         expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
+    });
+
+    test('opens TOEFL review items and records review progress', async () => {
+        toeflReviewApi.listToeflReviewItems.mockResolvedValue([
+            {
+                id: 11,
+                assetId: 7,
+                attemptId: 3,
+                mode: 'toefl-daily-life',
+                taskType: 'daily-life',
+                itemKey: 'toefl-daily-life:q1',
+                title: 'Campus Schedule',
+                prompt: 'When is the workshop?',
+                userAnswer: 'Monday',
+                correctAnswer: 'Wednesday',
+                explanation: 'moved from Monday to Wednesday',
+                sourceSnapshot: { stimulus: 'The workshop moved from Monday to Wednesday.' },
+                skillTag: 'detail',
+                topicTags: ['campus'],
+                status: 'new',
+                dueAt: new Date(Date.now() - 1000).toISOString(),
+                reviewCount: 0,
+                successStreak: 0,
+                lastResult: 'wrong',
+            },
+        ]);
+        toeflReviewApi.updateToeflReviewItem.mockResolvedValue({
+            id: 11,
+            assetId: 7,
+            attemptId: 3,
+            mode: 'toefl-daily-life',
+            taskType: 'daily-life',
+            itemKey: 'toefl-daily-life:q1',
+            title: 'Campus Schedule',
+            prompt: 'When is the workshop?',
+            userAnswer: 'Monday',
+            correctAnswer: 'Wednesday',
+            explanation: 'moved from Monday to Wednesday',
+            sourceSnapshot: {},
+            skillTag: 'detail',
+            topicTags: ['campus'],
+            status: 'reviewing',
+            dueAt: new Date(Date.now() + 86400000).toISOString(),
+            reviewCount: 1,
+            successStreak: 1,
+            lastResult: 'correct',
+        });
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'ecosystem',
+                        meaning_ko: '생태계',
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={true}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        await screen.findByText('Campus Schedule');
+        fireEvent.click(screen.getByRole('button', { name: 'Campus Schedule 오답 복습' }));
+
+        expect(screen.getByRole('heading', { name: 'When is the workshop?' })).toBeTruthy();
+        expect(screen.getByText('Monday')).toBeTruthy();
+        expect(screen.getByText('Wednesday')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: '이해 완료' }));
+        await waitFor(() => {
+            expect(toeflReviewApi.updateToeflReviewItem).toHaveBeenCalledWith(11, { result: 'correct' });
+        });
     });
 });
