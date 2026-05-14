@@ -1,6 +1,7 @@
 import React from 'react';
 import { AI_PROVIDERS } from '../services/aiModelService';
 import { Button, Stat } from '../design-system';
+import ProviderLogo from './ProviderLogos';
 import {
   AlertTriangle,
   BarChart3,
@@ -19,6 +20,11 @@ import {
 
 const labelClass = 'block text-sm font-bold text-surface-700 mb-2';
 const inputClass = 'w-full px-4 py-2 border border-surface-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500';
+const providerDisplay = {
+  gemini: { label: 'Gemini', caption: 'Google AI' },
+  openai: { label: 'Codex', caption: 'OpenAI' },
+  claude: { label: 'Claude', caption: 'Anthropic' },
+};
 
 export const ActionCard = ({ tone = 'neutral', icon: Icon, title, desc, children }) => {
   const tones = {
@@ -152,11 +158,39 @@ export function ProfileSettingsPanel({
       <div className="space-y-4 border border-surface-200 rounded-xl p-4">
         <div>
           <label className={labelClass}>AI Provider</label>
-          <select value={aiProvider} onChange={(event) => onAiProviderChange(event.target.value)} className={inputClass}>
-            {Object.values(AI_PROVIDERS).map((provider) => (
-              <option key={provider.id} value={provider.id}>{provider.label}</option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="AI Provider">
+            {Object.values(AI_PROVIDERS).map((provider) => {
+              const display = providerDisplay[provider.id] || { label: provider.label, caption: provider.name };
+
+              return (
+                <button
+                  key={provider.id}
+                  type="button"
+                  role="radio"
+                  aria-label={`${display.label} ${display.caption}`}
+                  aria-checked={aiProvider === provider.id}
+                  onClick={() => onAiProviderChange(provider.id)}
+                  className={[
+                    'flex items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+                    aiProvider === provider.id
+                      ? 'border-brand-300 bg-brand-50 text-brand-900'
+                      : 'border-surface-200 bg-white text-surface-700 hover:border-surface-300 hover:bg-surface-50',
+                  ].join(' ')}
+                >
+                  <ProviderLogo provider={provider.id} className="h-7 w-7 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-black leading-tight">
+                      {display.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-bold text-surface-500">
+                      {display.caption}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div>

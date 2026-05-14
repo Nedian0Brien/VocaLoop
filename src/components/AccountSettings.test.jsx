@@ -99,12 +99,12 @@ describe('AccountSettings backend migration', () => {
 
         fireEvent.change(screen.getByPlaceholderText('이름을 입력하세요'), { target: { value: 'Updated User' } });
         fireEvent.change(screen.getByPlaceholderText('예: 100'), { target: { value: '115' } });
-        fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'openai' } });
+        fireEvent.click(screen.getByRole('radio', { name: /Codex OpenAI/ }));
         fireEvent.change(screen.getByPlaceholderText('OpenAI API Keys에서 발급받은 키 입력'), {
             target: { value: 'test-openai-key' },
         });
         await waitFor(() => {
-            expect(screen.getAllByRole('combobox')[0].value).toBe('openai');
+            expect(screen.getByRole('radio', { name: /Codex OpenAI/ }).getAttribute('aria-checked')).toBe('true');
             expect(screen.getByPlaceholderText('OpenAI API Keys에서 발급받은 키 입력').value).toBe('test-openai-key');
         });
         fireEvent.click(screen.getByRole('button', { name: '프로필 저장' }));
