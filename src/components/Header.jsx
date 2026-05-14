@@ -11,6 +11,7 @@ import { InfinityIcon, Settings } from './Icons';
 const NAV_LINKS = [
     { view: 'dashboard', href: '/',      label: 'Dashboard' },
     { view: 'study',     href: '/study', label: 'Study'     },
+    { view: 'review',    href: '/review', label: 'Review'   },
 ];
 
 const NavLink = ({ active, href, onClick, children }) => (
@@ -19,7 +20,7 @@ const NavLink = ({ active, href, onClick, children }) => (
         onClick={(e) => { e.preventDefault(); onClick(); }}
         aria-current={active ? 'page' : undefined}
         className={[
-            'relative h-9 px-4 inline-flex items-center text-sm font-bold tracking-tight rounded-pill transition-all duration-150',
+            'relative h-9 px-3 sm:px-4 inline-flex items-center text-sm font-bold tracking-tight rounded-pill transition-all duration-150',
             active
                 ? 'text-brand-700 bg-brand-50'
                 : 'text-surface-500 hover:text-surface-900 hover:bg-surface-100',
@@ -31,7 +32,7 @@ const NavLink = ({ active, href, onClick, children }) => (
 
 const Header = ({ view, setView, user, onOpenSettings }) => (
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-surface-100">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
             <a
                 href="/"
                 onClick={(e) => { e.preventDefault(); setView('dashboard'); }}
@@ -44,8 +45,8 @@ const Header = ({ view, setView, user, onOpenSettings }) => (
                 <h1 className="text-xl font-black tracking-tight">VocaLoop</h1>
             </a>
 
-            <div className="flex items-center gap-2">
-                <nav className="flex items-center gap-1" aria-label="주요 메뉴">
+            <div className="flex items-center gap-2 min-w-0">
+                <nav className="flex items-center gap-1 overflow-x-auto" aria-label="주요 메뉴">
                     {NAV_LINKS.map(({ view: v, href, label }) => (
                         <NavLink
                             key={v}

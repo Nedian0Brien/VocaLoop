@@ -49,18 +49,19 @@ Review items keep a small source snapshot so the review note remains readable ev
 
 ## UI
 
-The Study dashboard keeps the existing VocaLoop design language.
+Review is a top-level navigation tab at `/review`. Study remains focused on choosing learning modes, while Review owns the saved-problem replay and mistake queue.
 
 Use the existing design-system primitives:
 
 - `Card` for review surfaces and list items.
 - `Badge` for status and metadata.
 - `Button` for actions.
+- `Stat` for queue metrics.
 - `SectionHeading` for the main review module heading.
 
 Do not introduce a separate visual language, decorative card nesting, or ad hoc colors outside the current token families.
 
-Dashboard tabs:
+Review tabs:
 
 - `Today`: due review items.
 - `Mistakes`: active non-mastered review items.

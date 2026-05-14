@@ -18,6 +18,7 @@ import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutoc
 
 const AccountSettings = React.lazy(() => import('./components/AccountSettings'));
 const QuizView = React.lazy(() => import('./components/QuizView'));
+const ToeflReviewView = React.lazy(() => import('./components/ToeflReviewView'));
 
 // --- System Constants ---
 const loadConfig = (envKey, localKey) => {
@@ -40,8 +41,8 @@ const MAX_WORD_SUGGESTIONS = 5;
 const MIN_WORD_SUGGESTION_LENGTH = 2;
 
 // --- URL ↔ View 매핑 ---
-const PATH_TO_VIEW = { '/study': 'study', '/dashboard': 'dashboard' };
-const VIEW_TO_PATH = { study: '/study', dashboard: '/' };
+const PATH_TO_VIEW = { '/study': 'study', '/review': 'review', '/dashboard': 'dashboard' };
+const VIEW_TO_PATH = { study: '/study', review: '/review', dashboard: '/' };
 
 const getViewFromPath = () =>
     PATH_TO_VIEW[window.location.pathname] ?? 'dashboard';
@@ -59,6 +60,7 @@ const RouteFallback = ({ label = 'Loading view...' }) => (
 function App() {
     const [view, setView] = useState(getViewFromPath);
     const [showSettings, setShowSettings] = useState(false);
+    const [pendingToeflReviewAsset, setPendingToeflReviewAsset] = useState(null);
 
     // URL ↔ state 동기화: pushState + popstate
     const navigate = React.useCallback((nextView) => {
@@ -206,6 +208,12 @@ function App() {
     };
 
     const handleAccountDeleted = () => clearSessionState();
+
+    const handleStartToeflAssetReview = useCallback((asset) => {
+        if (!asset) return;
+        setPendingToeflReviewAsset(asset);
+        navigate('study');
+    }, [navigate]);
 
     const NotificationToast = () => notification ? (
         <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-[var(--shadow-elevated)] z-50 text-white font-bold flex items-center gap-2 animate-bounce ${
@@ -362,7 +370,14 @@ function App() {
                             onUpdateLearningRate={handleUpdateLearningRate}
                             onSaveVocabularyWord={handleSaveVocabularyWord}
                             onExplainVocabularyWord={handleExplainVocabularyWord}
+                            initialReviewAsset={pendingToeflReviewAsset}
+                            onInitialReviewAssetConsumed={() => setPendingToeflReviewAsset(null)}
                         />
+                    </Suspense>
+                )}
+                {view === 'review' && (
+                    <Suspense fallback={<RouteFallback label="Loading review..." />}>
+                        <ToeflReviewView onStartAssetReview={handleStartToeflAssetReview} />
                     </Suspense>
                 )}
             </main>

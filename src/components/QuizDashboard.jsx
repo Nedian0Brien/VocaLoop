@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3 } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
-import ToeflReviewPanel from './ToeflReviewPanel';
 import {
   QUIZ_MODE_BY_ID,
   TOEFL_READING_LABELS,
@@ -140,10 +139,6 @@ export default function QuizDashboard({
   onSelectMode,
   stats,
   wordCount,
-  toeflAssets = [],
-  toeflReviewItems = [],
-  onSelectToeflAsset,
-  onSelectToeflReviewItem,
 }) {
   const [history, setHistory] = useState([]);
   const [readingSummary, setReadingSummary] = useState(() => summarizeToeflReadingStats());
@@ -334,13 +329,6 @@ export default function QuizDashboard({
 
         {/* Sidebar: Recent Activity */}
         <aside className="space-y-8">
-          <ToeflReviewPanel
-            reviewItems={toeflReviewItems}
-            toeflAssets={toeflAssets}
-            onSelectReviewItem={onSelectToeflReviewItem}
-            onSelectToeflAsset={onSelectToeflAsset}
-          />
-
           <section>
             <div className="flex items-center gap-3 mb-8 px-2">
               <div className="w-10 h-10 rounded-md bg-surface-100 grid place-items-center text-surface-600 shadow-[var(--shadow-soft)]">

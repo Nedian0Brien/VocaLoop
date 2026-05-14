@@ -91,6 +91,10 @@ vi.mock('./components/QuizView', () => ({
     default: () => <div>quiz-view</div>,
 }));
 
+vi.mock('./components/ToeflReviewView', () => ({
+    default: () => <div>review-view</div>,
+}));
+
 vi.mock('./components/FolderSidebar', () => ({
     default: ({ folders, onCreateFolder, onDeleteFolder }) => (
         <div data-testid="folder-sidebar">

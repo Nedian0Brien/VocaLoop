@@ -36,6 +36,7 @@ export default function ToeflReviewDetail({
   onMark,
   onOpenAsset,
   updating = false,
+  backLabel = 'Review Queue로',
 }) {
   if (!item) return null;
   const tags = [item.skillTag, ...(Array.isArray(item.topicTags) ? item.topicTags : [])].filter(Boolean);
@@ -44,7 +45,7 @@ export default function ToeflReviewDetail({
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between gap-4">
         <Button variant="secondary" size="md" onClick={onBack} leftIcon={ArrowLeft}>
-          대시보드로
+          {backLabel}
         </Button>
         <div className="flex items-center gap-2">
           <Badge tone={statusTone[item.status] || 'neutral'} size="sm">{item.status}</Badge>
