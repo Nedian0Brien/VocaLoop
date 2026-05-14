@@ -6,6 +6,7 @@ on:
       - main
 
 env:
+  NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
@@ -92,6 +93,7 @@ jobs:
             git reset --hard origin/main
 
             # 의존성 설치 및 빌드
+            export NPM_CONFIG_AUDIT=false
             export NPM_CONFIG_FUND=false
             export PIP_DISABLE_PIP_VERSION_CHECK=1
             npm install
