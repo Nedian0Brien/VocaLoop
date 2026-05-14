@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, Mail, Quote, Sparkles } from './Icons';
+import React, { useMemo, useState } from 'react';
+import { Mail, Quote, Sparkles } from './Icons';
 import { evaluateWritingResponse, generateWritingTask } from '../services/toeflService';
 import { playSound } from '../utils/soundEffects';
-import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { Button } from '../design-system';
+import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
 
 const TASK_COPY = {
   email: {
@@ -66,95 +66,70 @@ export default function ToeflWritingTaskQuiz({
 }) {
   const copy = TASK_COPY[taskType] || TASK_COPY.email;
   const TaskIcon = copy.icon;
-  const [status, setStatus] = useState('loading');
-  const [error, setError] = useState('');
   const [task, setTask] = useState(null);
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState(null);
-  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
-  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const wordCount = useMemo(() => countWords(response), [response]);
 
-  const loadTask = async () => {
-    setStatus('loading');
-    setError('');
-    setTask(null);
-    setResponse('');
-    setFeedback(null);
-    setActiveAsset(reviewAsset || null);
-
-    if (reviewAsset?.payload) {
-      try {
-        const savedTask = reviewAsset.payload.task || reviewAsset.payload;
-        const normalized = normalizeTask(savedTask, reviewAsset.taskType || taskType);
-        if (normalized.taskType === 'email' && !normalized.situation) throw new Error('저장된 이메일 과제 데이터가 비어 있습니다.');
-        if (normalized.taskType === 'academic-discussion' && !normalized.professorQuestion) {
-          throw new Error('저장된 토론 과제 데이터가 비어 있습니다.');
-        }
-        setTask(normalized);
-        setSessionContext({
-          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
-          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
-        });
-        setStatus('ready');
-      } catch (err) {
-        setError(err.message || '저장된 Writing 과제를 불러오지 못했습니다.');
-        setStatus('error');
+  const { activeAsset, error, reload: loadTask, sessionContext, setError, setStatus, status } = useToeflQuizSession({
+    reviewAsset,
+    vocabSource,
+    topicSelection,
+    onAssetCreated,
+    resetSession: () => {
+      setTask(null);
+      setResponse('');
+      setFeedback(null);
+    },
+    loadReview: (asset) => {
+      const savedTask = asset.payload.task || asset.payload;
+      const normalized = normalizeTask(savedTask, asset.taskType || taskType);
+      if (normalized.taskType === 'email' && !normalized.situation) throw new Error('저장된 이메일 과제 데이터가 비어 있습니다.');
+      if (normalized.taskType === 'academic-discussion' && !normalized.professorQuestion) {
+        throw new Error('저장된 토론 과제 데이터가 비어 있습니다.');
       }
-      return;
-    }
-
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-
-    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
-
-    try {
-      const generated = await generateWritingTask({
+      return normalized;
+    },
+    generateNew: ({ vocabularyWords, pickedTopics }) =>
+      generateWritingTask({
         aiConfig,
         taskType,
         targetScore,
         vocabularyWords,
         pickedTopics,
-      });
-      const normalized = normalizeTask(generated, taskType);
-      if (taskType === 'email' && !normalized.situation) throw new Error('이메일 과제 데이터가 비어 있습니다.');
-      if (taskType === 'academic-discussion' && !normalized.professorQuestion) {
-        throw new Error('토론 과제 데이터가 비어 있습니다.');
-      }
+      }).then((generated) => {
+        const normalized = normalizeTask(generated, taskType);
+        if (taskType === 'email' && !normalized.situation) throw new Error('이메일 과제 데이터가 비어 있습니다.');
+        if (taskType === 'academic-discussion' && !normalized.professorQuestion) {
+          throw new Error('토론 과제 데이터가 비어 있습니다.');
+        }
+        return normalized;
+      }),
+    buildAsset: (normalized, { vocabularyWords, pickedTopics }) => ({
+      mode: taskType === 'email' ? 'toefl-writing-email' : 'toefl-writing-discussion',
+      taskType,
+      title: normalized.title || copy.title,
+      payload: { task: normalized },
+      metadata: {
+        targetScore,
+        vocabSampleCount: vocabularyWords.length,
+        pickedTopics: serializePickedTopics(pickedTopics),
+      },
+    }),
+    onReady: (normalized) => {
       setTask(normalized);
-      if (typeof onAssetCreated === 'function') {
-        const savedAsset = await onAssetCreated({
-          mode: taskType === 'email' ? 'toefl-writing-email' : 'toefl-writing-discussion',
-          taskType,
-          title: normalized.title || copy.title,
-          payload: { task: normalized },
-          metadata: {
-            targetScore,
-            vocabSampleCount: vocabularyWords.length,
-            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
-          },
-        });
-        if (savedAsset) setActiveAsset(savedAsset);
-      }
-      setStatus('ready');
-    } catch (err) {
-      setError(err.message || 'Writing 과제 생성 중 오류가 발생했습니다.');
-      setStatus('error');
-    }
-  };
+    },
+    errorMessage: 'Writing 과제 생성 중 오류가 발생했습니다.',
+    dependencies: [taskType, targetScore, reviewAsset?.id],
+  });
 
-  useEffect(() => {
+  const resetAndReload = () => {
+    setTask(null);
+    setResponse('');
+    setFeedback(null);
     loadTask();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskType, targetScore, reviewAsset?.id]);
+  };
 
   const handleSubmit = async () => {
     if (!task || !response.trim() || status === 'checking') return;
@@ -213,7 +188,7 @@ export default function ToeflWritingTaskQuiz({
         <h3 className="text-xl font-black text-surface-900 mb-2 tracking-tight">과제 생성 실패</h3>
         <p className="text-sm font-bold text-danger-500 mb-6">{error}</p>
         <div className="flex items-center justify-center gap-3">
-          <Button variant="primary" size="md" onClick={loadTask}>다시 시도</Button>
+          <Button variant="primary" size="md" onClick={resetAndReload}>다시 시도</Button>
           <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
         </div>
       </div>

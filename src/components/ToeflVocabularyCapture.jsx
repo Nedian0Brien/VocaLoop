@@ -88,6 +88,9 @@ export function VocabularyCaptureText({
             <button
               type="button"
               aria-label={`${token.key} 단어 액션 열기`}
+              aria-pressed={isActive}
+              data-capture-active={isActive ? 'true' : 'false'}
+              data-underlined={isUnderlined ? 'true' : 'false'}
               onClick={() => onSelectWord?.(token.key, tokenInstanceKey)}
               className={[
                 'inline rounded-sm px-0.5 -mx-0.5 align-baseline font-semibold text-inherit',
@@ -318,6 +321,7 @@ function VocabularyWordBubble({
     <span
       role="menu"
       aria-label={`${key} 단어 액션`}
+      data-phase={phase}
       onClick={(event) => event.stopPropagation()}
       className={[
         'radial-word-actions right-half-word-actions pointer-events-none absolute left-full top-1/2 z-30 ml-1 -translate-y-1/2',
@@ -382,6 +386,7 @@ function RadialActionButton({
       aria-label={label}
       title={label}
       data-arc-position={arcPosition?.name}
+      data-phase={phase}
       disabled={disabled}
       onClick={onClick}
       style={{

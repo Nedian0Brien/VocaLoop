@@ -1,0 +1,54 @@
+{
+  "defaultProvider": "gemini",
+  "providers": {
+    "gemini": {
+      "id": "gemini",
+      "label": "Gemini",
+      "name": "Gemini",
+      "keyLabel": "Google AI API Key",
+      "keyPlaceholder": "Google AI API 키 입력",
+      "keyHelpUrl": "https://aistudio.google.com/app/apikey",
+      "defaultModel": "gemini-3-flash-preview",
+      "models": [
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-3-pro-preview"
+      ],
+      "legacyModels": [
+        "gemini-2.0-flash"
+      ]
+    },
+    "openai": {
+      "id": "openai",
+      "label": "GPT",
+      "name": "OpenAI",
+      "keyLabel": "OpenAI API Key",
+      "keyPlaceholder": "OpenAI API 키 입력",
+      "keyHelpUrl": "https://platform.openai.com/api-keys",
+      "defaultModel": "gpt-4.1",
+      "models": [
+        "gpt-4.1",
+        "gpt-4o-mini",
+        "gpt-4.1-mini"
+      ],
+      "legacyModels": []
+    },
+    "claude": {
+      "id": "claude",
+      "label": "Claude",
+      "name": "Anthropic",
+      "keyLabel": "Claude API Key",
+      "keyPlaceholder": "Claude API 키 입력",
+      "keyHelpUrl": "https://console.anthropic.com/settings/keys",
+      "defaultModel": "claude-3-5-sonnet-latest",
+      "models": [
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-opus-20240229",
+        "claude-3-haiku-20240307"
+      ],
+      "legacyModels": []
+    }
+  }
+}

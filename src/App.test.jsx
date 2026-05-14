@@ -555,7 +555,7 @@ describe('App backend session bootstrap', () => {
         fireEvent.change(input, { target: { value: 'epi' } });
 
         const listbox = await screen.findByRole('listbox', { name: '단어 자동완성 제안' });
-        expect(listbox.closest('[class*="overflow-hidden"]')).toBeNull();
+        expect(listbox.dataset.portalRoot).toBe('document-body');
         expect(screen.getByRole('option', { name: /Epiphany 자동완성 선택/ })).toBeTruthy();
         expect(screen.getByRole('option', { name: /Epidemic 자동완성 선택/ })).toBeTruthy();
         expect(screen.queryByRole('option', { name: /Serendipity 자동완성 선택/ })).toBeNull();
@@ -597,7 +597,7 @@ describe('App backend session bootstrap', () => {
         fireEvent.change(input, { target: { value: 'aca' } });
 
         const listbox = await screen.findByRole('listbox', { name: '단어 자동완성 제안' });
-        expect(listbox.closest('form')).toBeNull();
-        expect(listbox.closest('[class*="overflow-hidden"]')).toBeNull();
+        expect(listbox.dataset.portalRoot).toBe('document-body');
+        expect(listbox.parentElement).toBe(document.body);
     });
 });

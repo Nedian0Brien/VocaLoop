@@ -2,6 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..ai_contract import (
+    get_default_model,
+    get_default_provider,
+    get_public_ai_provider_contract,
+    get_valid_models,
+)
 from ..auth import get_current_user, get_db
 from ..models import User, UserSettings
 from ..schemas import SettingsRead, SettingsUpdate
@@ -9,60 +15,32 @@ from ..schemas import SettingsRead, SettingsUpdate
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-_DEFAULT_PROVIDER = "gemini"
-_DEFAULT_MODELS = {
-    "gemini": "gemini-2.0-flash",
-    "openai": "gpt-4.1",
-    "claude": "claude-3-5-sonnet-latest",
-}
-_VALID_AI_MODELS = {
-    "gemini": {
-        "gemini-3-flash-preview",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-3-pro-preview",
-        "gemini-2.0-flash",
-    },
-    "openai": {
-        "gpt-4.1",
-        "gpt-4o-mini",
-        "gpt-4.1-mini",
-    },
-    "claude": {
-        "claude-3-5-sonnet-latest",
-        "claude-3-5-sonnet-20241022",
-        "claude-3-opus-20240229",
-        "claude-3-haiku-20240307",
-    },
-}
-
 
 def _get_or_create_owned_settings(db: Session, current_user: User) -> tuple[UserSettings, bool]:
     settings = db.scalar(select(UserSettings).where(UserSettings.user_id == current_user.id))
     if settings is None:
         settings = UserSettings(
             user_id=current_user.id,
-            ai_provider=_DEFAULT_PROVIDER,
-            ai_model=_DEFAULT_MODELS[_DEFAULT_PROVIDER],
+            ai_provider=get_default_provider(),
+            ai_model=get_default_model(),
         )
         db.add(settings)
         return settings, True
     return settings, False
 
 
-def _get_default_model(provider: str) -> str:
-    default_model = _DEFAULT_MODELS.get(provider)
-    if default_model is None:
+def _safe_default_model(provider: str) -> str:
+    try:
+        return get_default_model(provider)
+    except KeyError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid provider/model combination",
-        )
-    return default_model
+        ) from exc
 
 
 def _validate_provider_model(provider: str, model: str) -> None:
-    valid_models = _VALID_AI_MODELS.get(provider)
-    if valid_models is None or model not in valid_models:
+    if model not in get_valid_models(provider):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid provider/model combination",
@@ -79,6 +57,11 @@ def _build_settings_response(current_user: User, settings: UserSettings) -> Sett
         openai_api_key=settings.openai_api_key,
         claude_api_key=settings.claude_api_key,
     )
+
+
+@router.get("/providers")
+def get_settings_providers() -> dict:
+    return get_public_ai_provider_contract()
 
 
 @router.get("", response_model=SettingsRead, response_model_by_alias=True)
@@ -108,7 +91,7 @@ def update_settings(
     if "model" in updates:
         next_model = updates["model"]
     elif "provider" in updates and next_provider != settings.ai_provider:
-        next_model = _get_default_model(next_provider)
+        next_model = _safe_default_model(next_provider)
     else:
         next_model = settings.ai_model
 

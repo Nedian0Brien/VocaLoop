@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 
-const buildGenerationContext = (vocabSource, topicSelection) => {
+export const serializePickedTopics = (pickedTopics) => (
+  pickedTopics.map((topic) => ({ id: topic.id, label: topic.label }))
+);
+
+export const buildGenerationContext = (vocabSource, topicSelection) => {
   const vocabularyWords =
     vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
       ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
@@ -19,7 +23,7 @@ const buildGenerationContext = (vocabSource, topicSelection) => {
   };
 };
 
-const getReviewContext = (reviewAsset) => ({
+export const getReviewContext = (reviewAsset) => ({
   pickedTopics: reviewAsset?.metadata?.pickedTopics || [],
   vocabSampleCount: reviewAsset?.metadata?.vocabSampleCount || 0,
 });
@@ -100,6 +104,7 @@ export function useToeflQuizSession({
     error,
     reload: () => setReloadKey((key) => key + 1),
     sessionContext,
+    setError,
     setStatus,
     status,
   };

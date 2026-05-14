@@ -192,7 +192,7 @@ def test_signup_seeds_default_settings_and_sample_words(client):
         settings = session.scalar(select(UserSettings).where(UserSettings.user_id == user.id))
         assert settings is not None
         assert settings.ai_provider == "gemini"
-        assert settings.ai_model == "gemini-2.0-flash"
+        assert settings.ai_model == "gemini-3-flash-preview"
 
         words = session.scalars(select(Word).where(Word.user_id == user.id).order_by(Word.id)).all()
         assert len(words) == 5

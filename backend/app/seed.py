@@ -1,10 +1,11 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .ai_contract import get_default_model, get_default_provider
 from .models import User, UserSettings, Word
 
 
-DEFAULT_USER_SETTINGS = {"ai_provider": "gemini", "ai_model": "gemini-2.0-flash"}
+DEFAULT_USER_SETTINGS = {"ai_provider": get_default_provider(), "ai_model": get_default_model()}
 
 
 def _sample_word(

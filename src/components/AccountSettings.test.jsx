@@ -126,7 +126,7 @@ describe('AccountSettings backend migration', () => {
 
         await waitFor(() => expect(settingsApi.getSettings).toHaveBeenCalledTimes(1));
 
-        const fileInput = document.querySelector('input[type="file"]');
+        const fileInput = screen.getByLabelText('프로필 사진 파일');
         const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 

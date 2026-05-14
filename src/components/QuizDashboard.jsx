@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Edit3, Brain, Sparkles, BookOpen, Target, Award, Zap, ChevronRight, Clock, BarChart3, Mail, Quote, FileText, RotateCw } from './Icons';
+import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3, RotateCw } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
+import {
+  QUIZ_MODE_BY_ID,
+  TOEFL_MODE_TITLES,
+  TOEFL_READING_LABELS,
+  TOEFL_READING_MODES,
+  TOEFL_WRITING_MODES,
+  VOCABULARY_MODES,
+} from './quizModeRegistry';
 
 const HIST_STORAGE_KEY = 'vocaloop_quiz_history';
 const GOAL_STORAGE_KEY = 'vocaloop_weekly_goal';
@@ -23,24 +31,6 @@ const readWeeklyGoal = () => {
 
 const writeWeeklyGoal = (n) => {
   try { localStorage.setItem(GOAL_STORAGE_KEY, String(n)); } catch { /* ignore */ }
-};
-
-const TOEFL_READING_LABELS = {
-  'complete-words': 'Complete the Words',
-  'daily-life': 'Read in Daily Life',
-  'academic-passage': 'Read an Academic Passage',
-  'toefl-complete': 'Complete the Words',
-};
-
-const TOEFL_MODE_LABELS = {
-  'toefl-complete': 'Complete the Words',
-  'toefl-build': 'Build a Sentence',
-  'toefl-daily-life': 'Read in Daily Life',
-  'toefl-academic-passage': 'Read an Academic Passage',
-  'toefl-reading-mock': 'TOEFL Reading Mock Test',
-  'toefl-writing-email': 'Write an Email',
-  'toefl-writing-discussion': 'Write for an Academic Discussion',
-  'toefl-writing-mock': 'TOEFL Writing Mock Test',
 };
 
 /**
@@ -149,7 +139,7 @@ const HistoryItem = ({ entry, onSelect }) => {
 const ToeflAssetItem = ({ asset, onSelect }) => {
   const createdAt = asset?.createdAt || asset?.created_at;
   const dateText = createdAt ? new Date(createdAt).toLocaleDateString() : 'Saved';
-  const modeLabel = TOEFL_MODE_LABELS[asset?.mode] || asset?.mode || 'TOEFL';
+  const modeLabel = TOEFL_MODE_TITLES[asset?.mode] || asset?.mode || 'TOEFL';
 
   return (
     <Card
@@ -220,26 +210,6 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
     setGoalDraft(String(weeklyGoal));
     setIsEditingGoal(true);
   };
-
-  const vocabModes = [
-    { id: 'mixed', title: 'AI 복합 퀴즈', description: '객관식, 주관식, Complete word를 섞어 단어별 난이도를 단계적으로 올리고 오답은 다시 출제합니다.', icon: Brain, color: 'blue', recommended: true },
-    { id: 'multiple', title: '객관식 퀴즈', description: '4가지 뜻 중 올바른 정답을 선택하세요. 가장 빠르고 효과적인 학습 방식입니다.', icon: CheckCircle, color: 'blue' },
-    { id: 'short', title: '주관식 퀴즈', description: '단어의 철자와 뜻을 직접 입력하여 암기 수준을 완벽하게 검증합니다.', icon: Edit3, color: 'purple' }
-  ];
-
-  const toeflReadingModes = [
-    { id: 'toefl-reading-mock', title: 'TOEFL Reading Mock Test', description: 'Stage 1 결과에 따라 Stage 2 난이도가 갈리는 실전형 Reading 모의고사입니다.', icon: Target, color: 'purple', recommended: true },
-    { id: 'toefl-complete', title: 'Complete the Words', description: '2026 TOEFL Reading의 단어 완성 task에 맞춰 문맥 속 빠진 철자를 완성합니다.', icon: Sparkles, color: 'blue', recommended: true },
-    { id: 'toefl-daily-life', title: 'Read in Daily Life', description: '이메일, 공지, 일정표 등 실생활 텍스트에서 목적과 세부 정보를 빠르게 파악합니다.', icon: BookOpen, color: 'blue' },
-    { id: 'toefl-academic-passage', title: 'Read an Academic Passage', description: '학술 지문을 읽고 중심 생각, 추론, 어휘 맥락, 수사적 관계를 풉니다.', icon: Zap, color: 'purple' }
-  ];
-  const toeflWritingModes = [
-    { id: 'toefl-writing-mock', title: 'TOEFL Writing Mock Test', description: 'Build a Sentence 10문항, Email 1문항, Academic Discussion 1문항을 이어서 풉니다.', icon: FileText, color: 'purple', recommended: true },
-    { id: 'toefl-build', title: 'Build a Sentence', description: '주어진 토큰을 TOEFL 수준의 문법과 논리 흐름에 맞게 배열해 완성 문장을 만듭니다.', icon: Edit3, color: 'purple' },
-    { id: 'toefl-writing-email', title: 'Write an Email', description: '상황과 요구사항을 반영해 공손하고 목적이 분명한 이메일을 작성합니다.', icon: Mail, color: 'blue' },
-    { id: 'toefl-writing-discussion', title: 'Write for an Academic Discussion', description: '교수 질문과 학생 의견을 읽고 100단어 이상으로 학술 토론에 기여합니다.', icon: Quote, color: 'purple' }
-  ];
-  const allToeflModes = [...toeflReadingModes, ...toeflWritingModes];
 
   const accuracyTrend = history.length >= 2
     ? history[0].percentage - history[1].percentage
@@ -317,7 +287,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
               subtitle="암기 수준에 맞춘 기초 단계 학습"
             />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {vocabModes.map((mode) => (
+              {VOCABULARY_MODES.map((mode) => (
                 <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
               ))}
             </div>
@@ -363,7 +333,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
               </Card>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {toeflReadingModes.map((mode) => (
+              {TOEFL_READING_MODES.map((mode) => (
                 <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
               ))}
             </div>
@@ -378,7 +348,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
               subtitle="2026 개정 Writing 3유형과 실전형 12문항 구성"
             />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {toeflWritingModes.map((mode) => (
+              {TOEFL_WRITING_MODES.map((mode) => (
                 <ModeCard key={mode.id} mode={mode} onSelect={onSelectMode} wordCount={wordCount} />
               ))}
             </div>
@@ -421,7 +391,7 @@ export default function QuizDashboard({ onSelectMode, stats, wordCount, toeflAss
             <div className="space-y-4">
               {history.length > 0 ? (
                 history.map((entry, idx) => {
-                  const matched = [...vocabModes, ...allToeflModes].find((m) => m.title === entry.mode);
+                  const matched = Object.values(QUIZ_MODE_BY_ID).find((mode) => mode.title === entry.mode);
                   const canRelaunch = matched && !matched.disabled && wordCount > 0;
                   return (
                     <HistoryItem

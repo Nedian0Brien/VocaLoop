@@ -176,7 +176,7 @@ npm run build
 python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 3050
 ```
 
-참고: `package.json`의 `npm start`는 현재 `--port 3000`으로 되어 있지만, 운영 PM2 설정과 실제 공개 도메인은 `3050`을 사용한다.
+`package.json`의 `npm start`와 운영 PM2 설정은 모두 `3050` 포트를 사용한다.
 운영 기준을 확인할 때는 `ecosystem.config.cjs`와 `pm2 describe voca-loop`를 우선한다.
 
 ### 테스트/검증

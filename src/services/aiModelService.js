@@ -1,50 +1,24 @@
-export const AI_PROVIDERS = {
-  gemini: {
-    id: 'gemini',
-    label: 'Gemini',
-    name: 'Gemini',
-    keyLabel: 'Google AI API Key',
-    keyPlaceholder: 'Google AI API 키 입력',
-    keyHelpUrl: 'https://aistudio.google.com/app/apikey',
-    models: [
-      'gemini-3-flash-preview',
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
-      'gemini-3-pro-preview'
-    ]
-  },
-  openai: {
-    id: 'openai',
-    label: 'GPT',
-    name: 'OpenAI',
-    keyLabel: 'OpenAI API Key',
-    keyPlaceholder: 'OpenAI API 키 입력',
-    keyHelpUrl: 'https://platform.openai.com/api-keys',
-    models: [
-      'gpt-4.1',
-      'gpt-4o-mini',
-      'gpt-4.1-mini'
-    ]
-  },
-  claude: {
-    id: 'claude',
-    label: 'Claude',
-    name: 'Anthropic',
-    keyLabel: 'Claude API Key',
-    keyPlaceholder: 'Claude API 키 입력',
-    keyHelpUrl: 'https://console.anthropic.com/settings/keys',
-    models: [
-      'claude-3-5-sonnet-latest',
-      'claude-3-5-sonnet-20241022',
-      'claude-3-opus-20240229',
-      'claude-3-haiku-20240307'
-    ]
-  }
-};
+import aiProviderContract from '../../shared/aiProviders.json';
+
+export const AI_PROVIDER_CONTRACT = aiProviderContract;
+
+export const AI_PROVIDERS = Object.fromEntries(
+  Object.entries(AI_PROVIDER_CONTRACT.providers).map(([providerId, provider]) => [
+    providerId,
+    {
+      ...provider,
+      models: [...provider.models],
+    },
+  ])
+);
+
+export const getDefaultModelForProvider = (providerId) => (
+  AI_PROVIDERS[providerId]?.defaultModel || AI_PROVIDERS[providerId]?.models?.[0] || ''
+);
 
 export const DEFAULT_AI_SETTINGS = {
-  provider: 'gemini',
-  model: AI_PROVIDERS.gemini.models[0],
+  provider: AI_PROVIDER_CONTRACT.defaultProvider,
+  model: getDefaultModelForProvider(AI_PROVIDER_CONTRACT.defaultProvider),
   geminiApiKey: '',
   openaiApiKey: '',
   claudeApiKey: ''
@@ -56,7 +30,7 @@ export const getActiveAiConfig = (settings = DEFAULT_AI_SETTINGS) => {
 
   const model = settings.model && AI_PROVIDERS[selectedProvider].models.includes(settings.model)
     ? settings.model
-    : AI_PROVIDERS[selectedProvider].models[0];
+    : getDefaultModelForProvider(selectedProvider);
 
   const apiKey =
     selectedProvider === 'gemini'

@@ -122,28 +122,16 @@ describe('ToeflReadingMockTest', () => {
     );
 
     const wordButton = await screen.findByRole('button', { name: 'stimulus 단어 액션 열기' });
-    expect(wordButton.className).toContain('hover:bg-brand-100');
+    expect(wordButton.getAttribute('aria-pressed')).toBe('false');
 
     fireEvent.click(wordButton);
 
     const actionBubble = screen.getByRole('menu', { name: 'stimulus 단어 액션' });
-    expect(actionBubble.className).toContain('absolute');
-    expect(actionBubble.className).toContain('radial-word-actions');
-    expect(actionBubble.className).toContain('right-half-word-actions');
-    expect(actionBubble.className).toContain('left-full');
-    expect(actionBubble.className).toContain('top-1/2');
-    expect(actionBubble.querySelector('[data-testid="right-arc-guide"]')).toBeNull();
-    expect(wordButton.parentElement.className).toContain('relative');
+    expect(actionBubble.dataset.phase).toBe('enter');
+    expect(wordButton.getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByText('풀이 중에는 뜻을 숨기고 필요한 액션만 사용할 수 있습니다.')).toBeNull();
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('right-arc-action');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('h-10 w-10');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('hover:w-[var(--action-expanded-width)]');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('origin-left');
     expect(screen.getByRole('button', { name: '단어장에 저장' }).dataset.arcPosition).toBe('upper');
-    expect(screen.getByRole('button', { name: '밑줄' }).className).toContain('right-arc-action');
     expect(screen.getByRole('button', { name: '밑줄' }).dataset.arcPosition).toBe('lower');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).style.left)
-      .not.toBe(screen.getByRole('button', { name: '밑줄' }).style.left);
     expect(screen.getByRole('button', { name: '밑줄' }).textContent).toContain('밑줄');
     expect(screen.queryByRole('button', { name: '뜻 설명' })).toBeNull();
     expect(screen.queryByText('자극')).toBeNull();

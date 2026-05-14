@@ -7,8 +7,8 @@ import {
 } from '../services/toeflService';
 import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { playSound } from '../utils/soundEffects';
-import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { Button } from '../design-system';
+import { buildGenerationContext, serializePickedTopics } from '../hooks/useToeflQuizSession';
 import {
   useToeflVocabularyCapture,
   VocabularyCaptureText,
@@ -140,7 +140,7 @@ export default function ToeflReadingMockTest({
           stage,
           difficulty,
           vocabSampleCount: context.vocabularyWords.length,
-          pickedTopics: context.pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
+          pickedTopics: serializePickedTopics(context.pickedTopics),
         },
       });
       if (savedAsset) setActiveAsset(savedAsset);
@@ -152,15 +152,7 @@ export default function ToeflReadingMockTest({
   };
 
   useEffect(() => {
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-    const context = { vocabularyWords, pickedTopics };
+    const context = buildGenerationContext(vocabSource, topicSelection);
     setSessionContext(context);
     loadModule({ stage: 1, difficulty: 'router', count: stageOneCount, context });
     // eslint-disable-next-line react-hooks/exhaustive-deps

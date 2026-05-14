@@ -1,6 +1,28 @@
 import { describe, expect, test } from 'vitest';
 
-import { parseJsonOutput } from './aiModelService';
+import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig, parseJsonOutput } from './aiModelService';
+
+describe('AI provider contract', () => {
+  test('exposes provider defaults from the shared contract', () => {
+    expect(DEFAULT_AI_SETTINGS).toMatchObject({
+      provider: 'gemini',
+      model: 'gemini-3-flash-preview',
+    });
+    expect(AI_PROVIDERS.openai.models).toContain('gpt-4.1');
+  });
+
+  test('normalizes legacy stored models to the current provider default', () => {
+    expect(getActiveAiConfig({
+      provider: 'gemini',
+      model: 'gemini-2.0-flash',
+      geminiApiKey: 'key',
+    })).toMatchObject({
+      provider: 'gemini',
+      model: 'gemini-3-flash-preview',
+      apiKey: 'key',
+    });
+  });
+});
 
 describe('parseJsonOutput', () => {
   test('parses the first complete JSON object when provider appends prose', () => {

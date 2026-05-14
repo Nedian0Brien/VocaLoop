@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Edit3, Mail, Quote, Sparkles } from './Icons';
 import {
   estimateWritingBand,
@@ -6,8 +6,8 @@ import {
   generateWritingMockSection,
 } from '../services/toeflService';
 import { playSound } from '../utils/soundEffects';
-import { pickRandomTopics, sampleWords } from '../utils/topicSets';
 import { Button } from '../design-system';
+import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
 
 const SENTENCE_COUNT = 10;
 
@@ -77,8 +77,6 @@ export default function ToeflWritingMockTest({
   onAssetCreated,
   onAttemptRecorded,
 }) {
-  const [status, setStatus] = useState('loading');
-  const [error, setError] = useState('');
   const [section, setSection] = useState(null);
   const [step, setStep] = useState(0);
   const [banks, setBanks] = useState([]);
@@ -86,8 +84,6 @@ export default function ToeflWritingMockTest({
   const [emailResponse, setEmailResponse] = useState('');
   const [discussionResponse, setDiscussionResponse] = useState('');
   const [summary, setSummary] = useState(null);
-  const [sessionContext, setSessionContext] = useState({ pickedTopics: [], vocabSampleCount: 0 });
-  const [activeAsset, setActiveAsset] = useState(reviewAsset);
 
   const sentenceItems = section?.sentenceItems || [];
   const activeSentence = sentenceItems[step];
@@ -99,9 +95,64 @@ export default function ToeflWritingMockTest({
   const emailWordCount = useMemo(() => countWords(emailResponse), [emailResponse]);
   const discussionWordCount = useMemo(() => countWords(discussionResponse), [discussionResponse]);
 
-  const loadSection = async () => {
-    setStatus('loading');
-    setError('');
+  const { activeAsset, error, reload: loadSection, sessionContext, setError, setStatus, status } = useToeflQuizSession({
+    reviewAsset,
+    vocabSource,
+    topicSelection,
+    onAssetCreated,
+    resetSession: () => {
+      setSection(null);
+      setStep(0);
+      setBanks([]);
+      setArrangements([]);
+      setEmailResponse('');
+      setDiscussionResponse('');
+      setSummary(null);
+    },
+    loadReview: (asset) => {
+      const savedSection = asset.payload.section || asset.payload;
+      const normalized = normalizeSection(savedSection);
+      if (normalized.sentenceItems.length === 0 || !normalized.emailTask.situation || !normalized.discussionTask.professorQuestion) {
+        throw new Error('저장된 Writing 모의고사 데이터가 비어 있습니다.');
+      }
+      return normalized;
+    },
+    generateNew: ({ vocabularyWords, pickedTopics }) =>
+      generateWritingMockSection({
+        aiConfig,
+        targetScore,
+        sentenceCount: SENTENCE_COUNT,
+        vocabularyWords,
+        pickedTopics,
+      }).then((data) => {
+        const normalized = normalizeSection(data);
+        if (normalized.sentenceItems.length === 0 || !normalized.emailTask.situation || !normalized.discussionTask.professorQuestion) {
+          throw new Error('Writing 모의고사 데이터가 비어 있습니다.');
+        }
+        return normalized;
+      }),
+    buildAsset: (normalized, { vocabularyWords, pickedTopics }) => ({
+      mode: 'toefl-writing-mock',
+      taskType: 'writing-mock',
+      title: 'TOEFL Writing Mock Test',
+      payload: { section: normalized },
+      metadata: {
+        targetScore,
+        sentenceCount: SENTENCE_COUNT,
+        vocabSampleCount: vocabularyWords.length,
+        pickedTopics: serializePickedTopics(pickedTopics),
+      },
+    }),
+    onReady: (normalized) => {
+      setSection(normalized);
+      setBanks(normalized.sentenceItems.map((item) => item.words.map((_, index) => index)));
+      setArrangements(normalized.sentenceItems.map(() => []));
+    },
+    errorMessage: 'Writing 모의고사 생성 중 오류가 발생했습니다.',
+    dependencies: [targetScore, reviewAsset?.id],
+  });
+
+  const resetAndReload = () => {
     setSection(null);
     setStep(0);
     setBanks([]);
@@ -109,82 +160,8 @@ export default function ToeflWritingMockTest({
     setEmailResponse('');
     setDiscussionResponse('');
     setSummary(null);
-    setActiveAsset(reviewAsset || null);
-
-    if (reviewAsset?.payload) {
-      try {
-        const savedSection = reviewAsset.payload.section || reviewAsset.payload;
-        const normalized = normalizeSection(savedSection);
-        if (normalized.sentenceItems.length === 0 || !normalized.emailTask.situation || !normalized.discussionTask.professorQuestion) {
-          throw new Error('저장된 Writing 모의고사 데이터가 비어 있습니다.');
-        }
-        setSection(normalized);
-        setBanks(normalized.sentenceItems.map((item) => item.words.map((_, index) => index)));
-        setArrangements(normalized.sentenceItems.map(() => []));
-        setSessionContext({
-          pickedTopics: reviewAsset.metadata?.pickedTopics || [],
-          vocabSampleCount: reviewAsset.metadata?.vocabSampleCount || 0,
-        });
-        setStatus('ready');
-      } catch (err) {
-        setError(err.message || '저장된 Writing 모의고사를 불러오지 못했습니다.');
-        setStatus('error');
-      }
-      return;
-    }
-
-    const vocabularyWords =
-      vocabSource && vocabSource.mode !== 'off' && Array.isArray(vocabSource.pool)
-        ? sampleWords(vocabSource.pool, vocabSource.sampleSize || 12)
-        : [];
-    const pickedTopics =
-      topicSelection?.enabled && Array.isArray(topicSelection.allTopics) && topicSelection.selectedIds?.length > 0
-        ? pickRandomTopics(topicSelection.allTopics, topicSelection.selectedIds, topicSelection.pickCount || 1)
-        : [];
-
-    setSessionContext({ pickedTopics, vocabSampleCount: vocabularyWords.length });
-
-    try {
-      const data = await generateWritingMockSection({
-        aiConfig,
-        targetScore,
-        sentenceCount: SENTENCE_COUNT,
-        vocabularyWords,
-        pickedTopics,
-      });
-      const normalized = normalizeSection(data);
-      if (normalized.sentenceItems.length === 0 || !normalized.emailTask.situation || !normalized.discussionTask.professorQuestion) {
-        throw new Error('Writing 모의고사 데이터가 비어 있습니다.');
-      }
-      setSection(normalized);
-      setBanks(normalized.sentenceItems.map((item) => item.words.map((_, index) => index)));
-      setArrangements(normalized.sentenceItems.map(() => []));
-      if (typeof onAssetCreated === 'function') {
-        const savedAsset = await onAssetCreated({
-          mode: 'toefl-writing-mock',
-          taskType: 'writing-mock',
-          title: 'TOEFL Writing Mock Test',
-          payload: { section: normalized },
-          metadata: {
-            targetScore,
-            sentenceCount: SENTENCE_COUNT,
-            vocabSampleCount: vocabularyWords.length,
-            pickedTopics: pickedTopics.map((topic) => ({ id: topic.id, label: topic.label })),
-          },
-        });
-        if (savedAsset) setActiveAsset(savedAsset);
-      }
-      setStatus('ready');
-    } catch (err) {
-      setError(err.message || 'Writing 모의고사 생성 중 오류가 발생했습니다.');
-      setStatus('error');
-    }
-  };
-
-  useEffect(() => {
     loadSection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetScore, reviewAsset?.id]);
+  };
 
   const moveToArrangement = (wordIndex) => {
     if (status !== 'ready' || !activeSentence) return;
@@ -313,7 +290,7 @@ export default function ToeflWritingMockTest({
         <h3 className="text-xl font-black text-surface-900 mb-2 tracking-tight">모의고사 생성 실패</h3>
         <p className="text-sm font-bold text-danger-500 mb-6">{error}</p>
         <div className="flex items-center justify-center gap-3">
-          <Button variant="primary" size="md" onClick={loadSection}>다시 시도</Button>
+          <Button variant="primary" size="md" onClick={resetAndReload}>다시 시도</Button>
           <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
         </div>
       </div>

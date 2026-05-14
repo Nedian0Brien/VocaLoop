@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .ai_contract import get_default_model
 from .db import Base
 
 
@@ -40,7 +41,7 @@ class UserSettings(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     toefl_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ai_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="gemini")
-    ai_model: Mapped[str] = mapped_column(String(100), nullable=False, default="gemini-2.0-flash")
+    ai_model: Mapped[str] = mapped_column(String(100), nullable=False, default=get_default_model)
     gemini_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     openai_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     claude_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)

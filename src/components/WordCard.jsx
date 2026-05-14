@@ -115,12 +115,14 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
             onMouseLeave={handleMouseLeave}
         >
             <div className={`card-flip w-full h-full relative ${isFlipped ? 'flipped' : ''}`} style={tiltStyle}>
-                <div className="card-inner word-card-radius-shell">
+                <div className="card-inner word-card-radius-shell" data-testid="word-card-shell" data-radius-contract="shell">
                     {/* Front */}
                     <div className={`card-front overflow-hidden bg-white p-6 flex flex-col items-center justify-center text-center z-20 h-full rounded-xl shadow-[var(--shadow-soft)] border border-surface-200 hover:shadow-[var(--shadow-card)] transition-shadow ${frontClass}`}>
                         {/* Spotlight (brand-500 RGBA) */}
                         <div
                             className="word-card-radius-layer absolute inset-0 pointer-events-none z-10"
+                            data-testid="word-card-radius-layer"
+                            data-radius-contract="shell"
                             style={{
                                 background: `radial-gradient(600px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(59, 130, 246, 0.15), transparent 80%)`,
                                 opacity: cursorPos.opacity,
@@ -130,6 +132,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                         {/* Border Glow */}
                         <div
                             className="word-card-radius-layer absolute inset-0 pointer-events-none z-20"
+                            data-testid="word-card-radius-layer"
+                            data-radius-contract="shell"
                             style={{
                                 background: `radial-gradient(400px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(59, 130, 246, 0.6), transparent 100%)`,
                                 opacity: cursorPos.opacity,
@@ -168,6 +172,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                     >
                         <div
                             className="word-card-radius-layer absolute inset-0 pointer-events-none z-10"
+                            data-testid="word-card-radius-layer"
+                            data-radius-contract="shell"
                             style={{
                                 background: `radial-gradient(600px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.45), transparent 80%)`,
                                 opacity: cursorPos.opacity,
@@ -176,6 +182,8 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                         />
                         <div
                             className="word-card-radius-layer absolute inset-0 pointer-events-none z-20"
+                            data-testid="word-card-radius-layer"
+                            data-radius-contract="shell"
                             style={{
                                 background: `radial-gradient(400px circle at ${cursorPos.x}px ${cursorPos.y}px, rgba(255, 255, 255, 0.9), transparent 100%)`,
                                 opacity: cursorPos.opacity,
@@ -189,7 +197,11 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                             }}
                         />
                         {isRegenerating && (
-                            <div className="word-card-radius-layer absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center pointer-events-none">
+                            <div
+                                className="word-card-radius-layer absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center pointer-events-none"
+                                data-testid="word-card-radius-layer"
+                                data-radius-contract="shell"
+                            >
                                 <Loader2 className="w-12 h-12 text-brand-600 animate-spin mb-3" aria-hidden="true" />
                                 <p className="text-lg font-bold text-brand-700">재생성 중...</p>
                                 <p className="text-sm text-surface-600 mt-1">잠시만 기다려주세요</p>

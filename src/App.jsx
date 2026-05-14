@@ -226,6 +226,7 @@ function App() {
                 id="word-autocomplete-suggestions"
                 role="listbox"
                 aria-label="단어 자동완성 제안"
+                data-portal-root="document-body"
                 style={wordSuggestionPanelStyle}
                 className="fixed z-[1000] max-h-72 overflow-y-auto rounded-md border border-surface-200 bg-white shadow-[var(--shadow-elevated)]"
             >

@@ -52,16 +52,16 @@ describe('VocabularyCaptureText', () => {
     fireEvent.click(toButtons[0]);
 
     expect(screen.getAllByRole('menu', { name: 'to 단어 액션' })).toHaveLength(1);
-    expect(toButtons[0].className).toContain('ring-brand-200');
-    expect(toButtons[1].className).not.toContain('ring-brand-200');
-    expect(toButtons[2].className).not.toContain('ring-brand-200');
+    expect(toButtons[0].getAttribute('aria-pressed')).toBe('true');
+    expect(toButtons[1].getAttribute('aria-pressed')).toBe('false');
+    expect(toButtons[2].getAttribute('aria-pressed')).toBe('false');
 
     fireEvent.click(toButtons[2]);
 
     expect(screen.getAllByRole('menu', { name: 'to 단어 액션' })).toHaveLength(1);
-    expect(toButtons[0].className).not.toContain('ring-brand-200');
-    expect(toButtons[1].className).not.toContain('ring-brand-200');
-    expect(toButtons[2].className).toContain('ring-brand-200');
+    expect(toButtons[0].getAttribute('aria-pressed')).toBe('false');
+    expect(toButtons[1].getAttribute('aria-pressed')).toBe('false');
+    expect(toButtons[2].getAttribute('aria-pressed')).toBe('true');
   });
 
   test('sizes each action pill from its own label length', () => {
@@ -74,10 +74,6 @@ describe('VocabularyCaptureText', () => {
     const saveWidth = Number.parseFloat(saveAction.style.getPropertyValue('--action-expanded-width'));
     const underlineWidth = Number.parseFloat(underlineAction.style.getPropertyValue('--action-expanded-width'));
 
-    expect(saveAction.className).toContain('hover:w-[var(--action-expanded-width)]');
-    expect(saveAction.className).toContain('focus-visible:w-[var(--action-expanded-width)]');
-    expect(saveAction.className).not.toContain('hover:w-36');
-    expect(saveAction.querySelector('[data-action-label]').className).toContain('group-hover:max-w-[var(--action-label-width)]');
     expect(saveWidth).toBeGreaterThan(underlineWidth);
   });
 
@@ -90,9 +86,9 @@ describe('VocabularyCaptureText', () => {
 
     fireEvent.pointerDown(document.body);
 
-    expect(screen.getByRole('menu', { name: 'innovation 단어 액션' }).className).toContain('animate-word-bubble-out');
-    expect(screen.getByRole('button', { name: '단어장에 저장' }).className).toContain('animate-word-action-out');
-    expect(screen.getByRole('button', { name: 'innovation 단어 액션 열기' }).className).not.toContain('ring-brand-200');
+    expect(screen.getByRole('menu', { name: 'innovation 단어 액션' }).dataset.phase).toBe('exit');
+    expect(screen.getByRole('button', { name: '단어장에 저장' }).dataset.phase).toBe('exit');
+    expect(screen.getByRole('button', { name: 'innovation 단어 액션 열기' }).getAttribute('aria-pressed')).toBe('false');
 
     act(() => {
       vi.advanceTimersByTime(180);
@@ -110,8 +106,8 @@ describe('VocabularyCaptureText', () => {
     const saveAction = screen.getByRole('button', { name: '단어장에 저장' });
     const underlineAction = screen.getByRole('button', { name: '밑줄' });
 
-    expect(actionBubble.className).toContain('animate-word-bubble-in');
-    expect(saveAction.className).toContain('animate-word-action-in');
+    expect(actionBubble.dataset.phase).toBe('enter');
+    expect(saveAction.dataset.phase).toBe('enter');
     expect(saveAction.style.getPropertyValue('--action-enter-delay')).toBe('0ms');
     expect(underlineAction.style.getPropertyValue('--action-enter-delay')).toBe('35ms');
   });
