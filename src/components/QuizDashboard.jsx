@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3 } from './Icons';
+import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3, FileText } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
 import {
@@ -95,13 +95,18 @@ const ModeCard = ({ mode, onSelect, wordCount }) => {
  * 최근 세션 항목.
  */
 const HistoryItem = ({ entry, onSelect }) => {
-  const success = entry.percentage >= 80;
-  const tone = success ? 'success' : 'brand';
+  const isToeflAsset = entry?.type === 'toefl-asset' || Boolean(entry?.assetId);
+  const success = Number(entry.percentage) >= 80;
+  const tone = isToeflAsset ? 'accent' : success ? 'success' : 'brand';
   const toneBg = {
     success: 'bg-success-50 text-success-500',
     brand:   'bg-brand-50   text-brand-500',
+    accent:  'bg-accent-50  text-accent-500',
   }[tone];
   const isClickable = Boolean(onSelect);
+  const Icon = isToeflAsset ? FileText : BarChart3;
+  const title = isToeflAsset ? (entry.title || entry.mode || 'TOEFL Practice') : entry.mode;
+  const ariaLabel = isToeflAsset ? `${title} 다시 열기` : `${entry.mode} 다시 시작`;
 
   return (
     <Card
@@ -111,21 +116,28 @@ const HistoryItem = ({ entry, onSelect }) => {
       hover
       as={isClickable ? 'button' : 'div'}
       onClick={isClickable ? onSelect : undefined}
-      aria-label={isClickable ? `${entry.mode} 다시 시작` : undefined}
+      aria-label={isClickable ? ariaLabel : undefined}
       className={`group !p-5 w-full text-left ${isClickable ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xs font-black text-surface-400 uppercase tracking-widest">
           {new Date(entry.date).toLocaleDateString()}
         </span>
-        <Badge tone={tone} size="xs">{entry.percentage}% Accuracy</Badge>
+        <Badge tone={tone} size="xs">
+          {isToeflAsset ? 'Saved Set' : `${entry.percentage}% Accuracy`}
+        </Badge>
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-md flex items-center justify-center ${toneBg}`}>
-            <BarChart3 className="w-4 h-4" aria-hidden="true" />
+            <Icon className="w-4 h-4" aria-hidden="true" />
           </div>
-          <p className="text-sm font-black text-surface-700">{entry.mode}</p>
+          <div>
+            <p className="text-sm font-black text-surface-700">{title}</p>
+            {isToeflAsset && entry.mode && entry.mode !== title && (
+              <p className="mt-1 text-2xs font-black uppercase tracking-widest text-surface-400">{entry.mode}</p>
+            )}
+          </div>
         </div>
         {isClickable && (
           <ChevronRight className="w-4 h-4 text-surface-300 group-hover:translate-x-1 group-hover:text-brand-500 transition-all" aria-hidden="true" />
@@ -137,6 +149,7 @@ const HistoryItem = ({ entry, onSelect }) => {
 
 export default function QuizDashboard({
   onSelectMode,
+  onSelectToeflAsset,
   stats,
   wordCount,
 }) {
@@ -183,8 +196,9 @@ export default function QuizDashboard({
     setIsEditingGoal(true);
   };
 
-  const accuracyTrend = history.length >= 2
-    ? history[0].percentage - history[1].percentage
+  const accuracyHistory = history.filter((entry) => Number.isFinite(Number(entry?.percentage)));
+  const accuracyTrend = accuracyHistory.length >= 2
+    ? accuracyHistory[0].percentage - accuracyHistory[1].percentage
     : 0;
 
   const goalProgress = weeklyGoal > 0
@@ -231,7 +245,7 @@ export default function QuizDashboard({
           />
           <Stat
             title="Session Accuracy"
-            value={history.length > 0 ? `${history[0].percentage}%` : '0%'}
+            value={accuracyHistory.length > 0 ? `${accuracyHistory[0].percentage}%` : '0%'}
             subValue="Last Session"
             icon={Award}
             tone="accent"
@@ -340,13 +354,23 @@ export default function QuizDashboard({
             <div className="space-y-4">
               {history.length > 0 ? (
                 history.map((entry, idx) => {
-                  const matched = Object.values(QUIZ_MODE_BY_ID).find((mode) => mode.title === entry.mode);
+                  const isToeflAsset = entry?.type === 'toefl-asset' || Boolean(entry?.assetId);
+                  const matched = isToeflAsset ? null : Object.values(QUIZ_MODE_BY_ID).find((mode) => mode.title === entry.mode);
                   const canRelaunch = matched && !matched.disabled && wordCount > 0;
                   return (
                     <HistoryItem
                       key={idx}
                       entry={entry}
-                      onSelect={canRelaunch ? () => onSelectMode(matched) : undefined}
+                      onSelect={
+                        isToeflAsset && entry.assetId
+                          ? () => onSelectToeflAsset?.({
+                            id: entry.assetId,
+                            mode: entry.modeId,
+                            taskType: entry.taskType,
+                            title: entry.title,
+                          })
+                          : canRelaunch ? () => onSelectMode(matched) : undefined
+                      }
                     />
                   );
                 })

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const toeflAssetApi = vi.hoisted(() => ({
     createToeflAsset: vi.fn(),
     createToeflAttempt: vi.fn(),
+    getToeflAsset: vi.fn(),
 }));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
@@ -49,10 +50,27 @@ vi.mock('./ToeflBuildSentenceQuiz', () => ({
 }));
 
 vi.mock('./ToeflReadingTaskQuiz', () => ({
-    default: ({ taskType, reviewAsset }) => (
+    default: ({ taskType, reviewAsset, onAssetCreated }) => (
         <div>
             toefl-reading-task:{taskType}
             {reviewAsset ? <span>review-asset:{reviewAsset.title}</span> : null}
+            <button
+                type="button"
+                onClick={() => onAssetCreated?.({
+                    mode: taskType === 'academic-passage' ? 'toefl-academic-passage' : 'toefl-daily-life',
+                    taskType,
+                    title: 'Generated Passage Set',
+                    payload: {
+                        taskType,
+                        title: 'Generated Passage Set',
+                        stimulus: 'Generated stimulus',
+                        questions: [],
+                    },
+                    metadata: { targetScore: 100, questionCount: 5 },
+                })}
+            >
+                mock-generate-toefl-asset
+            </button>
         </div>
     ),
 }));
@@ -88,6 +106,7 @@ describe('QuizView', () => {
     beforeEach(() => {
         toeflAssetApi.createToeflAsset.mockResolvedValue(null);
         toeflAssetApi.createToeflAttempt.mockResolvedValue(null);
+        toeflAssetApi.getToeflAsset.mockResolvedValue(null);
     });
 
     test('renders the study dashboard and enters quiz mode', () => {
@@ -351,5 +370,53 @@ describe('QuizView', () => {
         });
         expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
         expect(onInitialReviewAssetConsumed).toHaveBeenCalledTimes(1);
+    });
+
+    test('records generated TOEFL assets in Recent Activity and reopens them without an attempt', async () => {
+        const savedAsset = {
+            id: 91,
+            mode: 'toefl-academic-passage',
+            taskType: 'academic-passage',
+            title: 'Generated Passage Set',
+            payload: {
+                taskType: 'academic-passage',
+                title: 'Generated Passage Set',
+                stimulus: 'Generated stimulus',
+                questions: [],
+            },
+            metadata: { targetScore: 100, questionCount: 5 },
+            createdAt: '2026-05-15T00:00:00Z',
+        };
+        toeflAssetApi.createToeflAsset.mockResolvedValue(savedAsset);
+        toeflAssetApi.getToeflAsset.mockResolvedValue(savedAsset);
+
+        renderQuizView();
+        fireEvent.click(screen.getByText('Read an Academic Passage'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+
+        fireEvent.click(await screen.findByRole('button', { name: 'mock-generate-toefl-asset' }));
+
+        await waitFor(() => {
+            const history = JSON.parse(localStorage.getItem('vocaloop_quiz_history') || '[]');
+            expect(history[0]).toEqual(expect.objectContaining({
+                type: 'toefl-asset',
+                assetId: 91,
+                mode: 'Read an Academic Passage',
+                modeId: 'toefl-academic-passage',
+                title: 'Generated Passage Set',
+            }));
+        });
+        expect(toeflAssetApi.createToeflAttempt).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: '종료하기' }));
+        expect(await screen.findByText('Generated Passage Set')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Generated Passage Set 다시 열기' }));
+
+        await waitFor(() => {
+            expect(toeflAssetApi.getToeflAsset).toHaveBeenCalledWith(91);
+            expect(screen.getByText('review-asset:Generated Passage Set')).toBeTruthy();
+        });
+        expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
     });
 });

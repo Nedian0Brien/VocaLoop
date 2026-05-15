@@ -15,7 +15,31 @@ import {
   startNextAdaptiveSet,
   resolveAdaptiveAnswer,
 } from '../services/adaptiveQuizService';
-import { createToeflAsset, createToeflAttempt } from '../services/toeflAssetApi';
+import { createToeflAsset, createToeflAttempt, getToeflAsset } from '../services/toeflAssetApi';
+
+const QUIZ_HISTORY_STORAGE_KEY = 'vocaloop_quiz_history';
+
+const recordToeflAssetActivity = (asset) => {
+  if (!asset?.id) return;
+  try {
+    const history = JSON.parse(localStorage.getItem(QUIZ_HISTORY_STORAGE_KEY) || '[]');
+    const entry = {
+      type: 'toefl-asset',
+      date: asset.createdAt || asset.created_at || new Date().toISOString(),
+      assetId: asset.id,
+      mode: TOEFL_MODE_TITLES[asset.mode] || asset.title || 'TOEFL Practice',
+      modeId: asset.mode,
+      taskType: asset.taskType || asset.task_type,
+      title: asset.title || TOEFL_MODE_TITLES[asset.mode] || 'TOEFL Practice',
+    };
+    const withoutDuplicate = Array.isArray(history)
+      ? history.filter((item) => !(item?.type === 'toefl-asset' && item?.assetId === asset.id))
+      : [];
+    localStorage.setItem(QUIZ_HISTORY_STORAGE_KEY, JSON.stringify([entry, ...withoutDuplicate].slice(0, 20)));
+  } catch (error) {
+    console.warn('Failed to save TOEFL asset activity', error);
+  }
+};
 
 /**
  * 상단 상태 칩 — Sound / AI 토글 표시.
@@ -182,6 +206,7 @@ export default function QuizView({
     if (!user) return null;
     try {
       const asset = await createToeflAsset(payload);
+      recordToeflAssetActivity(asset);
       return asset;
     } catch (error) {
       console.warn('Failed to save TOEFL asset', error);
@@ -277,17 +302,27 @@ export default function QuizView({
     setShowConfigModal(true);
   };
 
-  const handleToeflAssetSelect = useCallback((asset) => {
-    if (!asset?.mode) return;
-    setReviewAsset(asset);
+  const handleToeflAssetSelect = useCallback(async (asset) => {
+    if (!asset?.id && !asset?.mode) return;
+    let targetAsset = asset;
+    if (asset?.id && !asset.payload) {
+      try {
+        targetAsset = await getToeflAsset(asset.id);
+      } catch (error) {
+        console.warn('Failed to load TOEFL asset from activity', error);
+        return;
+      }
+    }
+    if (!targetAsset?.mode) return;
+    setReviewAsset(targetAsset);
     setSelectedMode({
-      id: asset.mode,
-      title: TOEFL_MODE_TITLES[asset.mode] || asset.title || 'TOEFL Review',
+      id: targetAsset.mode,
+      title: TOEFL_MODE_TITLES[targetAsset.mode] || targetAsset.title || 'TOEFL Review',
     });
     setToeflConfig((current) => ({
       ...current,
-      questionCount: asset.metadata?.questionCount || current.questionCount,
-      targetScore: asset.metadata?.targetScore || current.targetScore,
+      questionCount: targetAsset.metadata?.questionCount || current.questionCount,
+      targetScore: targetAsset.metadata?.targetScore || current.targetScore,
     }));
     setShowConfigModal(false);
     setQuizState('quiz');
@@ -393,6 +428,7 @@ export default function QuizView({
       {quizState === 'select' && (
         <QuizDashboard
           onSelectMode={handleModeSelect}
+          onSelectToeflAsset={handleToeflAssetSelect}
           stats={dashboardStats}
           wordCount={words.length}
         />
