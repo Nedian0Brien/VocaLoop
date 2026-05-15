@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Edit3, Sparkles, BookOpen, Target, Award, Brain, ChevronRight, Clock, BarChart3, FileText } from './Icons';
 import { Stat, SectionHeading, Card, Badge } from '../design-system';
 import { summarizeToeflReadingStats } from '../services/toeflReadingStats';
+import { listToeflAssets } from '../services/toeflAssetApi';
 import {
   QUIZ_MODE_BY_ID,
   TOEFL_READING_LABELS,
   TOEFL_READING_MODES,
   TOEFL_WRITING_MODES,
+  TOEFL_MODE_TITLES,
   VOCABULARY_MODES,
 } from './quizModeRegistry';
 
@@ -30,6 +32,56 @@ const readWeeklyGoal = () => {
 
 const writeWeeklyGoal = (n) => {
   try { localStorage.setItem(GOAL_STORAGE_KEY, String(n)); } catch { /* ignore */ }
+};
+
+const readLocalHistory = () => {
+  try {
+    const savedHistory = JSON.parse(localStorage.getItem(HIST_STORAGE_KEY) || '[]');
+    return Array.isArray(savedHistory) ? savedHistory : [];
+  } catch (e) {
+    console.error('Failed to load history:', e);
+    return [];
+  }
+};
+
+const toToeflAssetHistoryEntry = (asset) => {
+  if (!asset?.id) return null;
+  const modeId = asset.mode;
+  const taskType = asset.taskType || asset.task_type;
+  return {
+    type: 'toefl-asset',
+    date: asset.createdAt || asset.created_at || new Date().toISOString(),
+    assetId: asset.id,
+    mode: TOEFL_MODE_TITLES[modeId] || asset.title || 'TOEFL Practice',
+    modeId,
+    taskType,
+    title: asset.title || TOEFL_MODE_TITLES[modeId] || 'TOEFL Practice',
+  };
+};
+
+const getEntryTimestamp = (entry) => {
+  const timestamp = new Date(entry?.date || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const mergeRecentActivity = (localHistory, serverAssets) => {
+  const entries = [
+    ...(Array.isArray(serverAssets) ? serverAssets.map(toToeflAssetHistoryEntry) : []),
+    ...(Array.isArray(localHistory) ? localHistory : []),
+  ].filter(Boolean);
+
+  const seen = new Set();
+  return entries
+    .filter((entry) => {
+      const key = entry?.type === 'toefl-asset' || entry?.assetId
+        ? `toefl-asset:${entry.assetId}`
+        : `quiz:${entry?.date || ''}:${entry?.mode || ''}:${entry?.percentage ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => getEntryTimestamp(b) - getEntryTimestamp(a))
+    .slice(0, 5);
 };
 
 /**
@@ -162,14 +214,24 @@ export default function QuizDashboard({
   const [goalDraft, setGoalDraft] = useState(String(DEFAULT_WEEKLY_GOAL));
 
   useEffect(() => {
-    try {
-      const savedHistory = JSON.parse(localStorage.getItem(HIST_STORAGE_KEY) || '[]');
-      setHistory(savedHistory.slice(0, 5));
-      setReadingSummary(summarizeToeflReadingStats());
-    } catch (e) {
-      console.error('Failed to load history:', e);
-    }
+    let isActive = true;
+    const savedHistory = readLocalHistory();
+    setHistory(savedHistory.slice(0, 5));
+    setReadingSummary(summarizeToeflReadingStats());
     setWeeklyGoal(readWeeklyGoal());
+
+    listToeflAssets({ limit: 20 })
+      .then((assets) => {
+        if (!isActive) return;
+        setHistory(mergeRecentActivity(savedHistory, assets));
+      })
+      .catch((error) => {
+        if (isActive) console.warn('Failed to load TOEFL assets for Recent Activity', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const commitGoal = () => {

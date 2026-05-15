@@ -8,6 +8,7 @@ const toeflAssetApi = vi.hoisted(() => ({
     createToeflAsset: vi.fn(),
     createToeflAttempt: vi.fn(),
     getToeflAsset: vi.fn(),
+    listToeflAssets: vi.fn(),
 }));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
@@ -107,6 +108,7 @@ describe('QuizView', () => {
         toeflAssetApi.createToeflAsset.mockResolvedValue(null);
         toeflAssetApi.createToeflAttempt.mockResolvedValue(null);
         toeflAssetApi.getToeflAsset.mockResolvedValue(null);
+        toeflAssetApi.listToeflAssets.mockResolvedValue([]);
     });
 
     test('renders the study dashboard and enters quiz mode', () => {
@@ -416,6 +418,37 @@ describe('QuizView', () => {
         await waitFor(() => {
             expect(toeflAssetApi.getToeflAsset).toHaveBeenCalledWith(91);
             expect(screen.getByText('review-asset:Generated Passage Set')).toBeTruthy();
+        });
+        expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
+    });
+
+    test('hydrates Recent Activity with previously saved TOEFL assets from the backend', async () => {
+        const savedAsset = {
+            id: 131,
+            mode: 'toefl-academic-passage',
+            taskType: 'academic-passage',
+            title: 'Previously Generated Passage',
+            payload: {
+                taskType: 'academic-passage',
+                title: 'Previously Generated Passage',
+                stimulus: 'Persisted stimulus',
+                questions: [],
+            },
+            metadata: { targetScore: 100, questionCount: 5 },
+            createdAt: '2026-05-15T00:30:00Z',
+        };
+        toeflAssetApi.listToeflAssets.mockResolvedValue([savedAsset]);
+        toeflAssetApi.getToeflAsset.mockResolvedValue(savedAsset);
+
+        renderQuizView();
+
+        expect(await screen.findByText('Previously Generated Passage')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Previously Generated Passage 다시 열기' }));
+
+        await waitFor(() => {
+            expect(toeflAssetApi.getToeflAsset).toHaveBeenCalledWith(131);
+            expect(screen.getByText('review-asset:Previously Generated Passage')).toBeTruthy();
         });
         expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
     });
