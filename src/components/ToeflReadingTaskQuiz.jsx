@@ -6,10 +6,12 @@ import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { Button } from '../design-system';
 import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
 import ToeflQuestionSetNavigator from './ToeflQuestionSetNavigator';
+import ToeflReadingReport from './ToeflReadingReport';
 import {
   useToeflVocabularyCapture,
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
+import { buildToeflReadingReport } from '../utils/toeflReadingReport';
 
 const TASK_LABELS = {
   'daily-life': {
@@ -200,6 +202,20 @@ export default function ToeflReadingTaskQuiz({
     const finalResults = results.length > 0 ? results.filter(Boolean) : buildResults();
     const finalCorrect = finalResults.filter((result) => Boolean(result?.correct)).length;
     const finalTotal = finalResults.length;
+    const reportItems = (setData?.questions || []).map((question) => ({
+      ...question,
+      title: setData?.title,
+      taskType,
+      topicTags: setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label),
+    }));
+    const report = buildToeflReadingReport({
+      items: reportItems,
+      results: finalResults,
+      correctCount: finalCorrect,
+      totalCount: finalTotal,
+      targetScore,
+      topicTags: setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label),
+    });
     recordToeflReadingAttempt({
       taskType,
       topicTags: setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label),
@@ -212,7 +228,7 @@ export default function ToeflReadingTaskQuiz({
           selectedIndex: result.selectedIndex,
         })),
       },
-      results: { items: finalResults },
+      results: { items: finalResults, report },
       correctCount: finalCorrect,
       totalCount: finalTotal,
       score: {
@@ -248,20 +264,25 @@ export default function ToeflReadingTaskQuiz({
 
   if (status === 'summary') {
     const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+    const reportItems = (setData?.questions || []).map((question) => ({
+      ...question,
+      title: setData?.title,
+      taskType,
+      topicTags: setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label),
+    }));
     return (
-      <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-8 space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black text-surface-900 tracking-tight">Reading 학습 리포트</h2>
-            <p className="text-sm font-bold text-surface-500">{taskCopy.title} · 정답 {correctCount}/{totalQuestions}</p>
-          </div>
-          <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
-        </div>
-        <div className="rounded-xl bg-brand-50 border border-brand-100 p-6">
-          <p className="text-3xl font-black text-brand-700 tracking-tight">{accuracy}%</p>
-          <p className="mt-1 text-sm font-bold text-brand-900">task/topic/skill 통계에 누적되었습니다.</p>
-        </div>
-      </div>
+      <ToeflReadingReport
+        title="Reading 학습 리포트"
+        subtitle={`${taskCopy.title} · 정답 ${correctCount}/${totalQuestions} · 정답률 ${accuracy}%`}
+        taskLabel={taskCopy.title}
+        items={reportItems}
+        results={results}
+        correctCount={correctCount}
+        totalCount={totalQuestions}
+        targetScore={targetScore}
+        topicTags={setData?.topicTags || sessionContext.pickedTopics.map((topic) => topic.label)}
+        onExit={onExit}
+      />
     );
   }
 

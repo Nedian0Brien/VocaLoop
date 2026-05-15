@@ -9,10 +9,12 @@ import { recordToeflReadingAttempt } from '../services/toeflReadingStats';
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { buildGenerationContext, serializePickedTopics } from '../hooks/useToeflQuizSession';
+import ToeflReadingReport from './ToeflReadingReport';
 import {
   useToeflVocabularyCapture,
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
+import { buildToeflReadingReport } from '../utils/toeflReadingReport';
 
 const TASK_LABELS = {
   'complete-words': 'Complete the Words',
@@ -210,6 +212,14 @@ export default function ToeflReadingMockTest({
       total: finalTotal,
       difficulty: stageTwoDifficulty || currentModule?.difficulty || 'lower',
     });
+    const report = buildToeflReadingReport({
+      items: finalItems,
+      results: finalResults,
+      correctCount: finalCorrect,
+      totalCount: finalTotal,
+      targetScore,
+      score: { band: finalBand },
+    });
     setBand(finalBand);
     groupResultsByTask(finalItems, finalResults).forEach((group, taskType) => {
       recordToeflReadingAttempt({
@@ -225,7 +235,7 @@ export default function ToeflReadingMockTest({
           selectedIndex: result.selectedIndex,
         })),
       },
-      results: { items: finalResults },
+      results: { items: finalResults, report },
       correctCount: finalCorrect,
       totalCount: finalTotal,
       score: { band: finalBand },
@@ -267,30 +277,20 @@ export default function ToeflReadingMockTest({
     const total = results.length;
     const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 0;
     return (
-      <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-8 space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black text-surface-900 tracking-tight">TOEFL Reading Mock Test Report</h2>
-            <p className="text-sm font-bold text-surface-500">
-              정답 {correctCount}/{total} · Stage 2 {stageTwoDifficulty === 'upper' ? 'Upper' : 'Lower'} module
-            </p>
-          </div>
-          <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-brand-50 border border-brand-100 p-6">
-            <p className="text-2xs font-black uppercase tracking-widest text-brand-500">Estimated Reading Band</p>
-            <p className="mt-2 text-5xl font-black text-brand-700 tracking-tight">{band}</p>
-          </div>
-          <div className="rounded-xl bg-surface-50 border border-surface-100 p-6">
-            <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Accuracy</p>
-            <p className="mt-2 text-5xl font-black text-surface-900 tracking-tight">{accuracy}%</p>
-          </div>
-        </div>
-        <p className="text-xs font-bold text-surface-500">
-          Estimated band는 앱 내 연습용 추정치이며 공식 ETS 점수가 아닙니다.
-        </p>
-      </div>
+      <ToeflReadingReport
+        title="TOEFL Reading Mock Test Report"
+        subtitle={`정답 ${correctCount}/${total} · Stage 2 ${stageTwoDifficulty === 'upper' ? 'Upper' : 'Lower'} module · 정답률 ${accuracy}%`}
+        taskLabel="TOEFL Reading Mock Test"
+        items={items}
+        results={results}
+        correctCount={correctCount}
+        totalCount={total}
+        targetScore={targetScore}
+        score={{ value: band, band }}
+        scoreLabel="Estimated Reading Band"
+        scoreFootnote="공식 ETS 점수가 아닌 앱 내 연습용 추정치"
+        onExit={onExit}
+      />
     );
   }
 

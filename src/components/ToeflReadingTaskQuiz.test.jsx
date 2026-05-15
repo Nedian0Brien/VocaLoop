@@ -213,6 +213,105 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     });
   });
 
+  test('shows a detailed learning report with metrics, missed answers, and AI feedback', async () => {
+    toeflService.generateReadingTaskSet.mockResolvedValueOnce({
+      taskType: 'academic-passage',
+      title: 'Coral Reef Study',
+      stimulusLabel: 'Academic passage',
+      stimulus: 'Researchers compared coral reef recovery across protected and unprotected waters.',
+      topicTags: ['marine-biology'],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'What did the researchers compare?',
+          options: ['Reef recovery', 'Boat traffic', 'Tourism income', 'Coastal weather'],
+          answerIndex: 0,
+          skillTag: 'detail',
+          explanationKo: '지문에서 protected와 unprotected waters의 reef recovery를 비교했다고 설명합니다.',
+        },
+        {
+          id: 'q2',
+          prompt: 'The passage implies that protected waters are useful because they...',
+          options: ['limit damaging activity', 'increase tourism', 'change tides', 'remove all predators'],
+          answerIndex: 0,
+          skillTag: 'inference',
+          explanationKo: 'protected waters는 산호초 회복에 방해되는 활동을 줄인다는 점이 핵심입니다.',
+        },
+        {
+          id: 'q3',
+          prompt: 'Why does the author mention unprotected waters?',
+          options: ['To introduce a contrast', 'To define coral', 'To list species', 'To question the study method'],
+          answerIndex: 0,
+          skillTag: 'rhetorical-purpose',
+          explanationKo: 'unprotected waters는 protected waters와 대비되어 보호 조치의 효과를 보여줍니다.',
+        },
+      ],
+    });
+    const savedAsset = { id: 123, title: 'Coral Reef Study' };
+    const onAttemptRecorded = vi.fn().mockResolvedValue(null);
+
+    render(
+      <ToeflReadingTaskQuiz
+        aiConfig={{ provider: 'gemini', apiKey: 'test-key' }}
+        taskType="academic-passage"
+        questionCount={1}
+        targetScore={100}
+        vocabSource={{ mode: 'off', pool: [] }}
+        topicSelection={{ enabled: false }}
+        onExit={vi.fn()}
+        existingWords={[]}
+        onSaveVocabularyWord={vi.fn()}
+        onExplainVocabularyWord={vi.fn()}
+        onAssetCreated={vi.fn().mockResolvedValue(savedAsset)}
+        onAttemptRecorded={onAttemptRecorded}
+      />
+    );
+
+    await screen.findByText('Coral Reef Study');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reef recovery' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '다음 문항' }).at(-1));
+    fireEvent.click(screen.getByRole('button', { name: 'increase tourism' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '다음 문항' }).at(-1));
+    fireEvent.click(screen.getByRole('button', { name: 'To define coral' }));
+    fireEvent.click(screen.getByRole('button', { name: '정답 확인' }));
+    fireEvent.click(screen.getByRole('button', { name: '리포트 보기' }));
+
+    expect(await screen.findByText('정량 지표')).toBeTruthy();
+    expect(screen.getByText('33%')).toBeTruthy();
+    expect(screen.getByText('Skill별 정답률')).toBeTruthy();
+    expect(screen.getByText('오답 리뷰')).toBeTruthy();
+    expect(screen.getByText('내 답: increase tourism')).toBeTruthy();
+    expect(screen.getByText('정답: limit damaging activity')).toBeTruthy();
+    expect(screen.getByText('내 답: To define coral')).toBeTruthy();
+    expect(screen.getByText('정답: To introduce a contrast')).toBeTruthy();
+    expect(screen.getAllByText('AI 피드백').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/protected waters는 산호초 회복에 방해되는 활동을 줄인다는 점이 핵심입니다/).length).toBeGreaterThan(0);
+
+    await waitFor(() => {
+      expect(onAttemptRecorded).toHaveBeenCalledWith(
+        savedAsset,
+        expect.objectContaining({
+          results: expect.objectContaining({
+            report: expect.objectContaining({
+              metrics: expect.objectContaining({
+                accuracy: 33,
+                wrongCount: 2,
+              }),
+              wrongItems: expect.arrayContaining([
+                expect.objectContaining({
+                  prompt: 'The passage implies that protected waters are useful because they...',
+                  selectedAnswer: 'increase tourism',
+                  correctAnswer: 'limit damaging activity',
+                }),
+              ]),
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   test('puts passage before progress, guides with next until the final question, and reveals progress correctness', async () => {
     toeflService.generateReadingTaskSet.mockResolvedValueOnce({
       taskType: 'academic-passage',
