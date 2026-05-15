@@ -164,6 +164,10 @@ def test_toefl_attempts_create_review_items_and_track_mastery(client):
     assert items[0]["status"] == "new"
     assert items[0]["skillTag"] == "detail"
 
+    all_response = client.get("/api/toefl/review-items?scope=all&limit=200")
+    assert all_response.status_code == 200
+    assert len(all_response.json()) == 1
+
     item_id = items[0]["id"]
     first_review = client.patch(f"/api/toefl/review-items/{item_id}", json={"result": "correct"})
     assert first_review.status_code == 200

@@ -87,7 +87,7 @@ def list_assets(
 @router.get("/review-items", response_model=list[ToeflReviewItemRead], response_model_by_alias=True)
 def list_review_items(
     scope: str = Query(default="today", pattern="^(today|active|mastered|all)$"),
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=30, ge=1, le=200),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ToeflReviewItemRead]:
