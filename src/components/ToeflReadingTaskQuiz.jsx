@@ -86,6 +86,13 @@ export default function ToeflReadingTaskQuiz({
     [answeredStates]
   );
   const allQuestionsAnswered = totalQuestions > 0 && answeredCount === totalQuestions;
+  const resultStates = useMemo(
+    () => Array.from({ length: totalQuestions }, (_, index) => {
+      if (!checked || !results[index]) return null;
+      return Boolean(results[index].correct);
+    }),
+    [checked, results, totalQuestions]
+  );
 
   const { activeAsset, error, reload: loadQuestions, sessionContext, setStatus, status } = useToeflQuizSession({
     reviewAsset,
@@ -183,6 +190,11 @@ export default function ToeflReadingTaskQuiz({
     playSound(finalResults.every((result) => result.correct) ? 'SUCCESS' : 'FAIL');
   };
 
+  const handleNextQuestion = () => {
+    if (selectedIndex === null || currentIndex >= totalQuestions - 1) return;
+    handleNavigate(currentIndex + 1);
+  };
+
   const handleReport = () => {
     if (!checked) return;
     const finalResults = results.length > 0 ? results.filter(Boolean) : buildResults();
@@ -272,14 +284,6 @@ export default function ToeflReadingTaskQuiz({
         </div>
       </div>
 
-      <ToeflQuestionSetNavigator
-        answeredStates={answeredStates}
-        currentIndex={currentIndex}
-        isRevealed={checked}
-        onNavigate={handleNavigate}
-        totalQuestions={totalQuestions}
-      />
-
       <section className="rounded-md border border-surface-100 bg-surface-50 p-5 md:p-7">
         <div className="mb-4 flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-brand-600" aria-hidden="true" />
@@ -313,6 +317,15 @@ export default function ToeflReadingTaskQuiz({
           className="whitespace-pre-line text-base leading-8 font-semibold text-surface-700"
         />
       </section>
+
+      <ToeflQuestionSetNavigator
+        answeredStates={answeredStates}
+        currentIndex={currentIndex}
+        isRevealed={checked}
+        onNavigate={handleNavigate}
+        resultStates={resultStates}
+        totalQuestions={totalQuestions}
+      />
 
       {currentQuestion && (
         <section className="space-y-4">
@@ -378,9 +391,15 @@ export default function ToeflReadingTaskQuiz({
                   : `남은 문항 ${totalQuestions - answeredCount}개를 풀면 정답 확인이 열립니다.`}
             </p>
             {!checked ? (
-              <Button variant="primary" size="md" onClick={handleCheck} disabled={!allQuestionsAnswered}>
-                정답 확인
-              </Button>
+              currentIndex < totalQuestions - 1 ? (
+                <Button variant="primary" size="md" onClick={handleNextQuestion} disabled={selectedIndex === null}>
+                  다음 문항
+                </Button>
+              ) : (
+                <Button variant="primary" size="md" onClick={handleCheck} disabled={!allQuestionsAnswered}>
+                  정답 확인
+                </Button>
+              )
             ) : (
               <Button variant="primary" size="md" onClick={handleReport}>
                 리포트 보기

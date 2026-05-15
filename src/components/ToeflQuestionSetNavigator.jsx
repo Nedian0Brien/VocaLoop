@@ -5,17 +5,26 @@ import { Button } from '../design-system';
 const normalizeAnsweredStates = (states, totalQuestions) =>
   Array.from({ length: totalQuestions }, (_, index) => Boolean(states?.[index]));
 
+const normalizeResultStates = (states, totalQuestions) =>
+  Array.from({ length: totalQuestions }, (_, index) => {
+    if (states?.[index] === true) return 'correct';
+    if (states?.[index] === false) return 'incorrect';
+    return null;
+  });
+
 export default function ToeflQuestionSetNavigator({
   answeredStates = [],
   className = '',
   currentIndex,
   isRevealed = false,
   onNavigate,
+  resultStates = [],
   totalQuestions,
 }) {
   if (!totalQuestions || totalQuestions <= 1) return null;
 
   const states = normalizeAnsweredStates(answeredStates, totalQuestions);
+  const results = normalizeResultStates(resultStates, totalQuestions);
   const answeredCount = states.filter(Boolean).length;
   const navigateTo = (index) => {
     if (index < 0 || index >= totalQuestions || index === currentIndex) return;
@@ -63,6 +72,14 @@ export default function ToeflQuestionSetNavigator({
       <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="문항 풀이 바 차트">
         {states.map((isAnswered, index) => {
           const isActive = index === currentIndex;
+          const result = isRevealed ? results[index] : null;
+          const stateClasses = result === 'correct'
+            ? 'border-success-500 bg-success-500 text-white'
+            : result === 'incorrect'
+              ? 'border-danger-500 bg-danger-500 text-white'
+              : isAnswered
+                ? 'border-brand-500 bg-brand-500 text-white'
+                : 'border-surface-200 bg-white text-surface-400 hover:border-brand-200 hover:text-brand-600';
           return (
             <button
               key={`question-progress-${index}`}
@@ -71,13 +88,12 @@ export default function ToeflQuestionSetNavigator({
               aria-label={`문항 ${index + 1}로 이동`}
               data-answered={isAnswered ? 'true' : 'false'}
               data-active={isActive ? 'true' : 'false'}
+              data-result={result || 'pending'}
               onClick={() => navigateTo(index)}
               className={[
                 'h-8 min-w-10 flex-1 rounded-sm border px-2 text-xs font-black transition-all',
                 isActive ? 'ring-2 ring-brand-300 ring-offset-1 ring-offset-surface-50' : '',
-                isAnswered
-                  ? 'border-brand-500 bg-brand-500 text-white'
-                  : 'border-surface-200 bg-white text-surface-400 hover:border-brand-200 hover:text-brand-600',
+                stateClasses,
               ].join(' ')}
             >
               {index + 1}

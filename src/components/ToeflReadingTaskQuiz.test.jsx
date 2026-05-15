@@ -213,7 +213,7 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     });
   });
 
-  test('lets learners move across passage questions and checks answers only after the full set is solved', async () => {
+  test('puts passage before progress, guides with next until the final question, and reveals progress correctness', async () => {
     toeflService.generateReadingTaskSet.mockResolvedValueOnce({
       taskType: 'academic-passage',
       title: 'Ocean Study',
@@ -264,15 +264,20 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     );
 
     await screen.findByText('Ocean Study');
-    const checkButton = screen.getByRole('button', { name: '정답 확인' });
-    expect(checkButton.disabled).toBe(true);
+    const passage = screen.getByText('Researchers').closest('section');
+    const progress = screen.getByLabelText('문항 진행');
+    expect(passage.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    expect(screen.queryByRole('button', { name: '정답 확인' })).toBeNull();
+    const firstNextButton = screen.getAllByRole('button', { name: '다음 문항' }).at(-1);
+    expect(firstNextButton.disabled).toBe(true);
     expect(screen.getByText('풀이 0/3')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ocean currents' }));
     expect(screen.getByText('풀이 1/3')).toBeTruthy();
-    expect(checkButton.disabled).toBe(true);
+    expect(firstNextButton.disabled).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: '다음 문항' }));
+    fireEvent.click(firstNextButton);
     fireEvent.click(screen.getByRole('button', { name: 'Coastal' }));
     expect(screen.getByText('풀이 2/3')).toBeTruthy();
 
@@ -283,11 +288,15 @@ describe('ToeflReadingTaskQuiz vocabulary capture', () => {
     fireEvent.click(screen.getByRole('button', { name: '문항 3로 이동' }));
     fireEvent.click(screen.getByRole('button', { name: 'Architecture' }));
     expect(screen.getByText('풀이 3/3')).toBeTruthy();
+    const checkButton = screen.getByRole('button', { name: '정답 확인' });
     expect(checkButton.disabled).toBe(false);
 
     fireEvent.click(checkButton);
     expect(screen.getByText('오답입니다')).toBeTruthy();
     expect(screen.getByText('해류와 생태계 연구는 지구과학과 가깝습니다.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '문항 1로 이동' }).dataset.result).toBe('correct');
+    expect(screen.getByRole('button', { name: '문항 2로 이동' }).dataset.result).toBe('correct');
+    expect(screen.getByRole('button', { name: '문항 3로 이동' }).dataset.result).toBe('incorrect');
 
     fireEvent.click(screen.getByRole('button', { name: '이전 문항' }));
     expect(screen.getByText('정답입니다')).toBeTruthy();
