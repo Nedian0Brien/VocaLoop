@@ -69,7 +69,7 @@ export default function ToeflQuestionSetNavigator({
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="문항 풀이 바 차트">
+      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-1" aria-label="문항 풀이 바 차트">
         {states.map((isAnswered, index) => {
           const isActive = index === currentIndex;
           const result = isRevealed ? results[index] : null;
