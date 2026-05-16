@@ -107,7 +107,7 @@ export default function QuizConfigModal({
     : 'bg-gradient-to-br from-accent-600 to-indigo-pair-700';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-hidden p-2 sm:items-center sm:p-6" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-surface-900/60 backdrop-blur-md animate-in fade-in duration-500"
@@ -115,18 +115,21 @@ export default function QuizConfigModal({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-white rounded-hero shadow-[var(--shadow-floating)] border border-white/20 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
+      <div
+        data-testid="quiz-config-panel"
+        className="relative flex min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-hero border border-white/20 bg-white shadow-[var(--shadow-floating)] max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500"
+      >
         {/* Header */}
-        <div className={`p-10 sm:p-12 flex items-start justify-between relative overflow-hidden ${headerGradient}`}>
+        <div className={`relative flex items-start justify-between gap-4 overflow-hidden p-6 sm:p-12 ${headerGradient}`}>
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-pill blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-          <div className="relative z-10 space-y-3">
+          <div className="relative z-10 min-w-0 space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2 text-white/60">
               <Settings className="w-4 h-4" aria-hidden="true" />
               <span className="text-2xs font-black uppercase tracking-[0.3em]">Configure Mode</span>
             </div>
-            <h3 className="text-4xl font-black text-white tracking-tight">{mode.title}</h3>
-            <p className="text-white/80 text-sm font-bold max-w-md leading-relaxed opacity-90">
+            <h3 className="text-3xl font-black text-white tracking-tight sm:text-4xl">{mode.title}</h3>
+            <p className="hidden max-w-md text-sm font-bold leading-relaxed text-white/80 opacity-90 sm:block">
               {mode.description}
             </p>
           </div>
@@ -134,40 +137,40 @@ export default function QuizConfigModal({
           <button
             onClick={onClose}
             aria-label="설정 닫기"
-            className="relative z-10 w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90 border border-white/10"
+            className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition-all hover:bg-white/20 active:scale-90 sm:h-12 sm:w-12 sm:rounded-2xl"
           >
             <X className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-10 sm:p-12 space-y-12 custom-scrollbar">
+        <div data-testid="quiz-config-body" className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-6 space-y-8 sm:p-12 sm:space-y-12">
           {/* Scope (folder picker) — Vocab quizzes only */}
           {!isToefl && (
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
+            <section className="space-y-5 sm:space-y-6">
+              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <SectionHead
                   icon={Layers}
                   title="출제 범위 설정"
                   subtitle="학습할 폴더를 가로로 스크롤하며 선택하세요"
                 />
-                <div className="flex items-center gap-4">
+                <div data-testid="quiz-config-scope-actions" className="flex self-start items-center gap-2 rounded-pill bg-surface-50 p-1 sm:gap-4 sm:bg-transparent sm:p-0">
                   <button
                     onClick={() => setSelectedFolderIds([])}
-                    className="text-2xs font-black text-surface-400 uppercase tracking-widest hover:text-brand-600 transition-colors"
+                    className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-surface-400 transition-colors hover:text-brand-600 sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
                   >
                     Clear All
                   </button>
                   <button
                     onClick={() => setSelectedFolderIds(folders.map(f => f.id))}
-                    className="text-2xs font-black text-brand-600 uppercase tracking-widest hover:underline"
+                    className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-brand-600 hover:underline sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
                   >
                     Select All
                   </button>
                 </div>
               </div>
 
-              <div className="bg-surface-50/50 p-6 rounded-card border border-surface-100">
+              <div className="rounded-card border border-surface-100 bg-surface-50/50 p-4 sm:p-6">
                 <CompactFolderPicker
                   folders={folders}
                   words={words}
@@ -183,7 +186,7 @@ export default function QuizConfigModal({
                 />
               </div>
 
-              <div className="flex items-center gap-3 px-5 py-3 bg-brand-50/50 rounded-xl border border-brand-100/50 w-fit">
+              <div className="flex w-full items-center gap-3 rounded-xl border border-brand-100/50 bg-brand-50/50 px-4 py-3 sm:w-fit sm:px-5">
                 <span className={`w-2 h-2 rounded-pill ${filteredWords.length > 0 ? 'bg-brand-500 animate-pulse' : 'bg-surface-300'}`} aria-hidden="true" />
                 <p className="text-xs font-bold text-surface-600">
                   선택된 범위: <span className="text-brand-600 font-black text-sm">{filteredWords.length}</span>개의 단어
@@ -193,18 +196,18 @@ export default function QuizConfigModal({
           )}
 
           {isMixed && (
-            <section className="space-y-6 pt-4 border-t border-surface-50">
-              <div className="flex items-center justify-between gap-4">
+            <section className="space-y-5 border-t border-surface-50 pt-2 sm:space-y-6 sm:pt-4">
+              <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
                 <SectionHead
                   icon={Sparkles}
                   title="복합 단계 구성"
                   subtitle="선택한 단계 순서대로 정답 시 난이도가 올라갑니다"
                   tone="warning"
                 />
-                <Badge tone="warning" size="xs">{mixedModeIds.length} Steps</Badge>
+                <Badge tone="warning" size="xs" className="shrink-0">{mixedModeIds.length} Steps</Badge>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 {MIXED_MODE_OPTIONS.map((option, index) => {
                   const selected = mixedModeIds.includes(option.id);
                   const Icon = option.icon;
@@ -215,7 +218,7 @@ export default function QuizConfigModal({
                       onClick={() => toggleMixedMode(option.id)}
                       aria-pressed={selected}
                       className={[
-                        'relative p-5 rounded-card border-2 text-left transition-all min-h-[132px]',
+                        'relative min-h-[104px] rounded-card border-2 p-4 text-left transition-all sm:min-h-[132px] sm:p-5',
                         selected
                           ? 'bg-warning-50/60 border-warning-300 shadow-xl shadow-warning-500/10'
                           : 'bg-white border-surface-100 hover:border-warning-200',
@@ -680,12 +683,12 @@ export default function QuizConfigModal({
         </div>
 
         {/* Footer */}
-        <div className="p-10 sm:p-12 bg-white border-t border-surface-100 flex flex-col sm:flex-row items-center gap-5">
+        <div data-testid="quiz-config-footer" className="flex shrink-0 flex-col items-center gap-3 border-t border-surface-100 bg-white px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:gap-5 sm:p-12">
           <Button
             variant="ghost"
             size="lg"
             onClick={onClose}
-            className="w-full sm:flex-1 !h-16 !text-base"
+            className="w-full !h-12 !text-sm sm:flex-1 sm:!h-16 sm:!text-base"
           >
             뒤로 가기
           </Button>
@@ -695,7 +698,7 @@ export default function QuizConfigModal({
             disabled={startDisabled}
             onClick={handleStart}
             rightIcon={Play}
-            className="w-full sm:flex-[2] !h-16 !text-lg"
+            className="w-full !h-12 !text-base sm:flex-[2] sm:!h-16 sm:!text-lg"
           >
             퀴즈 시작하기
           </Button>

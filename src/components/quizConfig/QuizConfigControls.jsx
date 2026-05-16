@@ -10,13 +10,13 @@ export const SectionHead = ({ icon: Icon, title, subtitle, tone = 'neutral' }) =
   }[tone];
 
   return (
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${toneCls}`}>
-        <Icon className="w-5 h-5" aria-hidden="true" />
+    <div className="flex min-w-0 items-center gap-3">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${toneCls}`}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
       </div>
-      <div>
-        <h4 className="font-black text-surface-900 tracking-tight">{title}</h4>
-        <p className="text-2xs font-bold text-surface-400">{subtitle}</p>
+      <div className="min-w-0">
+        <h4 className="text-sm font-black text-surface-900 tracking-tight sm:text-base">{title}</h4>
+        <p className="text-[11px] font-bold leading-snug text-surface-400 sm:text-2xs">{subtitle}</p>
       </div>
     </div>
   );
