@@ -421,6 +421,15 @@ export default function QuizView({
   const adaptiveMode = adaptiveTask ? adaptiveSession?.modes?.[adaptiveTask.stageIndex] : null;
   const adaptiveProgress = adaptiveSession ? getAdaptiveProgress(adaptiveSession) : null;
   const isStudySetBreak = selectedMode?.id === 'mixed' && adaptiveSession?.isSetComplete;
+  const quizContentKey = selectedMode?.id === 'mixed' && adaptiveTask
+    ? [
+      'mixed',
+      adaptiveMode,
+      adaptiveTask.word?.id ?? adaptiveTask.word?.word ?? 'word',
+      adaptiveTask.stageIndex ?? 0,
+      stats.total,
+    ].join(':')
+    : undefined;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px]">
@@ -490,6 +499,7 @@ export default function QuizView({
           ) : (
             <div className="quiz-container">
               <QuizModeContent
+                key={quizContentKey}
                 selectedMode={selectedMode}
                 adaptiveMode={adaptiveMode}
                 adaptiveTask={adaptiveTask}

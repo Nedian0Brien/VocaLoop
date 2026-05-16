@@ -12,30 +12,93 @@ const toeflAssetApi = vi.hoisted(() => ({
 }));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
-    default: ({ onAnswer }) => (
-        <div>
-            multiple-choice-quiz
-            <button type="button" onClick={() => onAnswer(true)}>answer-correct</button>
-        </div>
-    ),
+    default: ({ onAnswer }) => {
+        const [answered, setAnswered] = React.useState(false);
+        return (
+            <div>
+                multiple-choice-quiz
+                {answered ? <span>multiple-choice-answered</span> : null}
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(true);
+                    }}
+                >
+                    answer-correct
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(false);
+                    }}
+                >
+                    answer-wrong
+                </button>
+            </div>
+        );
+    },
 }));
 
 vi.mock('./ShortAnswerQuiz', () => ({
-    default: ({ onAnswer }) => (
-        <div>
-            short-answer-quiz
-            <button type="button" onClick={() => onAnswer(true)}>answer-correct</button>
-        </div>
-    ),
+    default: ({ onAnswer }) => {
+        const [answered, setAnswered] = React.useState(false);
+        return (
+            <div>
+                short-answer-quiz
+                {answered ? <span>short-answer-answered</span> : null}
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(true);
+                    }}
+                >
+                    answer-correct
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(false);
+                    }}
+                >
+                    answer-wrong
+                </button>
+            </div>
+        );
+    },
 }));
 
 vi.mock('./CompleteWordQuiz', () => ({
-    default: ({ onAnswer }) => (
-        <div>
-            complete-word-quiz
-            <button type="button" onClick={() => onAnswer(true)}>answer-correct</button>
-        </div>
-    ),
+    default: ({ onAnswer }) => {
+        const [answered, setAnswered] = React.useState(false);
+        return (
+            <div>
+                complete-word-quiz
+                {answered ? <span>complete-word-answered</span> : null}
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(true);
+                    }}
+                >
+                    answer-correct
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setAnswered(true);
+                        onAnswer(false);
+                    }}
+                >
+                    answer-wrong
+                </button>
+            </div>
+        );
+    },
 }));
 
 vi.mock('./QuizResult', () => ({
@@ -182,6 +245,43 @@ describe('QuizView', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         expect(screen.getByText('complete-word-quiz')).toBeTruthy();
+    });
+
+    test('resets a failed mixed quiz question before showing the retry', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'serendipity',
+                        meaning_ko: '뜻밖의 발견',
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={true}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('AI 복합 퀴즈'));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+
+        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.queryByText('multiple-choice-answered')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'answer-wrong' }));
+
+        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.queryByText('multiple-choice-answered')).toBeNull();
     });
 
     test('pauses mixed quiz after each five-word study set and continues to the next set', () => {
