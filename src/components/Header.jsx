@@ -1,5 +1,11 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BookOpen, Brain, InfinityIcon, RotateCw, Settings } from './Icons';
+import {
+    MOBILE_NAV_AUTO_HIDE_RESUME_GUARD_MS,
+    MOBILE_NAV_AUTO_HIDE_THRESHOLDS,
+    primeMobileNavAutoHideState,
+    reduceMobileNavAutoHideState,
+} from './mobileNavAutoHide';
 
 /**
  * Header — 글로벌 네비게이션 바.
@@ -31,30 +37,164 @@ const NavLink = ({ active, href, onClick, children }) => (
 );
 
 const MobileNav = ({ view, setView }) => {
-    const activeIndex = Math.max(0, NAV_LINKS.findIndex((item) => item.view === view));
+    const [hidden, setHidden] = useState(false);
+    const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, x: 0, ready: false });
+    const navRef = useRef(null);
+    const itemRefs = useRef({});
+    const hiddenRef = useRef(false);
+    const scrollRafRef = useRef(null);
+
+    useEffect(() => {
+        const getScrollY = () => Math.max(
+            window.scrollY || 0,
+            document.documentElement.scrollTop || 0,
+            document.body.scrollTop || 0,
+        );
+        const updateHidden = (nextHidden) => {
+            if (hiddenRef.current === nextHidden) return;
+            hiddenRef.current = nextHidden;
+            setHidden(nextHidden);
+        };
+
+        let autoHideState = primeMobileNavAutoHideState({
+            currentY: getScrollY(),
+            now: Date.now(),
+            resumeGuardMs: MOBILE_NAV_AUTO_HIDE_RESUME_GUARD_MS,
+        });
+        updateHidden(autoHideState.hidden);
+
+        const updateVisibility = () => {
+            autoHideState = reduceMobileNavAutoHideState({
+                state: autoHideState,
+                currentY: getScrollY(),
+                now: Date.now(),
+                isMobile: window.innerWidth < 768,
+                thresholds: MOBILE_NAV_AUTO_HIDE_THRESHOLDS,
+            });
+            updateHidden(autoHideState.hidden);
+            scrollRafRef.current = null;
+        };
+
+        const onScroll = () => {
+            if (scrollRafRef.current !== null) return;
+            scrollRafRef.current = window.requestAnimationFrame(updateVisibility);
+        };
+
+        const onResize = () => {
+            if (scrollRafRef.current !== null) {
+                window.cancelAnimationFrame(scrollRafRef.current);
+                scrollRafRef.current = null;
+            }
+            autoHideState = {
+                ...autoHideState,
+                hidden: window.innerWidth < 768 ? autoHideState.hidden : false,
+                lastScrollY: getScrollY(),
+                resumeGuardUntil: 0,
+            };
+            updateHidden(autoHideState.hidden);
+        };
+
+        const onResume = () => {
+            if (document.visibilityState === 'hidden') return;
+            if (scrollRafRef.current !== null) {
+                window.cancelAnimationFrame(scrollRafRef.current);
+                scrollRafRef.current = null;
+            }
+            autoHideState = primeMobileNavAutoHideState({
+                currentY: getScrollY(),
+                now: Date.now(),
+                resumeGuardMs: MOBILE_NAV_AUTO_HIDE_RESUME_GUARD_MS,
+            });
+            updateHidden(autoHideState.hidden);
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onResize);
+        window.addEventListener('focus', onResume);
+        window.addEventListener('pageshow', onResume);
+        document.addEventListener('visibilitychange', onResume);
+
+        return () => {
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('focus', onResume);
+            window.removeEventListener('pageshow', onResume);
+            document.removeEventListener('visibilitychange', onResume);
+            if (scrollRafRef.current !== null) {
+                window.cancelAnimationFrame(scrollRafRef.current);
+                scrollRafRef.current = null;
+            }
+        };
+    }, [view]);
+
+    const syncIndicator = useCallback(() => {
+        const nav = navRef.current;
+        const activeItem = itemRefs.current[view];
+        if (!nav || !activeItem) return;
+
+        const navRect = nav.getBoundingClientRect();
+        const itemRect = activeItem.getBoundingClientRect();
+        const width = Math.round(itemRect.width);
+        const x = Math.round(itemRect.left - navRect.left - 4);
+
+        setIndicatorStyle((previous) => {
+            if (previous.ready && previous.width === width && previous.x === x) return previous;
+            return { width, x, ready: true };
+        });
+    }, [view]);
+
+    useEffect(() => {
+        const raf = window.requestAnimationFrame(syncIndicator);
+        const handleViewportChange = () => {
+            window.requestAnimationFrame(syncIndicator);
+        };
+
+        window.addEventListener('resize', handleViewportChange);
+        window.addEventListener('orientationchange', handleViewportChange);
+
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.removeEventListener('resize', handleViewportChange);
+            window.removeEventListener('orientationchange', handleViewportChange);
+        };
+    }, [syncIndicator]);
 
     return (
         <nav
+            ref={navRef}
             aria-label="모바일 주요 메뉴"
-            className="fixed left-1/2 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[var(--shadow-floating)] backdrop-blur-2xl md:hidden"
+            className={[
+                'fixed left-1/2 z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55),var(--shadow-floating)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-[bottom,opacity] duration-[280ms] ease-[var(--ease-decel)] will-change-[bottom,opacity] [backface-visibility:hidden] [transform-style:preserve-3d] md:hidden',
+                hidden
+                    ? 'bottom-[calc(-4rem-1.75rem-env(safe-area-inset-bottom))] pointer-events-none opacity-0'
+                    : 'bottom-[calc(1rem+env(safe-area-inset-bottom))] opacity-100',
+            ].join(' ')}
         >
             <span
                 data-testid="mobile-nav-indicator"
                 aria-hidden="true"
-                className="absolute left-1 top-1 bottom-1 w-[calc((100%-0.5rem)/3)] rounded-pill border border-brand-100 bg-brand-50 shadow-[var(--shadow-soft)] transition-transform duration-300 ease-[var(--ease-spring)]"
-                style={{ transform: `translateX(${activeIndex * 100}%)` }}
+                className="absolute left-1 top-1 bottom-1 z-0 rounded-pill border border-brand-100 bg-white shadow-[var(--shadow-soft)] transition-[transform,width,opacity] duration-300 ease-[var(--ease-spring)]"
+                style={{
+                    width: `${indicatorStyle.width}px`,
+                    transform: `translateX(${indicatorStyle.x}px)`,
+                    opacity: indicatorStyle.ready ? 1 : 0,
+                }}
             />
             {NAV_LINKS.map(({ view: v, href, label, Icon }) => {
                 const active = view === v;
                 return (
                     <a
                         key={v}
+                        ref={(element) => {
+                            itemRefs.current[v] = element;
+                        }}
                         href={href}
                         onClick={(e) => { e.preventDefault(); setView(v); }}
                         aria-current={active ? 'page' : undefined}
                         data-mobile-nav-item="true"
+                        data-mobile-nav-key={v}
                         className={[
-                            'relative z-10 flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill px-2 text-[11px] font-black tracking-tight transition-colors duration-150',
+                            'relative z-10 flex min-w-0 select-none flex-col items-center justify-center gap-0.5 rounded-pill border-0 bg-transparent px-2 text-[11px] font-black tracking-tight transition-colors duration-150 [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]',
                             active
                                 ? 'text-brand-700'
                                 : 'text-surface-500 hover:text-surface-900',
