@@ -121,10 +121,13 @@ function normalizeAnswerText(value = '') {
 }
 
 function getMeaningCandidates(correctAnswer = '') {
-  return String(correctAnswer)
+  const fullAnswer = String(correctAnswer).trim();
+  const candidates = fullAnswer
     .split(',')
     .map((candidate) => candidate.trim())
     .filter(Boolean);
+
+  return Array.from(new Set([fullAnswer, ...candidates].filter(Boolean)));
 }
 
 function compareShortAnswer(userAnswer, correctAnswer) {
