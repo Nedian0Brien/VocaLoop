@@ -52,6 +52,27 @@ describe('adaptiveQuizService', () => {
     expect(secondMiss.completedStages).toBe(0);
   });
 
+  test('delays a missed task behind other active tasks before retrying it', () => {
+    const setWords = Array.from({ length: 4 }, (_, index) => ({
+      id: `w${index + 1}`,
+      word: `word-${index + 1}`,
+      meaning_ko: `뜻 ${index + 1}`,
+    }));
+    const session = createAdaptiveSession(setWords, ['multiple', 'short'], {
+      setSize: 4,
+      randomize: false,
+    });
+
+    const firstMiss = resolveAdaptiveAnswer(session, false);
+
+    expect(firstMiss.queue[0].word.id).toBe('w2');
+    expect(firstMiss.queue[firstMiss.queue.length - 1]).toMatchObject({
+      word: setWords[0],
+      stageIndex: 0,
+      wrongStreak: 1,
+    });
+  });
+
   test('reports progress against word-stage completions', () => {
     const initial = createAdaptiveSession(words, ['multiple', 'short']);
     const afterOne = resolveAdaptiveAnswer(initial, true);

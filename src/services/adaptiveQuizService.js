@@ -72,6 +72,16 @@ function getProgressedTaskInsertionIndex(queue, nextTask, session) {
   return earliestIndex + Math.floor(rng() * availableSlots);
 }
 
+function getMissedTaskInsertionIndex(queue, session) {
+  if (queue.length === 0) return 0;
+  if (!session?.randomize) return queue.length;
+
+  const rng = session.rng || Math.random;
+  const earliestIndex = Math.min(2, queue.length);
+  const availableSlots = queue.length - earliestIndex + 1;
+  return earliestIndex + Math.floor(rng() * availableSlots);
+}
+
 function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
   const selectedModes = normalizeAdaptiveModes(modes);
   const tasks = setWords.map((word) => ({
@@ -196,7 +206,11 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
     ...session,
     modes,
     totalStages: session.totalStages,
-    queue: [nextTask, ...remainingQueue],
+    queue: insertAt(
+      remainingQueue,
+      getMissedTaskInsertionIndex(remainingQueue, session),
+      nextTask
+    ),
     completedStages: Math.max(0, currentCompletedStages - completedRollback),
     isSetComplete: false,
     isComplete: false,
