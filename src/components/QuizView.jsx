@@ -281,7 +281,7 @@ export default function QuizView({
     const limitedQueue = shuffledWords.slice(0, Math.min(questionCount, targetWords.length));
 
     if (modeId === 'mixed') {
-      setAdaptiveSession(createAdaptiveSession(shuffledWords, adaptiveModes, {
+      setAdaptiveSession(createAdaptiveSession(targetWords, adaptiveModes, {
         setSize: studySetSize || 5,
         randomize: true,
       }));

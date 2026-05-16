@@ -115,6 +115,26 @@ describe('adaptiveQuizService', () => {
     expect(new Set(answeredTasks.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(15);
   });
 
+  test('shuffles words before splitting them into study sets', () => {
+    const sixWords = Array.from({ length: 6 }, (_, index) => ({
+      id: `w${index + 1}`,
+      word: `word-${index + 1}`,
+      meaning_ko: `뜻 ${index + 1}`,
+    }));
+
+    const session = createAdaptiveSession(
+      sixWords,
+      ['multiple', 'short'],
+      { setSize: 3, randomize: true, rng: () => 0 }
+    );
+
+    expect(session.studySets.map((set) => set.map((word) => word.id))).toEqual([
+      ['w2', 'w3', 'w4'],
+      ['w5', 'w6', 'w1'],
+    ]);
+    expect(session.queue.map((task) => task.word.id)).toEqual(['w2', 'w3', 'w4']);
+  });
+
   test('preserves each word mode order when randomizing a study set', () => {
     const setWords = Array.from({ length: 5 }, (_, index) => ({
       id: `w${index + 1}`,

@@ -32,15 +32,13 @@ function chunkWords(words, setSize) {
   return chunks;
 }
 
-function lightlyRandomize(tasks, rng = Math.random, probability = 0.25) {
-  const next = [...tasks];
-  for (let i = 0; i < next.length - 1; i += 1) {
-    if (rng() < probability) {
-      const tmp = next[i];
-      next[i] = next[i + 1];
-      next[i + 1] = tmp;
-      i += 1;
-    }
+function shuffleWords(words = [], rng = Math.random) {
+  const next = [...words];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const swapIndex = Math.floor(rng() * (i + 1));
+    const tmp = next[i];
+    next[i] = next[swapIndex];
+    next[swapIndex] = tmp;
   }
   return next;
 }
@@ -82,26 +80,19 @@ function getMissedTaskInsertionIndex(queue, session) {
   return earliestIndex + Math.floor(rng() * availableSlots);
 }
 
-function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
+function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER) {
   const selectedModes = normalizeAdaptiveModes(modes);
-  const tasks = setWords.map((word) => ({
+  return setWords.map((word) => ({
     word,
     mode: selectedModes[0],
     stageIndex: 0,
     wrongStreak: 0,
   }));
-
-  if (!options.randomize) return tasks;
-  return lightlyRandomize(tasks, options.rng, options.randomizeProbability);
 }
 
 function buildSetState(session, setIndex) {
   const currentSetWords = session.studySets[setIndex] || [];
-  const queue = buildStudySetQueue(currentSetWords, session.modes, {
-    randomize: session.randomize,
-    rng: session.rng,
-    randomizeProbability: session.randomizeProbability,
-  });
+  const queue = buildStudySetQueue(currentSetWords, session.modes);
 
   return {
     ...session,
@@ -118,7 +109,10 @@ function buildSetState(session, setIndex) {
 export function createAdaptiveSession(words = [], modes = ADAPTIVE_MODE_ORDER, options = {}) {
   const selectedModes = normalizeAdaptiveModes(modes);
   const setSize = clampSetSize(options.setSize ?? DEFAULT_SET_SIZE, words.length);
-  const studySets = chunkWords(words, setSize);
+  const orderedWords = options.randomize === true
+    ? shuffleWords(words, options.rng || Math.random)
+    : [...words];
+  const studySets = chunkWords(orderedWords, setSize);
   const baseSession = {
     modes: selectedModes,
     setSize,
@@ -128,7 +122,6 @@ export function createAdaptiveSession(words = [], modes = ADAPTIVE_MODE_ORDER, o
     currentSetWords: studySets[0] || [],
     randomize: options.randomize === true,
     rng: options.rng,
-    randomizeProbability: options.randomizeProbability,
     totalStages: 0,
     queue: [],
     completedStages: 0,
