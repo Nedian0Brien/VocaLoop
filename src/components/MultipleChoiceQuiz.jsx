@@ -280,6 +280,14 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
               </div>
             </div>
 
+            <button
+              onClick={handleNextQuestion}
+              className="w-full py-5 rounded-xl font-black text-lg tracking-tight transition-all bg-surface-800 text-white hover:bg-surface-900 active:scale-[0.98] shadow-lg mb-8 flex items-center justify-center gap-3 group"
+            >
+              <span>Next Question</span>
+              <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-1.5" aria-hidden="true" />
+            </button>
+
             {/* 정보 카드들 */}
             <div className="space-y-5 mb-8">
               <div className="bg-surface-50/50 rounded-xl border border-surface-100 p-6">
@@ -340,14 +348,6 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={handleNextQuestion}
-              className="w-full py-5 rounded-xl font-black text-lg tracking-tight transition-all bg-surface-800 text-white hover:bg-surface-900 active:scale-[0.98] shadow-lg mb-12 flex items-center justify-center gap-3 group"
-            >
-              <span>Next Question</span>
-              <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-1.5" aria-hidden="true" />
-            </button>
           </div>
 
           {!isAnswered && (
