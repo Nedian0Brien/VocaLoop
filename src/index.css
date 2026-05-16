@@ -120,6 +120,116 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Brand — dark-mode adjusted, still tied to the VocaLoop blue/indigo identity */
+    --color-brand-50:  #0B1E3A;
+    --color-brand-100: #12335F;
+    --color-brand-200: #1E40AF;
+    --color-brand-300: #3B82F6;
+    --color-brand-400: #60A5FA;
+    --color-brand-500: #60A5FA;
+    --color-brand-600: #93C5FD;
+    --color-brand-700: #BFDBFE;
+    --color-brand-800: #DBEAFE;
+    --color-brand-900: #EFF6FF;
+
+    /* Accent */
+    --color-accent-50:  #241138;
+    --color-accent-100: #35185A;
+    --color-accent-400: #A78BFA;
+    --color-accent-500: #A78BFA;
+    --color-accent-600: #C4B5FD;
+    --color-accent-700: #DDD6FE;
+
+    /* Indigo pair */
+    --color-indigo-pair-500: #818CF8;
+    --color-indigo-pair-600: #A5B4FC;
+    --color-indigo-pair-700: #C7D2FE;
+
+    /* Surface */
+    --color-surface-0:   #111827;
+    --color-surface-50:  #0F172A;
+    --color-surface-100: #1E293B;
+    --color-surface-200: #334155;
+    --color-surface-300: #475569;
+    --color-surface-400: #64748B;
+    --color-surface-500: #94A3B8;
+    --color-surface-600: #CBD5E1;
+    --color-surface-700: #E2E8F0;
+    --color-surface-800: #F1F5F9;
+    --color-surface-900: #F8FAFC;
+
+    /* Semantic */
+    --color-success-50:  #052E24;
+    --color-success-100: #064E3B;
+    --color-success-200: #047857;
+    --color-success-300: #059669;
+    --color-success-400: #10B981;
+    --color-success-500: #34D399;
+    --color-success-600: #6EE7B7;
+    --color-success-700: #A7F3D0;
+    --color-warning-50:  #3A2603;
+    --color-warning-100: #5F3E05;
+    --color-warning-200: #92400E;
+    --color-warning-300: #B45309;
+    --color-warning-400: #D97706;
+    --color-warning-500: #F59E0B;
+    --color-warning-600: #FCD34D;
+    --color-warning-700: #FDE68A;
+    --color-danger-50:   #3A0A0A;
+    --color-danger-100:  #5F1515;
+    --color-danger-200:  #991B1B;
+    --color-danger-300:  #B91C1C;
+    --color-danger-400:  #DC2626;
+    --color-danger-500:  #F87171;
+    --color-danger-600:  #FCA5A5;
+    --color-danger-700:  #FECACA;
+
+    --shadow-soft:        0 1px 3px 0 rgb(0 0 0 / 0.30), 0 1px 2px -1px rgb(0 0 0 / 0.24);
+    --shadow-card:        0 4px 12px -4px rgb(0 0 0 / 0.38), 0 2px 6px -3px rgb(0 0 0 / 0.30);
+    --shadow-card-hover:  0 14px 28px -10px rgb(0 0 0 / 0.50), 0 6px 12px -8px rgb(0 0 0 / 0.40);
+    --shadow-elevated:    0 24px 48px -18px rgb(0 0 0 / 0.62);
+    --shadow-floating:    0 34px 72px -24px rgb(0 0 0 / 0.72);
+    --shadow-glow-brand:  0 10px 30px -12px rgb(96 165 250 / 0.55);
+    --shadow-glow-accent: 0 10px 30px -12px rgb(167 139 250 / 0.50);
+    --shadow-glow-indigo: 0 10px 30px -12px rgb(129 140 248 / 0.50);
+}
+
+html[data-theme="dark"] :where(.bg-white) {
+    background-color: var(--color-surface-0);
+}
+
+html[data-theme="dark"] :where(.bg-surface-800.text-white, .bg-surface-900.text-white) {
+    background-color: #0F172A;
+    color: #FFFFFF;
+}
+
+html[data-theme="dark"] :where(.hover\:bg-surface-900:hover) {
+    background-color: #020617;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    body,
+    header,
+    nav,
+    main,
+    button,
+    a,
+    input,
+    textarea,
+    select {
+        transition-property: background-color, border-color, color, box-shadow;
+        transition-duration: 150ms;
+        transition-timing-function: var(--ease-decel);
+    }
+}
+
 /* 기본 포커스 링 — 키보드 사용자에게만 보이도록 */
 :focus-visible {
     outline: 2px solid var(--color-brand-500);

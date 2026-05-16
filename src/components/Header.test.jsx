@@ -44,6 +44,29 @@ describe('Header mobile navigation', () => {
         expect(setView).toHaveBeenCalledWith('settings');
     });
 
+    test('cycles light, dark, and system preference from a single header button', () => {
+        const setThemeMode = vi.fn();
+
+        render(
+            <Header
+                view="study"
+                setView={vi.fn()}
+                user={user}
+                themeMode="system"
+                resolvedTheme="dark"
+                setThemeMode={setThemeMode}
+            />
+        );
+
+        const themeButton = screen.getByRole('button', { name: '테마 설정: 시스템 설정, 현재 다크 모드' });
+
+        expect(themeButton.title).toBe('테마: 시스템 설정 (현재 다크 모드)');
+
+        fireEvent.click(themeButton);
+
+        expect(setThemeMode).toHaveBeenCalledWith('light');
+    });
+
     test('hides on downward mobile scroll and reveals on upward scroll', () => {
         Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
         Object.defineProperty(window, 'scrollY', { value: 80, configurable: true });

@@ -12,6 +12,7 @@ import useWindowSize from './hooks/useWindowSize';
 import { useAppNotifications } from './hooks/useAppNotifications';
 import { useAppSessionData } from './hooks/useAppSessionData';
 import { useFolderCommands } from './hooks/useFolderCommands';
+import useThemePreference from './hooks/useThemePreference';
 import { useVocabularyCommands } from './hooks/useVocabularyCommands';
 import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig } from './services/aiModelService';
 import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutocompleteService';
@@ -60,6 +61,7 @@ const RouteFallback = ({ label = 'Loading view...' }) => (
 function App() {
     const [view, setView] = useState(getViewFromPath);
     const [pendingToeflReviewAsset, setPendingToeflReviewAsset] = useState(null);
+    const { themeMode, resolvedTheme, setThemeMode } = useThemePreference();
 
     // URL ↔ state 동기화: pushState + popstate
     const navigate = React.useCallback((nextView) => {
@@ -301,7 +303,14 @@ function App() {
 
     return (
         <div className="min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-20">
-            <Header view={view} setView={navigate} user={user} />
+            <Header
+                view={view}
+                setView={navigate}
+                user={user}
+                themeMode={themeMode}
+                resolvedTheme={resolvedTheme}
+                setThemeMode={setThemeMode}
+            />
             <NotificationToast />
             {wordSuggestionPortal}
 

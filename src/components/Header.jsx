@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, Brain, InfinityIcon, RotateCw, Settings } from './Icons';
+import { BookOpen, Brain, InfinityIcon, Monitor, Moon, RotateCw, Settings, Sun } from './Icons';
+import { getNextThemeMode } from '../hooks/useThemePreference';
 import {
     MOBILE_NAV_AUTO_HIDE_RESUME_GUARD_MS,
     MOBILE_NAV_AUTO_HIDE_THRESHOLDS,
@@ -21,6 +22,12 @@ const NAV_LINKS = [
     { view: 'settings',  href: '/settings', label: 'Settings', Icon: Settings },
 ];
 
+const THEME_MODE_META = {
+    system: { label: '시스템 설정', Icon: Monitor },
+    light: { label: '라이트 모드', Icon: Sun },
+    dark: { label: '다크 모드', Icon: Moon },
+};
+
 const NavLink = ({ active, href, onClick, children }) => (
     <a
         href={href}
@@ -36,6 +43,24 @@ const NavLink = ({ active, href, onClick, children }) => (
         {children}
     </a>
 );
+
+const ThemeModeButton = ({ themeMode = 'system', resolvedTheme = 'light', setThemeMode = () => {} }) => {
+    const modeMeta = THEME_MODE_META[themeMode] || THEME_MODE_META.system;
+    const resolvedLabel = resolvedTheme === 'dark' ? '다크 모드' : '라이트 모드';
+    const { Icon } = modeMeta;
+
+    return (
+        <button
+            type="button"
+            onClick={() => setThemeMode(getNextThemeMode(themeMode))}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-pill border border-surface-200 bg-surface-0/80 text-surface-600 shadow-[var(--shadow-soft)] transition-all duration-150 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 active:scale-95"
+            title={`테마: ${modeMeta.label} (현재 ${resolvedLabel})`}
+            aria-label={`테마 설정: ${modeMeta.label}, 현재 ${resolvedLabel}`}
+        >
+            <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+        </button>
+    );
+};
 
 const MobileNav = ({ view, setView }) => {
     const [hidden, setHidden] = useState(false);
@@ -165,7 +190,7 @@ const MobileNav = ({ view, setView }) => {
             ref={navRef}
             aria-label="모바일 주요 메뉴"
             className={[
-                'fixed left-1/2 z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-4 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55),var(--shadow-floating)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-[bottom,opacity] duration-[280ms] ease-[var(--ease-decel)] will-change-[bottom,opacity] [backface-visibility:hidden] [transform-style:preserve-3d] md:hidden',
+                'fixed left-1/2 z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-4 overflow-hidden rounded-pill border border-surface-200/80 bg-surface-0/85 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55),var(--shadow-floating)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-[bottom,opacity] duration-[280ms] ease-[var(--ease-decel)] will-change-[bottom,opacity] [backface-visibility:hidden] [transform-style:preserve-3d] md:hidden',
                 hidden
                     ? 'bottom-[calc(-4rem-1.75rem-env(safe-area-inset-bottom))] pointer-events-none opacity-0'
                     : 'bottom-[calc(1rem+env(safe-area-inset-bottom))] opacity-100',
@@ -174,7 +199,7 @@ const MobileNav = ({ view, setView }) => {
             <span
                 data-testid="mobile-nav-indicator"
                 aria-hidden="true"
-                className="absolute left-1 top-1 bottom-1 z-0 rounded-pill border border-brand-100 bg-white shadow-[var(--shadow-soft)] transition-[transform,width,opacity] duration-300 ease-[var(--ease-spring)]"
+                className="absolute left-1 top-1 bottom-1 z-0 rounded-pill border border-brand-100 bg-surface-0 shadow-[var(--shadow-soft)] transition-[transform,width,opacity] duration-300 ease-[var(--ease-spring)]"
                 style={{
                     width: `${indicatorStyle.width}px`,
                     transform: `translateX(${indicatorStyle.x}px)`,
@@ -210,9 +235,9 @@ const MobileNav = ({ view, setView }) => {
     );
 };
 
-const Header = ({ view, setView, user }) => (
+const Header = ({ view, setView, user, themeMode = 'system', resolvedTheme = 'light', setThemeMode }) => (
     <>
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-surface-100">
+        <header className="sticky top-0 z-30 bg-surface-0/80 backdrop-blur-lg border-b border-surface-100">
             <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
                 <a
                     href="/"
@@ -239,6 +264,12 @@ const Header = ({ view, setView, user }) => (
                             </NavLink>
                         ))}
                     </nav>
+
+                    <ThemeModeButton
+                        themeMode={themeMode}
+                        resolvedTheme={resolvedTheme}
+                        setThemeMode={setThemeMode}
+                    />
 
                     {user && (
                         <div className="flex items-center pl-2 sm:pl-3 ml-1 border-l border-surface-200">

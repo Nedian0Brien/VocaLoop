@@ -65,6 +65,59 @@ export const palette = {
   },
 };
 
+export const darkPalette = {
+  brand: {
+    50: '#0B1E3A',
+    100: '#12335F',
+    200: '#1E40AF',
+    300: '#3B82F6',
+    400: '#60A5FA',
+    500: '#60A5FA',
+    600: '#93C5FD',
+    700: '#BFDBFE',
+    800: '#DBEAFE',
+    900: '#EFF6FF',
+  },
+  accent: {
+    50: '#241138',
+    100: '#35185A',
+    400: '#A78BFA',
+    500: '#A78BFA',
+    600: '#C4B5FD',
+    700: '#DDD6FE',
+  },
+  indigo: {
+    500: '#818CF8',
+    600: '#A5B4FC',
+    700: '#C7D2FE',
+  },
+  surface: {
+    0: '#111827',
+    50: '#0F172A',
+    100: '#1E293B',
+    200: '#334155',
+    300: '#475569',
+    400: '#64748B',
+    500: '#94A3B8',
+    600: '#CBD5E1',
+    700: '#E2E8F0',
+    800: '#F1F5F9',
+    900: '#F8FAFC',
+  },
+  success: {
+    50: '#052E24', 100: '#064E3B', 200: '#047857', 300: '#059669', 400: '#10B981',
+    500: '#34D399', 600: '#6EE7B7', 700: '#A7F3D0',
+  },
+  warning: {
+    50: '#3A2603', 100: '#5F3E05', 200: '#92400E', 300: '#B45309', 400: '#D97706',
+    500: '#F59E0B', 600: '#FCD34D', 700: '#FDE68A',
+  },
+  danger: {
+    50: '#3A0A0A', 100: '#5F1515', 200: '#991B1B', 300: '#B91C1C', 400: '#DC2626',
+    500: '#F87171', 600: '#FCA5A5', 700: '#FECACA',
+  },
+};
+
 export const typography = {
   fontFamily: {
     display: ['Inter', 'Noto Sans KR', 'system-ui', 'sans-serif'],
@@ -171,5 +224,5 @@ export const zIndex = {
   toast:    50,
 };
 
-const tokens = { palette, typography, spacing, radius, shadow, motion, breakpoints, zIndex };
+const tokens = { palette, darkPalette, typography, spacing, radius, shadow, motion, breakpoints, zIndex };
 export default tokens;
