@@ -432,7 +432,7 @@ export default function QuizView({
     : undefined;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px]">
+    <div data-testid="quiz-view-shell" className="max-w-5xl mx-auto px-0 sm:px-6 lg:px-8 py-5 sm:py-8 min-h-[600px]">
       {/* 1. 대시보드 */}
       {quizState === 'select' && (
         <QuizDashboard

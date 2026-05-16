@@ -61,6 +61,7 @@ describe('MultipleChoiceQuiz', () => {
 
     const correctOption = await screen.findByRole('button', { name: /뜻밖의 발견/ });
     expect(generateMultipleChoiceOptions).toHaveBeenCalled();
+    expect(screen.getByTestId('multiple-choice-card-body').className).toContain('p-5');
     fireEvent.click(correctOption);
     fireEvent.click(screen.getByRole('button', { name: /정답 확인/ }));
 

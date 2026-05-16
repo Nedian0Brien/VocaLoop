@@ -208,6 +208,7 @@ describe('QuizView', () => {
 
         expect(screen.getByText('Sound: On')).toBeTruthy();
         expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.getByTestId('quiz-view-shell').className).toContain('px-0');
     });
 
     test('advances mixed quiz through selected difficulty stages', () => {

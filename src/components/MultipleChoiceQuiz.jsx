@@ -123,7 +123,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
   return (
     <div className="max-w-2xl mx-auto animate-in fade-in duration-700">
       {/* 진행 상황 */}
-      <div className="mb-8 px-1">
+      <div className="mb-6 px-1 sm:mb-8">
         <div className="flex items-end justify-between mb-3">
           <div>
             <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-0.5">Quiz Session</p>
@@ -157,7 +157,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
       {/* 메인 카드 */}
       <div className="bg-white rounded-card shadow-[var(--shadow-elevated)] border border-surface-100 overflow-hidden ring-1 ring-black/[0.03]">
         {/* 다크 헤더 */}
-        <div className="bg-gradient-to-br from-surface-800 to-surface-900 text-white p-8 sm:p-10 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-surface-800 to-surface-900 text-white p-6 sm:p-10 relative overflow-hidden">
           <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-brand-500/10 rounded-pill blur-[80px] pointer-events-none" />
 
           <div className="flex items-center justify-between mb-6 relative z-10">
@@ -197,15 +197,15 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
         </div>
 
         {/* 선택지 */}
-        <div className="p-8 sm:p-10">
-          <div className="flex items-center gap-3 mb-8">
+        <div data-testid="multiple-choice-card-body" className="p-5 sm:p-10">
+          <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <div className="w-1.5 h-7 bg-brand-600 rounded-pill shadow-sm shadow-brand-200" aria-hidden="true" />
             <h3 className="text-lg font-black text-surface-800 tracking-tight">
               정확한 한국어 뜻을 선택하세요:
             </h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {options.map((option, index) => {
               const isSelected = selectedOption === option;
               const isCorrectOption = option === word.meaning_ko;
@@ -234,7 +234,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
                   key={index}
                   onClick={() => handleSelectOption(option)}
                   disabled={isAnswered}
-                  className={`group relative w-full text-left p-5 rounded-xl transition-all duration-300 active:scale-[0.98] ${cardStyle} ${
+                  className={`group relative w-full text-left p-4 sm:p-5 rounded-xl transition-all duration-300 active:scale-[0.98] ${cardStyle} ${
                     isAnswered ? 'cursor-default' : 'cursor-pointer'
                   } h-full flex items-center overflow-hidden`}
                 >
