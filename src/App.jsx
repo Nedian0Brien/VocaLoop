@@ -216,7 +216,7 @@ function App() {
     }, [navigate]);
 
     const NotificationToast = () => notification ? (
-        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-[var(--shadow-elevated)] z-50 text-white font-bold flex items-center gap-2 animate-bounce ${
+        <div className={`fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-2 rounded-md px-4 py-3 font-bold text-white shadow-[var(--shadow-elevated)] animate-bounce sm:bottom-4 ${
             notification.type === 'error' ? 'bg-danger-500' : 'bg-success-600'
         }`}>
             {notification.type === 'error' ? (
@@ -302,7 +302,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen pb-20">
+        <div className="min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-20">
             <Header view={view} setView={navigate} user={user} onOpenSettings={() => setShowSettings(true)} />
             <NotificationToast />
             {wordSuggestionPortal}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { InfinityIcon, Settings } from './Icons';
+import { BookOpen, Brain, InfinityIcon, RotateCw, Settings } from './Icons';
 
 /**
  * Header — 글로벌 네비게이션 바.
@@ -9,9 +9,9 @@ import { InfinityIcon, Settings } from './Icons';
  * setView(navigate) 를 onClick 에서 호출해 SPA 내비게이션도 함께 처리.
  */
 const NAV_LINKS = [
-    { view: 'dashboard', href: '/',      label: 'Dashboard' },
-    { view: 'study',     href: '/study', label: 'Study'     },
-    { view: 'review',    href: '/review', label: 'Review'   },
+    { view: 'dashboard', href: '/',       label: 'Dashboard', Icon: BookOpen },
+    { view: 'study',     href: '/study',  label: 'Study',     Icon: Brain    },
+    { view: 'review',    href: '/review', label: 'Review',    Icon: RotateCw },
 ];
 
 const NavLink = ({ active, href, onClick, children }) => (
@@ -30,61 +30,103 @@ const NavLink = ({ active, href, onClick, children }) => (
     </a>
 );
 
+const MobileNav = ({ view, setView }) => {
+    const activeIndex = Math.max(0, NAV_LINKS.findIndex((item) => item.view === view));
+
+    return (
+        <nav
+            aria-label="모바일 주요 메뉴"
+            className="fixed left-1/2 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[var(--shadow-floating)] backdrop-blur-2xl md:hidden"
+        >
+            <span
+                data-testid="mobile-nav-indicator"
+                aria-hidden="true"
+                className="absolute left-1 top-1 bottom-1 w-[calc((100%-0.5rem)/3)] rounded-pill border border-brand-100 bg-brand-50 shadow-[var(--shadow-soft)] transition-transform duration-300 ease-[var(--ease-spring)]"
+                style={{ transform: `translateX(${activeIndex * 100}%)` }}
+            />
+            {NAV_LINKS.map(({ view: v, href, label, Icon }) => {
+                const active = view === v;
+                return (
+                    <a
+                        key={v}
+                        href={href}
+                        onClick={(e) => { e.preventDefault(); setView(v); }}
+                        aria-current={active ? 'page' : undefined}
+                        data-mobile-nav-item="true"
+                        className={[
+                            'relative z-10 flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill px-2 text-[11px] font-black tracking-tight transition-colors duration-150',
+                            active
+                                ? 'text-brand-700'
+                                : 'text-surface-500 hover:text-surface-900',
+                        ].join(' ')}
+                    >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        <span className="truncate">{label}</span>
+                    </a>
+                );
+            })}
+        </nav>
+    );
+};
+
 const Header = ({ view, setView, user, onOpenSettings }) => (
-    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-surface-100">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-            <a
-                href="/"
-                onClick={(e) => { e.preventDefault(); setView('dashboard'); }}
-                className="flex items-center gap-2.5 text-brand-700 group"
-                aria-label="VocaLoop 홈"
-            >
-                <div className="relative w-9 h-9 rounded-md bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center shadow-[var(--shadow-glow-brand)] transition-transform duration-300 group-hover:scale-105">
-                    <InfinityIcon className="w-5 h-5 text-white" strokeWidth={3} />
-                </div>
-                <h1 className="text-xl font-black tracking-tight">VocaLoop</h1>
-            </a>
-
-            <div className="flex items-center gap-2 min-w-0">
-                <nav className="flex items-center gap-1 overflow-x-auto" aria-label="주요 메뉴">
-                    {NAV_LINKS.map(({ view: v, href, label }) => (
-                        <NavLink
-                            key={v}
-                            active={view === v}
-                            href={href}
-                            onClick={() => setView(v)}
-                        >
-                            {label}
-                        </NavLink>
-                    ))}
-                </nav>
-
-                {user && (
-                    <div className="flex items-center pl-3 ml-1 border-l border-surface-200">
-                        <button
-                            onClick={onOpenSettings}
-                            className="flex items-center gap-2 group rounded-pill p-1 hover:bg-surface-100 transition-colors"
-                            title="계정 설정"
-                            aria-label="계정 설정 열기"
-                        >
-                            {user.photoURL ? (
-                                <img
-                                    src={user.photoURL}
-                                    alt=""
-                                    className="w-8 h-8 rounded-pill border-2 border-surface-200 group-hover:border-brand-500 transition-colors"
-                                />
-                            ) : (
-                                <div className="w-8 h-8 rounded-pill bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center text-white font-black text-sm border-2 border-surface-200 group-hover:border-brand-500 transition-colors">
-                                    {user.displayName?.charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'U'}
-                                </div>
-                            )}
-                            <Settings className="w-4 h-4 text-surface-400 group-hover:text-brand-600 transition-colors" />
-                        </button>
+    <>
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-surface-100">
+            <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+                <a
+                    href="/"
+                    onClick={(e) => { e.preventDefault(); setView('dashboard'); }}
+                    className="flex items-center gap-2.5 text-brand-700 group"
+                    aria-label="VocaLoop 홈"
+                >
+                    <div className="relative w-9 h-9 rounded-md bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center shadow-[var(--shadow-glow-brand)] transition-transform duration-300 group-hover:scale-105">
+                        <InfinityIcon className="w-5 h-5 text-white" strokeWidth={3} />
                     </div>
-                )}
+                    <h1 className="text-xl font-black tracking-tight">VocaLoop</h1>
+                </a>
+
+                <div className="flex items-center gap-2 min-w-0">
+                    <nav className="hidden items-center gap-1 overflow-x-auto md:flex" aria-label="데스크톱 주요 메뉴">
+                        {NAV_LINKS.map(({ view: v, href, label }) => (
+                            <NavLink
+                                key={v}
+                                active={view === v}
+                                href={href}
+                                onClick={() => setView(v)}
+                            >
+                                {label}
+                            </NavLink>
+                        ))}
+                    </nav>
+
+                    {user && (
+                        <div className="flex items-center pl-2 sm:pl-3 ml-1 border-l border-surface-200">
+                            <button
+                                onClick={onOpenSettings}
+                                className="flex items-center gap-2 group rounded-pill p-1 hover:bg-surface-100 transition-colors"
+                                title="계정 설정"
+                                aria-label="계정 설정 열기"
+                            >
+                                {user.photoURL ? (
+                                    <img
+                                        src={user.photoURL}
+                                        alt=""
+                                        className="w-8 h-8 rounded-pill border-2 border-surface-200 group-hover:border-brand-500 transition-colors"
+                                    />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-pill bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center text-white font-black text-sm border-2 border-surface-200 group-hover:border-brand-500 transition-colors">
+                                        {user.displayName?.charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                                    </div>
+                                )}
+                                <Settings className="w-4 h-4 text-surface-400 group-hover:text-brand-600 transition-colors" />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
+        <MobileNav view={view} setView={setView} />
+    </>
 );
 
 export default Header;
