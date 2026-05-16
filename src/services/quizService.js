@@ -116,35 +116,58 @@ export async function generateMultipleChoiceOptions(word, allWords, useAI = fals
   return generateLocalMultipleChoice(word, allWords);
 }
 
+const PARENTHETICAL_NOTE_REGEX = /\s*[\(（][^()（）]*[\)）]\s*/g;
+
+function stripParentheticalNotes(value = '') {
+  return String(value).replace(PARENTHETICAL_NOTE_REGEX, ' ').trim();
+}
+
 function normalizeAnswerText(value = '') {
   return String(value).trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function getMeaningCandidates(correctAnswer = '') {
-  const fullAnswer = String(correctAnswer).trim();
-  const candidates = fullAnswer
-    .split(',')
+function getAnswerComparisonForms(value = '') {
+  return Array.from(new Set([
+    normalizeAnswerText(value),
+    normalizeAnswerText(stripParentheticalNotes(value)),
+  ].filter(Boolean)));
+}
+
+function splitAnswerItems(value = '') {
+  return String(value)
+    .split(/[,，]/)
     .map((candidate) => candidate.trim())
     .filter(Boolean);
+}
+
+function getMeaningCandidates(correctAnswer = '') {
+  const fullAnswer = String(correctAnswer).trim();
+  const candidates = splitAnswerItems(fullAnswer);
 
   return Array.from(new Set([fullAnswer, ...candidates].filter(Boolean)));
 }
 
 function compareShortAnswer(userAnswer, correctAnswer) {
-  const user = normalizeAnswerText(userAnswer);
-  const correct = normalizeAnswerText(correctAnswer);
+  const userForms = getAnswerComparisonForms(userAnswer);
+  const correctForms = getAnswerComparisonForms(correctAnswer);
 
-  if (user === correct) {
+  if (userForms.some((userForm) => correctForms.includes(userForm))) {
     return { similarity: 1.0, isCorrect: true, matchedAnswer: correctAnswer.trim() };
   }
 
-  const distance = levenshteinDistance(user, correct);
-  const maxLen = Math.max(user.length, correct.length);
-  const similarity = maxLen === 0 ? 0 : 1 - (distance / maxLen);
+  const bestSimilarity = userForms.reduce((best, userForm) => {
+    const formBest = correctForms.reduce((max, correctForm) => {
+      const distance = levenshteinDistance(userForm, correctForm);
+      const maxLen = Math.max(userForm.length, correctForm.length);
+      const similarity = maxLen === 0 ? 0 : 1 - (distance / maxLen);
+      return Math.max(max, similarity);
+    }, 0);
+    return Math.max(best, formBest);
+  }, 0);
 
   return {
-    similarity,
-    isCorrect: similarity >= 0.8,
+    similarity: bestSimilarity,
+    isCorrect: bestSimilarity >= 0.8,
     matchedAnswer: correctAnswer.trim(),
   };
 }
@@ -158,14 +181,58 @@ function compareShortAnswer(userAnswer, correctAnswer) {
 export function gradeShortAnswer(userAnswer, correctAnswer) {
   const candidates = getMeaningCandidates(correctAnswer);
   const answersToCheck = candidates.length > 0 ? candidates : [correctAnswer];
-  const results = answersToCheck.map((answer) => compareShortAnswer(userAnswer, answer));
+  const fullAnswerResult = compareShortAnswer(userAnswer, correctAnswer);
+  if (fullAnswerResult.isCorrect) {
+    return {
+      ...fullAnswerResult,
+      isCorrect: true,
+      matchedAnswers: [fullAnswerResult.matchedAnswer].filter(Boolean),
+      unmatchedAnswers: [],
+    };
+  }
+
+  const userAnswerItems = splitAnswerItems(userAnswer);
+  const itemResults = userAnswerItems.map((answerItem) => {
+    const resultsForItem = answersToCheck.map((answer) => compareShortAnswer(answerItem, answer));
+    const bestForItem = resultsForItem.reduce((max, result) => (
+      result.similarity > max.similarity ? result : max
+    ), { similarity: 0, isCorrect: false, matchedAnswer: '' });
+
+    return {
+      answer: answerItem,
+      ...bestForItem,
+    };
+  });
+  const results = itemResults.length > 0
+    ? itemResults
+    : answersToCheck.map((answer) => compareShortAnswer(userAnswer, answer));
   const best = results.reduce((max, result) => (
     result.similarity > max.similarity ? result : max
   ), { similarity: 0, isCorrect: false, matchedAnswer: '' });
+  const matchedAnswers = Array.from(new Set(
+    itemResults
+      .filter((result) => result.isCorrect && result.matchedAnswer)
+      .map((result) => result.matchedAnswer)
+  ));
+  const unmatchedAnswers = itemResults
+    .filter((result) => !result.isCorrect)
+    .map((result) => result.answer);
 
-  return best.isCorrect
-    ? { ...best, isCorrect: true }
-    : { similarity: best.similarity, isCorrect: false, matchedAnswer: best.matchedAnswer };
+  return matchedAnswers.length > 0
+    ? {
+      similarity: best.similarity,
+      isCorrect: true,
+      matchedAnswer: matchedAnswers[0],
+      matchedAnswers,
+      unmatchedAnswers,
+    }
+    : {
+      similarity: best.similarity,
+      isCorrect: false,
+      matchedAnswer: best.matchedAnswer,
+      matchedAnswers: [],
+      unmatchedAnswers,
+    };
 }
 
 /**
@@ -216,9 +283,9 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
   const localResult = gradeShortAnswer(userAnswer, correctAnswer);
   if (localResult.isCorrect) {
     return {
+      ...localResult,
       isCorrect: true,
       feedback: '정답입니다!',
-      matchedAnswer: localResult.matchedAnswer,
     };
   }
 
@@ -251,7 +318,9 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
 
     return {
       isCorrect: data.isCorrect === true,
-      feedback: data.feedback || ''
+      feedback: data.feedback || '',
+      matchedAnswers: [],
+      unmatchedAnswers: data.isCorrect === true ? [] : localResult.unmatchedAnswers || [],
     };
   } catch (error) {
     console.error('AI 채점 실패:', error);

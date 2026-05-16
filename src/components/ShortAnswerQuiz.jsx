@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Volume2, Check, X, Sparkles } from './Icons';
+import { Volume2, Check, X, Sparkles, AlertTriangle } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 import { playSound } from '../utils/soundEffects';
 
@@ -43,6 +43,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
         try {
           const aiResult = await gradeWithAI(userAnswer, word.meaning_ko, word, aiConfig);
           result = {
+            ...aiResult,
             isCorrect: aiResult.isCorrect,
             feedback: aiResult.feedback,
             similarity: aiResult.isCorrect ? 1.0 : 0.5,
@@ -213,7 +214,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           </div>
 
           {/* Feedback */}
-          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAnswered ? 'max-h-96 opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAnswered ? 'max-h-[32rem] opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
             <div className={`p-6 rounded-xl flex items-center gap-5 border-2 ${
               gradeResult?.isCorrect ? 'bg-success-100/50 border-success-200 text-success-700' : 'bg-danger-100/50 border-danger-200 text-danger-700'
             }`}>
@@ -231,6 +232,25 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                 </p>
               </div>
             </div>
+
+            {gradeResult?.unmatchedAnswers?.length > 0 && (
+              <div className="mt-3 rounded-xl border border-warning-200 bg-warning-50/80 p-4 text-warning-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-warning-600" aria-hidden="true" />
+                  <p className="text-sm font-black">정답으로 인정되지 않은 입력</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {gradeResult.unmatchedAnswers.map((answer, index) => (
+                    <span
+                      key={`${answer}-${index}`}
+                      className="rounded-md border border-warning-300 bg-white/70 px-2.5 py-1 text-sm font-bold text-warning-700"
+                    >
+                      {answer}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {!isAnswered && (
