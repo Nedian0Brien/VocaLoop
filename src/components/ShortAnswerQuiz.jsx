@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Volume2, Check, X, Sparkles, AlertTriangle } from './Icons';
+import { Volume2, Check, X, Sparkles, AlertTriangle, FileText, Brain, ArrowRightLeft, Quote, ChevronRight } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 import { playSound } from '../utils/soundEffects';
+import { Badge } from '../design-system';
 
 export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true }) {
   const [userAnswer, setUserAnswer] = useState('');
@@ -70,8 +71,6 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
       setGradeResult(result);
       setIsAnswered(true);
       if (soundEnabled) playSound(result.isCorrect ? 'SUCCESS' : 'FAIL');
-
-      setTimeout(() => onAnswer(result.isCorrect), 2000);
     } catch (error) {
       console.error('채점 오류:', error);
       alert('채점 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -83,6 +82,11 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !isAnswered) handleSubmit();
   };
+
+  const handleNextQuestion = useCallback(() => {
+    if (!isAnswered || !gradeResult) return;
+    onAnswer(gradeResult.isCorrect);
+  }, [gradeResult, isAnswered, onAnswer]);
 
   const getHint = () => {
     const answer = word.meaning_ko;
@@ -214,7 +218,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           </div>
 
           {/* Feedback */}
-          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAnswered ? 'max-h-[32rem] opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAnswered ? 'max-h-[3000px] opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
             <div className={`p-6 rounded-xl flex items-center gap-5 border-2 ${
               gradeResult?.isCorrect ? 'bg-success-100/50 border-success-200 text-success-700' : 'bg-danger-100/50 border-danger-200 text-danger-700'
             }`}>
@@ -228,7 +232,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                   {gradeResult?.isCorrect ? 'Great Job! 🎉' : 'Incorrect 📚'}
                 </h4>
                 <p className="text-base font-bold opacity-70">
-                  {gradeResult?.isCorrect ? gradeResult.feedback : <>정답은 <span className="text-danger-700 font-black">{word.meaning_ko}</span> 입니다.</>}
+                  {gradeResult?.isCorrect ? <>전체 뜻: <span className="text-success-800 font-black">{word.meaning_ko}</span></> : <>정답은 <span className="text-danger-700 font-black">{word.meaning_ko}</span> 입니다.</>}
                 </p>
               </div>
             </div>
@@ -251,6 +255,74 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                 </div>
               </div>
             )}
+
+            <button
+              onClick={handleNextQuestion}
+              className="w-full py-5 rounded-xl font-black text-lg tracking-tight transition-all bg-surface-800 text-white hover:bg-surface-900 active:scale-[0.98] shadow-lg my-8 flex items-center justify-center gap-3 group"
+            >
+              <span>Next Question</span>
+              <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-1.5" aria-hidden="true" />
+            </button>
+
+            <div className="space-y-5">
+              <div className="bg-surface-50/50 rounded-xl border border-surface-100 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <FileText className="w-4 h-4 text-brand-500" aria-hidden="true" />
+                  <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">Definition</p>
+                </div>
+                {word.definitions?.length ? (
+                  <ul className="space-y-2">
+                    {word.definitions.map((def, idx) => (
+                      <li key={idx} className="text-base font-bold text-surface-700 leading-snug pl-3 border-l-2 border-brand-200">
+                        {def}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-surface-400 text-sm italic">No definitions.</p>}
+              </div>
+
+              {word.nuance && (
+                <div className="bg-surface-800 text-surface-100 rounded-xl p-6 shadow-xl relative overflow-hidden border border-surface-700">
+                  <div className="flex items-center gap-3 mb-3 relative z-10">
+                    <Brain className="w-4 h-4 text-accent-400" aria-hidden="true" />
+                    <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">Nuance</p>
+                  </div>
+                  <p className="text-sm font-bold leading-relaxed relative z-10">{word.nuance}</p>
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Brain className="w-16 h-16" aria-hidden="true" />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-white rounded-xl border border-indigo-pair-500/10 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Quote className="w-4 h-4 text-indigo-pair-500" aria-hidden="true" />
+                    <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">Examples</p>
+                  </div>
+                  <div className="space-y-4">
+                    {word.examples?.slice(0, 2).map((ex, idx) => (
+                      <div key={idx}>
+                        <p className="text-sm text-surface-900 font-black mb-1">"{ex.en}"</p>
+                        <p className="text-xs text-surface-400 font-bold">{ex.ko}</p>
+                      </div>
+                    )) || <p className="text-surface-400 text-sm italic">No examples.</p>}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-warning-500/10 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <ArrowRightLeft className="w-4 h-4 text-warning-500" aria-hidden="true" />
+                    <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">Synonyms</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {word.synonyms?.map((syn, idx) => (
+                      <Badge key={idx} tone="warning" size="sm" style="tag">{syn}</Badge>
+                    )) || <p className="text-surface-400 text-sm italic">No synonyms.</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {!isAnswered && (
