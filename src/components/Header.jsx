@@ -18,6 +18,7 @@ const NAV_LINKS = [
     { view: 'dashboard', href: '/',       label: 'Dashboard', Icon: BookOpen },
     { view: 'study',     href: '/study',  label: 'Study',     Icon: Brain    },
     { view: 'review',    href: '/review', label: 'Review',    Icon: RotateCw },
+    { view: 'settings',  href: '/settings', label: 'Settings', Icon: Settings },
 ];
 
 const NavLink = ({ active, href, onClick, children }) => (
@@ -164,7 +165,7 @@ const MobileNav = ({ view, setView }) => {
             ref={navRef}
             aria-label="모바일 주요 메뉴"
             className={[
-                'fixed left-1/2 z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-3 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55),var(--shadow-floating)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-[bottom,opacity] duration-[280ms] ease-[var(--ease-decel)] will-change-[bottom,opacity] [backface-visibility:hidden] [transform-style:preserve-3d] md:hidden',
+                'fixed left-1/2 z-40 grid h-16 w-[min(25rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-4 overflow-hidden rounded-pill border border-surface-200/80 bg-white/85 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55),var(--shadow-floating)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-[bottom,opacity] duration-[280ms] ease-[var(--ease-decel)] will-change-[bottom,opacity] [backface-visibility:hidden] [transform-style:preserve-3d] md:hidden',
                 hidden
                     ? 'bottom-[calc(-4rem-1.75rem-env(safe-area-inset-bottom))] pointer-events-none opacity-0'
                     : 'bottom-[calc(1rem+env(safe-area-inset-bottom))] opacity-100',
@@ -209,7 +210,7 @@ const MobileNav = ({ view, setView }) => {
     );
 };
 
-const Header = ({ view, setView, user, onOpenSettings }) => (
+const Header = ({ view, setView, user }) => (
     <>
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-surface-100">
             <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
@@ -242,23 +243,34 @@ const Header = ({ view, setView, user, onOpenSettings }) => (
                     {user && (
                         <div className="flex items-center pl-2 sm:pl-3 ml-1 border-l border-surface-200">
                             <button
-                                onClick={onOpenSettings}
-                                className="flex items-center gap-2 group rounded-pill p-1 hover:bg-surface-100 transition-colors"
+                                type="button"
+                                onClick={() => setView('settings')}
+                                className={[
+                                    'flex items-center gap-2 group rounded-pill p-1 transition-colors',
+                                    view === 'settings' ? 'bg-brand-50' : 'hover:bg-surface-100',
+                                ].join(' ')}
                                 title="계정 설정"
-                                aria-label="계정 설정 열기"
+                                aria-label="계정 설정으로 이동"
                             >
                                 {user.photoURL ? (
                                     <img
                                         src={user.photoURL}
                                         alt=""
-                                        className="w-8 h-8 rounded-pill border-2 border-surface-200 group-hover:border-brand-500 transition-colors"
+                                        className={[
+                                            'w-8 h-8 rounded-pill border-2 transition-colors',
+                                            view === 'settings' ? 'border-brand-500' : 'border-surface-200 group-hover:border-brand-500',
+                                        ].join(' ')}
                                     />
                                 ) : (
-                                    <div className="w-8 h-8 rounded-pill bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center text-white font-black text-sm border-2 border-surface-200 group-hover:border-brand-500 transition-colors">
+                                    <div
+                                        className={[
+                                            'w-8 h-8 rounded-pill bg-gradient-to-br from-brand-500 to-indigo-pair-600 grid place-items-center text-white font-black text-sm border-2 transition-colors',
+                                            view === 'settings' ? 'border-brand-500' : 'border-surface-200 group-hover:border-brand-500',
+                                        ].join(' ')}
+                                    >
                                         {user.displayName?.charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'U'}
                                     </div>
                                 )}
-                                <Settings className="w-4 h-4 text-surface-400 group-hover:text-brand-600 transition-colors" />
                             </button>
                         </div>
                     )}

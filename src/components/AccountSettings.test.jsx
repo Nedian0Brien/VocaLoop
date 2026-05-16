@@ -147,13 +147,13 @@ describe('AccountSettings backend migration', () => {
 
         await waitFor(() => expect(settingsApi.getSettings).toHaveBeenCalledTimes(1));
 
-        fireEvent.click(screen.getByRole('button', { name: '데이터' }));
+        fireEvent.click(screen.getByRole('tab', { name: '데이터' }));
         fireEvent.click(screen.getByRole('button', { name: '모든 데이터 삭제' }));
 
         await waitFor(() => expect(accountApi.resetAccountData).toHaveBeenCalledTimes(1));
         expect(baseProps.onDataReset).toHaveBeenCalledTimes(1);
 
-        fireEvent.click(screen.getByRole('button', { name: '계정' }));
+        fireEvent.click(screen.getByRole('tab', { name: '계정' }));
         fireEvent.click(screen.getByRole('button', { name: '회원 탈퇴' }));
         fireEvent.change(screen.getByPlaceholderText('비밀번호를 입력하세요'), {
             target: { value: 'Password123!' },

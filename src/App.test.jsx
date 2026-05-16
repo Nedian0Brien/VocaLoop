@@ -114,7 +114,7 @@ vi.mock('./components/CompactFolderPicker', () => ({
 }));
 
 vi.mock('./components/AccountSettings', () => ({
-    default: () => <div>account-settings</div>,
+    default: ({ variant }) => <div>account-settings:{variant}</div>,
 }));
 
 vi.mock('./components/LearningRateDonut', () => ({
@@ -128,6 +128,7 @@ describe('App backend session bootstrap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        window.history.pushState({}, '', '/');
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
             ok: true,
             json: async () => ({ entries: [] }),
@@ -172,6 +173,30 @@ describe('App backend session bootstrap', () => {
         expect(settingsApi.getSettings).toHaveBeenCalledTimes(1);
         expect(wordApi.listWords).toHaveBeenCalledTimes(1);
         expect(folderApi.listFolders).toHaveBeenCalledTimes(1);
+    });
+
+    test('renders settings as a top-level tab route instead of the dashboard modal flow', async () => {
+        window.history.pushState({}, '', '/settings');
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        expect(await screen.findByText('account-settings:page')).toBeTruthy();
+        expect(screen.queryByText('Add New Word')).toBeNull();
     });
 
     test('unauthenticated startup renders the login screen without legacy config', async () => {

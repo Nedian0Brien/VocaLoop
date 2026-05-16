@@ -41,8 +41,8 @@ const MAX_WORD_SUGGESTIONS = 5;
 const MIN_WORD_SUGGESTION_LENGTH = 2;
 
 // --- URL ↔ View 매핑 ---
-const PATH_TO_VIEW = { '/study': 'study', '/review': 'review', '/dashboard': 'dashboard' };
-const VIEW_TO_PATH = { study: '/study', review: '/review', dashboard: '/' };
+const PATH_TO_VIEW = { '/study': 'study', '/review': 'review', '/settings': 'settings', '/dashboard': 'dashboard' };
+const VIEW_TO_PATH = { study: '/study', review: '/review', settings: '/settings', dashboard: '/' };
 
 const getViewFromPath = () =>
     PATH_TO_VIEW[window.location.pathname] ?? 'dashboard';
@@ -59,7 +59,6 @@ const RouteFallback = ({ label = 'Loading view...' }) => (
 // --- Main App Component ---
 function App() {
     const [view, setView] = useState(getViewFromPath);
-    const [showSettings, setShowSettings] = useState(false);
     const [pendingToeflReviewAsset, setPendingToeflReviewAsset] = useState(null);
 
     // URL ↔ state 동기화: pushState + popstate
@@ -104,7 +103,6 @@ function App() {
         words,
     } = useAppSessionData({
         defaultAiSettings: DEFAULT_AI_SETTINGS_LOADED,
-        onSessionCleared: () => setShowSettings(false),
         showNotification,
     });
     const activeAiConfig = useMemo(() => getActiveAiConfig(accountAiSettings), [accountAiSettings]);
@@ -303,30 +301,9 @@ function App() {
 
     return (
         <div className="min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-20">
-            <Header view={view} setView={navigate} user={user} onOpenSettings={() => setShowSettings(true)} />
+            <Header view={view} setView={navigate} user={user} />
             <NotificationToast />
             {wordSuggestionPortal}
-
-            {showSettings && (
-                <Suspense fallback={<RouteFallback label="Loading settings..." />}>
-                    <AccountSettings
-                        user={user}
-                        words={words}
-                        folders={folders}
-                        onClose={() => setShowSettings(false)}
-                        onLogout={handleLogout}
-                        showNotification={showNotification}
-                        aiSettings={accountAiSettings}
-                        onAiSettingsChange={setAccountAiSettings}
-                        onCreateFolder={handleCreateFolder}
-                        onRenameFolder={handleRenameFolder}
-                        onDeleteFolder={handleDeleteFolder}
-                        onUserUpdate={handleUserUpdate}
-                        onDataReset={handleDataReset}
-                        onAccountDeleted={handleAccountDeleted}
-                    />
-                </Suspense>
-            )}
 
             <main className="max-w-6xl mx-auto px-4 pt-8">
                 {view === 'dashboard' && (
@@ -378,6 +355,27 @@ function App() {
                 {view === 'review' && (
                     <Suspense fallback={<RouteFallback label="Loading review..." />}>
                         <ToeflReviewView onStartAssetReview={handleStartToeflAssetReview} />
+                    </Suspense>
+                )}
+                {view === 'settings' && (
+                    <Suspense fallback={<RouteFallback label="Loading settings..." />}>
+                        <AccountSettings
+                            variant="page"
+                            user={user}
+                            words={words}
+                            folders={folders}
+                            onClose={() => navigate('dashboard')}
+                            onLogout={handleLogout}
+                            showNotification={showNotification}
+                            aiSettings={accountAiSettings}
+                            onAiSettingsChange={setAccountAiSettings}
+                            onCreateFolder={handleCreateFolder}
+                            onRenameFolder={handleRenameFolder}
+                            onDeleteFolder={handleDeleteFolder}
+                            onUserUpdate={handleUserUpdate}
+                            onDataReset={handleDataReset}
+                            onAccountDeleted={handleAccountDeleted}
+                        />
                     </Suspense>
                 )}
             </main>

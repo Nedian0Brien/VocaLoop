@@ -66,6 +66,7 @@ const buildWordCountByFolder = (words) => words.reduce((counts, word) => {
 }, {});
 
 export default function AccountSettings({
+  variant = 'modal',
   user,
   words,
   folders,
@@ -279,7 +280,7 @@ export default function AccountSettings({
       await deleteAccount({ password: deletePassword });
       showNotification('계정이 삭제되었습니다.');
       onAccountDeleted?.();
-      onClose();
+      onClose?.();
     } catch (error) {
       console.error('Delete account error:', error);
       showNotification('계정 삭제 실패: ' + error.message, 'error');
@@ -306,6 +307,115 @@ export default function AccountSettings({
   const activeAiProvider = AI_PROVIDERS[aiProvider] || AI_PROVIDERS.gemini;
   const activeAiKeyValue = aiProvider === 'openai' ? openaiApiKey : aiProvider === 'claude' ? claudeApiKey : geminiApiKey;
   const stats = buildStats(words);
+  const isPage = variant === 'page';
+
+  const settingsContent = (
+    <>
+      <SettingsTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <div className={isPage ? 'px-4 py-5 sm:p-6 lg:p-8' : 'flex-1 overflow-y-auto p-6'}>
+        {activeTab === 'profile' && (
+          <ProfileSettingsPanel
+            user={user}
+            fileInputRef={fileInputRef}
+            isLoading={isLoading}
+            profilePhotoURL={profilePhotoURL}
+            displayName={displayName}
+            setDisplayName={setDisplayName}
+            toeflTarget={toeflTarget}
+            setToeflTarget={setToeflTarget}
+            aiProvider={aiProvider}
+            aiModel={aiModel}
+            setAiModel={setAiModel}
+            geminiApiKey={geminiApiKey}
+            setGeminiApiKey={setGeminiApiKey}
+            openaiApiKey={openaiApiKey}
+            setOpenaiApiKey={setOpenaiApiKey}
+            claudeApiKey={claudeApiKey}
+            setClaudeApiKey={setClaudeApiKey}
+            activeAiProvider={activeAiProvider}
+            isActiveAiKeyMissing={!activeAiKeyValue.trim()}
+            onAiProviderChange={handleAiProviderChange}
+            onPhotoUpload={handlePhotoUpload}
+            onRemovePhoto={handleRemovePhoto}
+            onSaveProfile={handleSaveProfile}
+          />
+        )}
+
+        {activeTab === 'stats' && <StatsSettingsPanel stats={stats} words={words} toeflTarget={toeflTarget} />}
+
+        {activeTab === 'folders' && (
+          <FoldersSettingsPanel
+            folders={folders}
+            folderColors={folderColors}
+            wordCountByFolder={buildWordCountByFolder(words)}
+            showFolderCreate={showFolderCreate}
+            setShowFolderCreate={setShowFolderCreate}
+            newFolderName={newFolderName}
+            setNewFolderName={setNewFolderName}
+            newFolderColor={newFolderColor}
+            setNewFolderColor={setNewFolderColor}
+            editingFolderId={editingFolderId}
+            setEditingFolderId={setEditingFolderId}
+            editingFolderName={editingFolderName}
+            setEditingFolderName={setEditingFolderName}
+            onCreateFolderSubmit={handleCreateFolderSubmit}
+            onRename={handleRename}
+            onDeleteFolder={onDeleteFolder}
+          />
+        )}
+
+        {activeTab === 'data' && (
+          <DataSettingsPanel isLoading={isLoading} onExportData={handleExportData} onResetData={handleResetData} />
+        )}
+
+        {activeTab === 'account' && (
+          <AccountDangerPanel
+            isLoading={isLoading}
+            showDeleteConfirm={showDeleteConfirm}
+            setShowDeleteConfirm={setShowDeleteConfirm}
+            deletePassword={deletePassword}
+            setDeletePassword={setDeletePassword}
+            onLogout={onLogout}
+            onClose={onClose}
+            onDeleteAccount={handleDeleteAccount}
+          />
+        )}
+      </div>
+    </>
+  );
+
+  if (isPage) {
+    return (
+      <section className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-300" aria-labelledby="account-settings-title">
+        <div className="mb-6 flex flex-col gap-4 border-b border-surface-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-brand-600 text-white shadow-[var(--shadow-glow-brand)]">
+              <SettingsIcon className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-brand-600">Settings</p>
+              <h2 id="account-settings-title" className="text-2xl font-black tracking-tight text-surface-950">계정 설정</h2>
+            </div>
+          </div>
+          <div className="inline-flex max-w-full items-center gap-2 self-start rounded-pill border border-surface-200 bg-white px-3 py-2 text-sm font-bold text-surface-600 shadow-[var(--shadow-soft)] sm:self-auto">
+            {profilePhotoURL ? (
+              <img src={profilePhotoURL} alt="" className="h-7 w-7 rounded-pill object-cover" />
+            ) : (
+              <span className="grid h-7 w-7 place-items-center rounded-pill bg-brand-50 text-xs font-black text-brand-700">
+                {displayName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            )}
+            <span className="min-w-0 truncate">{displayName || user?.email}</span>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-card border border-surface-200 bg-white shadow-[var(--shadow-soft)]">
+          {settingsContent}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-surface-900/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
@@ -319,78 +429,7 @@ export default function AccountSettings({
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
-
-        <SettingsTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'profile' && (
-            <ProfileSettingsPanel
-              user={user}
-              fileInputRef={fileInputRef}
-              isLoading={isLoading}
-              profilePhotoURL={profilePhotoURL}
-              displayName={displayName}
-              setDisplayName={setDisplayName}
-              toeflTarget={toeflTarget}
-              setToeflTarget={setToeflTarget}
-              aiProvider={aiProvider}
-              aiModel={aiModel}
-              setAiModel={setAiModel}
-              geminiApiKey={geminiApiKey}
-              setGeminiApiKey={setGeminiApiKey}
-              openaiApiKey={openaiApiKey}
-              setOpenaiApiKey={setOpenaiApiKey}
-              claudeApiKey={claudeApiKey}
-              setClaudeApiKey={setClaudeApiKey}
-              activeAiProvider={activeAiProvider}
-              isActiveAiKeyMissing={!activeAiKeyValue.trim()}
-              onAiProviderChange={handleAiProviderChange}
-              onPhotoUpload={handlePhotoUpload}
-              onRemovePhoto={handleRemovePhoto}
-              onSaveProfile={handleSaveProfile}
-            />
-          )}
-
-          {activeTab === 'stats' && <StatsSettingsPanel stats={stats} words={words} toeflTarget={toeflTarget} />}
-
-          {activeTab === 'folders' && (
-            <FoldersSettingsPanel
-              folders={folders}
-              folderColors={folderColors}
-              wordCountByFolder={buildWordCountByFolder(words)}
-              showFolderCreate={showFolderCreate}
-              setShowFolderCreate={setShowFolderCreate}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-              newFolderColor={newFolderColor}
-              setNewFolderColor={setNewFolderColor}
-              editingFolderId={editingFolderId}
-              setEditingFolderId={setEditingFolderId}
-              editingFolderName={editingFolderName}
-              setEditingFolderName={setEditingFolderName}
-              onCreateFolderSubmit={handleCreateFolderSubmit}
-              onRename={handleRename}
-              onDeleteFolder={onDeleteFolder}
-            />
-          )}
-
-          {activeTab === 'data' && (
-            <DataSettingsPanel isLoading={isLoading} onExportData={handleExportData} onResetData={handleResetData} />
-          )}
-
-          {activeTab === 'account' && (
-            <AccountDangerPanel
-              isLoading={isLoading}
-              showDeleteConfirm={showDeleteConfirm}
-              setShowDeleteConfirm={setShowDeleteConfirm}
-              deletePassword={deletePassword}
-              setDeletePassword={setDeletePassword}
-              onLogout={onLogout}
-              onClose={onClose}
-              onDeleteAccount={handleDeleteAccount}
-            />
-          )}
-        </div>
+        {settingsContent}
       </div>
     </div>
   );

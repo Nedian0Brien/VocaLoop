@@ -52,8 +52,8 @@ export const ActionCard = ({ tone = 'neutral', icon: Icon, title, desc, children
 
 export function SettingsTabs({ tabs, activeTab, onTabChange }) {
   return (
-    <div className="border-b border-surface-200 bg-surface-50 px-6">
-      <div className="flex gap-1">
+    <div className="border-b border-surface-200 bg-surface-50 px-2 sm:px-6">
+      <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="계정 설정 섹션">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -61,8 +61,10 @@ export function SettingsTabs({ tabs, activeTab, onTabChange }) {
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 font-bold transition-all ${
+              className={`flex shrink-0 items-center gap-2 px-4 py-3 font-bold transition-all ${
                 isActive
                   ? 'text-brand-600 border-b-2 border-brand-600 bg-white'
                   : 'text-surface-500 hover:text-surface-700 hover:bg-surface-100'
@@ -532,7 +534,7 @@ export function AccountDangerPanel({
   return (
     <div className="space-y-4">
       <ActionCard tone="neutral" icon={LogOut} title="로그아웃" desc="현재 세션에서 로그아웃합니다. 데이터는 보존됩니다.">
-        <Button variant="dark" size="md" onClick={() => { onLogout(); onClose(); }} leftIcon={LogOut}>
+        <Button variant="dark" size="md" onClick={() => { onLogout(); onClose?.(); }} leftIcon={LogOut}>
           로그아웃
         </Button>
       </ActionCard>

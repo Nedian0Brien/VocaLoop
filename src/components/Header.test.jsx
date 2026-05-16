@@ -32,16 +32,16 @@ describe('Header mobile navigation', () => {
         expect(desktopNav.className).toContain('hidden');
         expect(desktopNav.className).toContain('md:flex');
 
-        const mobileLinks = ['Dashboard', 'Study', 'Review'].map((label) =>
+        const mobileLinks = ['Dashboard', 'Study', 'Review', 'Settings'].map((label) =>
             within(mobileNav).getByRole('link', { name: label })
         );
-        expect(mobileLinks).toHaveLength(3);
+        expect(mobileLinks).toHaveLength(4);
         expect(mobileLinks[1].getAttribute('aria-current')).toBe('page');
         expect(screen.getByTestId('mobile-nav-indicator')).toBeTruthy();
 
-        fireEvent.click(mobileLinks[2]);
+        fireEvent.click(mobileLinks[3]);
 
-        expect(setView).toHaveBeenCalledWith('review');
+        expect(setView).toHaveBeenCalledWith('settings');
     });
 
     test('hides on downward mobile scroll and reveals on upward scroll', () => {
@@ -91,6 +91,7 @@ describe('Header mobile navigation', () => {
             dashboard: { left: 14, width: 90 },
             study: { left: 116, width: 120 },
             review: { left: 246, width: 150 },
+            settings: { left: 320, width: 76 },
         };
         vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
             callback();
@@ -113,12 +114,12 @@ describe('Header mobile navigation', () => {
             };
         });
 
-        render(<Header view="review" setView={vi.fn()} user={user} onOpenSettings={vi.fn()} />);
+        render(<Header view="settings" setView={vi.fn()} user={user} onOpenSettings={vi.fn()} />);
 
         const indicator = screen.getByTestId('mobile-nav-indicator');
 
-        expect(indicator.style.width).toBe('150px');
-        expect(indicator.style.transform).toBe('translateX(232px)');
+        expect(indicator.style.width).toBe('76px');
+        expect(indicator.style.transform).toBe('translateX(306px)');
         expect(indicator.style.opacity).toBe('1');
     });
 });
