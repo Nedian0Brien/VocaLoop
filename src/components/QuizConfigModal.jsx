@@ -608,7 +608,7 @@ export default function QuizConfigModal({
                           onChange={(e) => setEditingTopic((prev) => ({ ...prev, label: e.target.value }))}
                           placeholder="분야 이름"
                           aria-label="분야 이름"
-                          className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white"
+                          className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
                         />
                         <input
                           type="text"
@@ -616,7 +616,7 @@ export default function QuizConfigModal({
                           onChange={(e) => setEditingTopic((prev) => ({ ...prev, description: e.target.value }))}
                           placeholder="설명 (선택) — 예: Cosmology, Planetary Science"
                           aria-label="분야 설명"
-                          className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white"
+                          className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
                         />
                         {topicError && <p className="text-2xs font-black text-danger-500">{topicError}</p>}
                         <div className="flex gap-2">
@@ -638,7 +638,7 @@ export default function QuizConfigModal({
                             onChange={(e) => setNewTopicLabel(e.target.value)}
                             placeholder="예: 인류학"
                             aria-label="새 분야 이름"
-                            className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white"
+                            className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
                           />
                           <input
                             type="text"
@@ -646,7 +646,7 @@ export default function QuizConfigModal({
                             onChange={(e) => setNewTopicDesc(e.target.value)}
                             placeholder="설명 (선택)"
                             aria-label="새 분야 설명"
-                            className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white"
+                            className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
                           />
                           <Button
                             variant="primary"

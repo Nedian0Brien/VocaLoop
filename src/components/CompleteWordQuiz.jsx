@@ -159,12 +159,12 @@ export default function CompleteWordQuiz({
                 placeholder="영어 단어 입력"
                 autoFocus
                 className={[
-                  'w-full h-16 pl-14 pr-5 rounded-xl border-2 bg-surface-50 text-xl font-black tracking-tight outline-none transition-all',
+                  'w-full h-16 pl-14 pr-5 rounded-xl border-2 bg-surface-50 text-surface-900 placeholder-surface-400 text-xl font-black tracking-tight outline-none transition-all',
                   isAnswered
                     ? isCorrect
                       ? 'border-success-500 bg-success-50 text-success-700'
                       : 'border-danger-500 bg-danger-50 text-danger-700'
-                    : 'border-surface-100 focus:border-brand-500 focus:bg-white focus:shadow-xl focus:shadow-brand-500/5',
+                    : 'border-surface-100 focus:border-brand-500 focus:bg-surface-0 focus:shadow-xl focus:shadow-brand-500/5',
                 ].join(' ')}
                 aria-label="완성할 영어 단어"
               />

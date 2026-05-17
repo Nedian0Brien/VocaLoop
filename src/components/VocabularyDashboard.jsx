@@ -247,7 +247,7 @@ export default function VocabularyDashboard({
                                     aria-autocomplete="list"
                                     aria-controls="word-autocomplete-suggestions"
                                     aria-expanded={shouldShowWordSuggestions}
-                                    className="block w-full pl-10 pr-3 py-3 border border-surface-300 rounded-md leading-5 bg-surface-50 placeholder-surface-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
+                                    className="block w-full pl-10 pr-3 py-3 border border-surface-300 rounded-md leading-5 bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:bg-surface-0 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
                                     disabled={isAnalyzing}
                                 />
                             </div>

@@ -127,7 +127,10 @@ html {
 html[data-theme="dark"] {
     color-scheme: dark;
 
-    /* Brand — dark-mode adjusted, still tied to the VocaLoop blue/indigo identity */
+    /* ------------------------------------------------------------------ */
+    /* Brand — text-oriented inversion: light tints read well on dark bg. */
+    /* Solid bg/gradient usages get re-anchored to deep brand below.      */
+    /* ------------------------------------------------------------------ */
     --color-brand-50:  #0B1E3A;
     --color-brand-100: #12335F;
     --color-brand-200: #1E40AF;
@@ -139,7 +142,6 @@ html[data-theme="dark"] {
     --color-brand-800: #DBEAFE;
     --color-brand-900: #EFF6FF;
 
-    /* Accent */
     --color-accent-50:  #241138;
     --color-accent-100: #35185A;
     --color-accent-400: #A78BFA;
@@ -147,16 +149,17 @@ html[data-theme="dark"] {
     --color-accent-600: #C4B5FD;
     --color-accent-700: #DDD6FE;
 
-    /* Indigo pair */
     --color-indigo-pair-500: #818CF8;
     --color-indigo-pair-600: #A5B4FC;
     --color-indigo-pair-700: #C7D2FE;
 
-    /* Surface */
-    --color-surface-0:   #111827;
-    --color-surface-50:  #0F172A;
-    --color-surface-100: #1E293B;
-    --color-surface-200: #334155;
+    /* ------------------------------------------------------------------ */
+    /* Surface — body is the deepest layer; surface-0 is the lifted card. */
+    /* ------------------------------------------------------------------ */
+    --color-surface-0:   #1A2236;  /* card / panel — clearly lifted off body */
+    --color-surface-50:  #0A1020;  /* body bg — deep editorial navy */
+    --color-surface-100: #1F2942;  /* sub-elevated band inside cards */
+    --color-surface-200: #2F3D5C;  /* dividers & borders */
     --color-surface-300: #475569;
     --color-surface-400: #64748B;
     --color-surface-500: #94A3B8;
@@ -165,7 +168,7 @@ html[data-theme="dark"] {
     --color-surface-800: #F1F5F9;
     --color-surface-900: #F8FAFC;
 
-    /* Semantic */
+    /* Semantic — keep text-tier inversion (50→deep, 700→bright) */
     --color-success-50:  #052E24;
     --color-success-100: #064E3B;
     --color-success-200: #047857;
@@ -191,27 +194,104 @@ html[data-theme="dark"] {
     --color-danger-600:  #FCA5A5;
     --color-danger-700:  #FECACA;
 
-    --shadow-soft:        0 1px 3px 0 rgb(0 0 0 / 0.30), 0 1px 2px -1px rgb(0 0 0 / 0.24);
-    --shadow-card:        0 4px 12px -4px rgb(0 0 0 / 0.38), 0 2px 6px -3px rgb(0 0 0 / 0.30);
-    --shadow-card-hover:  0 14px 28px -10px rgb(0 0 0 / 0.50), 0 6px 12px -8px rgb(0 0 0 / 0.40);
-    --shadow-elevated:    0 24px 48px -18px rgb(0 0 0 / 0.62);
-    --shadow-floating:    0 34px 72px -24px rgb(0 0 0 / 0.72);
-    --shadow-glow-brand:  0 10px 30px -12px rgb(96 165 250 / 0.55);
-    --shadow-glow-accent: 0 10px 30px -12px rgb(167 139 250 / 0.50);
-    --shadow-glow-indigo: 0 10px 30px -12px rgb(129 140 248 / 0.50);
+    --shadow-soft:        0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.32);
+    --shadow-card:        0 6px 16px -6px rgb(0 0 0 / 0.55), 0 2px 6px -3px rgb(0 0 0 / 0.40);
+    --shadow-card-hover:  0 18px 36px -12px rgb(0 0 0 / 0.65), 0 8px 14px -8px rgb(0 0 0 / 0.45);
+    --shadow-elevated:    0 28px 56px -20px rgb(0 0 0 / 0.70);
+    --shadow-floating:    0 38px 78px -26px rgb(0 0 0 / 0.78);
+    --shadow-glow-brand:  0 14px 36px -14px rgb(59 130 246 / 0.55);
+    --shadow-glow-accent: 0 14px 36px -14px rgb(139 92 246 / 0.50);
+    --shadow-glow-indigo: 0 14px 36px -14px rgb(99 102 241 / 0.50);
 }
 
+/* `bg-white` in components means "card surface" — re-route to lifted surface-0 */
 html[data-theme="dark"] :where(.bg-white) {
     background-color: var(--color-surface-0);
 }
 
-html[data-theme="dark"] :where(.bg-surface-800.text-white, .bg-surface-900.text-white) {
+/* Dark-surface chip patterns (`.bg-surface-800.text-white`) would otherwise   */
+/* turn white-on-white after inversion. Force them back to a readable combo.  */
+html[data-theme="dark"] .bg-surface-800.text-white,
+html[data-theme="dark"] .bg-surface-900.text-white {
     background-color: #0F172A;
     color: #FFFFFF;
+    border-color: #1F2942;
 }
 
 html[data-theme="dark"] :where(.hover\:bg-surface-900:hover) {
     background-color: #020617;
+}
+
+/* ------------------------------------------------------------------ */
+/* Brand identity preservation — re-anchor solid bg/gradient usages    */
+/* to the original deep brand palette so CTAs and hero gradients keep  */
+/* the VocaLoop blue→indigo→purple feel on dark surfaces.              */
+/* ------------------------------------------------------------------ */
+html[data-theme="dark"] :where(.bg-brand-500)        { background-color: #3B82F6; }
+html[data-theme="dark"] :where(.bg-brand-600)        { background-color: #2563EB; }
+html[data-theme="dark"] :where(.bg-brand-700)        { background-color: #1D4ED8; }
+html[data-theme="dark"] :where(.bg-accent-500)       { background-color: #8B5CF6; }
+html[data-theme="dark"] :where(.bg-accent-600)       { background-color: #7C3AED; }
+html[data-theme="dark"] :where(.bg-indigo-pair-500)  { background-color: #6366F1; }
+html[data-theme="dark"] :where(.bg-indigo-pair-600)  { background-color: #4F46E5; }
+html[data-theme="dark"] :where(.bg-indigo-pair-700)  { background-color: #4338CA; }
+
+html[data-theme="dark"] :where(.bg-success-500)      { background-color: #10B981; }
+html[data-theme="dark"] :where(.bg-success-600)      { background-color: #059669; }
+html[data-theme="dark"] :where(.bg-danger-500)       { background-color: #EF4444; }
+html[data-theme="dark"] :where(.bg-danger-600)       { background-color: #DC2626; }
+html[data-theme="dark"] :where(.bg-warning-500)      { background-color: #F59E0B; }
+html[data-theme="dark"] :where(.bg-warning-600)      { background-color: #D97706; }
+
+html[data-theme="dark"] :where(.from-brand-500)        { --tw-gradient-from: #3B82F6; }
+html[data-theme="dark"] :where(.from-brand-600)        { --tw-gradient-from: #2563EB; }
+html[data-theme="dark"] :where(.from-accent-500)       { --tw-gradient-from: #8B5CF6; }
+html[data-theme="dark"] :where(.from-accent-600)       { --tw-gradient-from: #7C3AED; }
+html[data-theme="dark"] :where(.from-indigo-pair-500)  { --tw-gradient-from: #6366F1; }
+html[data-theme="dark"] :where(.from-indigo-pair-600)  { --tw-gradient-from: #4F46E5; }
+
+html[data-theme="dark"] :where(.via-brand-500)         { --tw-gradient-via: #3B82F6; }
+html[data-theme="dark"] :where(.via-brand-600)         { --tw-gradient-via: #2563EB; }
+html[data-theme="dark"] :where(.via-accent-500)        { --tw-gradient-via: #8B5CF6; }
+html[data-theme="dark"] :where(.via-indigo-pair-500)   { --tw-gradient-via: #6366F1; }
+html[data-theme="dark"] :where(.via-indigo-pair-600)   { --tw-gradient-via: #4F46E5; }
+
+html[data-theme="dark"] :where(.to-brand-500)          { --tw-gradient-to: #3B82F6; }
+html[data-theme="dark"] :where(.to-brand-600)          { --tw-gradient-to: #2563EB; }
+html[data-theme="dark"] :where(.to-accent-500)         { --tw-gradient-to: #8B5CF6; }
+html[data-theme="dark"] :where(.to-accent-600)         { --tw-gradient-to: #7C3AED; }
+html[data-theme="dark"] :where(.to-indigo-pair-500)    { --tw-gradient-to: #6366F1; }
+html[data-theme="dark"] :where(.to-indigo-pair-600)    { --tw-gradient-to: #4F46E5; }
+html[data-theme="dark"] :where(.to-indigo-pair-700)    { --tw-gradient-to: #4338CA; }
+
+/* Brand-tinted soft panels (`bg-brand-50` etc.) — re-route from text-tier    */
+/* inverted values to dark-tinted surfaces so they read as "subtle brand     */
+/* wash" rather than near-black flat fills.                                  */
+html[data-theme="dark"] :where(.bg-brand-50)   { background-color: rgb(37 99 235 / 0.12); }
+html[data-theme="dark"] :where(.bg-brand-100)  { background-color: rgb(37 99 235 / 0.18); }
+html[data-theme="dark"] :where(.bg-accent-50)  { background-color: rgb(124 58 237 / 0.14); }
+html[data-theme="dark"] :where(.bg-accent-100) { background-color: rgb(124 58 237 / 0.20); }
+html[data-theme="dark"] :where(.bg-success-50) { background-color: rgb(16 185 129 / 0.12); }
+html[data-theme="dark"] :where(.bg-danger-50)  { background-color: rgb(239 68 68  / 0.12); }
+html[data-theme="dark"] :where(.bg-warning-50) { background-color: rgb(245 158 11 / 0.14); }
+
+/* Form fields — make text/placeholder legible regardless of utility classes */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+    color: var(--color-surface-900);
+    caret-color: var(--color-brand-500);
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: var(--color-surface-500);
+    opacity: 1;
+}
+
+/* `select` option list (rendered by OS) — opt into dark color-scheme */
+html[data-theme="dark"] select option {
+    background-color: var(--color-surface-0);
+    color: var(--color-surface-900);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -200,12 +200,12 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                 disabled={isAnswered || loading}
                 placeholder={showHint ? getHint() : '뜻을 입력하세요...'}
                 aria-label="한국어 뜻 입력"
-                className={`w-full p-6 text-xl font-bold bg-surface-50 border-2 rounded-xl transition-all outline-none ${
+                className={`w-full p-6 text-xl font-bold bg-surface-50 text-surface-900 placeholder-surface-400 border-2 rounded-xl transition-all outline-none ${
                   isAnswered
                     ? gradeResult?.isCorrect
                       ? 'border-success-500 bg-success-50 text-success-700'
                       : 'border-danger-500 bg-danger-50 text-danger-700'
-                    : 'border-surface-100 focus:border-brand-500 focus:bg-white focus:shadow-xl focus:shadow-brand-500/5'
+                    : 'border-surface-100 focus:border-brand-500 focus:bg-surface-0 focus:shadow-xl focus:shadow-brand-500/5'
                 }`}
                 autoFocus
               />
