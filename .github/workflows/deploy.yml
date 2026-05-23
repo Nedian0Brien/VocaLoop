@@ -100,8 +100,8 @@ jobs:
             npm run build:clean
             python3 -m pip install --user -r backend/requirements.txt
 
-            # PM2 재시작
-            pm2 restart voca-loop --update-env || pm2 start ecosystem.config.cjs --only voca-loop
+            # PM2 재시작: ecosystem env 변경(CODEX_BIN 등)을 기존 프로세스에도 반영
+            pm2 startOrRestart ecosystem.config.cjs --only voca-loop --update-env
 
       - name: Notify Discord on Deploy Success
         if: success()

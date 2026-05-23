@@ -51,7 +51,7 @@ GitHub Actions 워크플로우 (`.github/workflows/deploy.yml`) 흐름:
 5. Deploy job: SSH 접속 -> `cd ~/project/VocaLoop`
 6. 서버 checkout 강제 동기화: `git fetch origin main` -> `git reset --hard origin/main`
 7. 서버 의존성/빌드: `npm install` -> `npm run build:clean` -> `python3 -m pip install --user -r backend/requirements.txt`
-8. PM2 재시작: `pm2 restart voca-loop --update-env || pm2 start ecosystem.config.cjs --only voca-loop`
+8. PM2 재시작: `pm2 startOrRestart ecosystem.config.cjs --only voca-loop --update-env`
 9. Discord 채널에 성공/실패 알림
 
 주의: deploy job은 서버 checkout에서 `git reset --hard origin/main`을 실행한다.
