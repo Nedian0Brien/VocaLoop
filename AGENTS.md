@@ -214,7 +214,7 @@ AUTH_SECRET_KEY=
 AUTH_SECRET_FILE=/home/ubuntu/project/VocaLoop/.auth_secret
 UPLOADS_ROOT=./uploads
 ENVIRONMENT=production
-CODEX_BIN=codex
+CODEX_BIN=/home/ubuntu/.nvm/versions/node/v22.17.1/bin/codex
 CODEX_CLI_TIMEOUT_SECONDS=180
 ```
 

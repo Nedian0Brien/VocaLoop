@@ -41,6 +41,7 @@ def test_codex_generation_invokes_cli_with_spark_model(client, monkeypatch):
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(ai_route.subprocess, "run", fake_run)
+    monkeypatch.setenv("CODEX_BIN", "/opt/codex/bin/codex")
 
     response = client.post(
         "/api/ai/codex",
@@ -53,7 +54,7 @@ def test_codex_generation_invokes_cli_with_spark_model(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"text": '{"word":"cat"}'}
-    assert captured["args"][:2] == ["codex", "exec"]
+    assert captured["args"][:2] == ["/opt/codex/bin/codex", "exec"]
     assert captured["args"][captured["args"].index("-m") + 1] == "gpt-5.3-codex-spark"
     assert "--json" in captured["args"]
     assert "--ephemeral" in captured["args"]

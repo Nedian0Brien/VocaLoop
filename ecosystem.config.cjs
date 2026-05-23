@@ -17,6 +17,7 @@ module.exports = {
                 ENVIRONMENT: 'production',
                 PORT: 3050,
                 PYTHONPATH: appRoot,
+                CODEX_BIN: '/home/ubuntu/.nvm/versions/node/v22.17.1/bin/codex',
             },
         },
     ],
