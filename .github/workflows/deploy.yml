@@ -65,12 +65,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Configure Git defaults
-        run: git config --global init.defaultBranch main
-
-      - name: Checkout code
-        uses: actions/checkout@v6
-
       - name: Set Short SHA
         run: echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
 
