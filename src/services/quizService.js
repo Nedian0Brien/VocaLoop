@@ -3,7 +3,7 @@
  * 로컬 모드와 AI 모드를 지원합니다.
  */
 
-import { callAiModel, parseJsonOutput } from './aiModelService';
+import { callAiModel, hasAiProviderAccess, parseJsonOutput } from './aiModelService';
 
 /**
  * 객관식 선택지 생성 (로컬 모드)
@@ -104,7 +104,7 @@ async function generateAIMultipleChoice(word, aiConfig) {
  * @returns {Promise<Array>} - 4개의 선택지
  */
 export async function generateMultipleChoiceOptions(word, allWords, useAI = false, aiConfig = null) {
-  if (useAI && aiConfig?.provider && aiConfig?.apiKey) {
+  if (useAI && hasAiProviderAccess(aiConfig)) {
     try {
       return await generateAIMultipleChoice(word, aiConfig);
     } catch (error) {

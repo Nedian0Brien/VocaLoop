@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import load_settings
 from .db import bootstrap_db
-from .routes import account_router, auth_router, folders_router, settings_router, toefl_router, uploads_router, words_router
+from .routes import account_router, ai_router, auth_router, folders_router, settings_router, toefl_router, uploads_router, words_router
 
 
 settings = load_settings()
@@ -26,6 +26,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_root), name="uploads")
 app.include_router(account_router)
+app.include_router(ai_router)
 app.include_router(auth_router)
 app.include_router(folders_router)
 app.include_router(settings_router)

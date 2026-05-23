@@ -30,7 +30,7 @@ export const generateWordData = async (word, aiConfig) => {
 
         return parseJsonOutput(text);
     } catch (error) {
-        console.error("Gemini Error:", error);
+        console.error("AI word generation error:", error);
         throw error;
     }
 };

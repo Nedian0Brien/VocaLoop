@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getDefaultModelForProvider } from '../services/aiModelService';
+import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getDefaultModelForProvider, providerRequiresApiKey } from '../services/aiModelService';
 import { getSettings, updateSettings } from '../services/settingsApi';
 import { uploadProfileImage, deleteProfileImage } from '../services/uploadApi';
 import { deleteAccount, resetAccountData } from '../services/accountApi';
@@ -15,7 +15,7 @@ import {
 
 const normalizeAiSettings = (value = {}) => {
   const provider = AI_PROVIDERS[value?.provider] ? value.provider : DEFAULT_AI_SETTINGS.provider;
-  const providerConfig = AI_PROVIDERS[provider] || AI_PROVIDERS.gemini;
+  const providerConfig = AI_PROVIDERS[provider] || AI_PROVIDERS[DEFAULT_AI_SETTINGS.provider];
 
   return {
     provider,
@@ -219,7 +219,7 @@ export default function AccountSettings({
   };
 
   const handleAiProviderChange = (providerId) => {
-    const provider = AI_PROVIDERS[providerId] || AI_PROVIDERS.gemini;
+    const provider = AI_PROVIDERS[providerId] || AI_PROVIDERS[DEFAULT_AI_SETTINGS.provider];
     setAiProvider(provider.id);
     setAiModel(getDefaultModelForProvider(provider.id));
   };
@@ -304,8 +304,9 @@ export default function AccountSettings({
     setEditingFolderName('');
   };
 
-  const activeAiProvider = AI_PROVIDERS[aiProvider] || AI_PROVIDERS.gemini;
+  const activeAiProvider = AI_PROVIDERS[aiProvider] || AI_PROVIDERS[DEFAULT_AI_SETTINGS.provider];
   const activeAiKeyValue = aiProvider === 'openai' ? openaiApiKey : aiProvider === 'claude' ? claudeApiKey : geminiApiKey;
+  const isActiveAiKeyMissing = providerRequiresApiKey(aiProvider) && !activeAiKeyValue.trim();
   const stats = buildStats(words);
   const isPage = variant === 'page';
 
@@ -334,7 +335,7 @@ export default function AccountSettings({
             claudeApiKey={claudeApiKey}
             setClaudeApiKey={setClaudeApiKey}
             activeAiProvider={activeAiProvider}
-            isActiveAiKeyMissing={!activeAiKeyValue.trim()}
+            isActiveAiKeyMissing={isActiveAiKeyMissing}
             onAiProviderChange={handleAiProviderChange}
             onPhotoUpload={handlePhotoUpload}
             onRemovePhoto={handleRemovePhoto}

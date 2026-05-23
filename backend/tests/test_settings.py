@@ -5,7 +5,9 @@ def test_settings_provider_catalog_uses_shared_contract(client):
     response = client.get("/api/settings/providers")
 
     assert response.status_code == 200
-    assert response.json()["defaultProvider"] == "gemini"
+    assert response.json()["defaultProvider"] == "codex"
+    assert response.json()["providers"]["codex"]["defaultModel"] == "gpt-5.3-codex-spark"
+    assert response.json()["providers"]["codex"]["requiresApiKey"] is False
     assert response.json()["providers"]["gemini"]["defaultModel"] == "gemini-3-flash-preview"
     assert "gemini-2.0-flash" not in response.json()["providers"]["gemini"]["models"]
 
@@ -39,8 +41,8 @@ def test_settings_get_backfills_missing_row_for_existing_authenticated_user(clie
     assert response.json() == {
         "displayName": "Settings Backfill",
         "toeflTarget": None,
-        "provider": "gemini",
-        "model": "gemini-3-flash-preview",
+        "provider": "codex",
+        "model": "gpt-5.3-codex-spark",
         "geminiApiKey": None,
         "openaiApiKey": None,
         "claudeApiKey": None,
@@ -51,8 +53,8 @@ def test_settings_get_backfills_missing_row_for_existing_authenticated_user(clie
         assert user is not None
         settings = session.scalar(select(UserSettings).where(UserSettings.user_id == user.id))
         assert settings is not None
-        assert settings.ai_provider == "gemini"
-        assert settings.ai_model == "gemini-3-flash-preview"
+        assert settings.ai_provider == "codex"
+        assert settings.ai_model == "gpt-5.3-codex-spark"
 
 
 def test_provider_only_settings_update_defaults_model_for_new_provider(client):
@@ -102,8 +104,8 @@ def test_authenticated_user_can_read_seeded_settings(client):
     assert response.json() == {
         "displayName": "Settings Reader",
         "toeflTarget": None,
-        "provider": "gemini",
-        "model": "gemini-3-flash-preview",
+        "provider": "codex",
+        "model": "gpt-5.3-codex-spark",
         "geminiApiKey": None,
         "openaiApiKey": None,
         "claudeApiKey": None,

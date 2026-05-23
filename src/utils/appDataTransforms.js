@@ -47,7 +47,7 @@ export const sortFoldersForDisplay = (items) =>
 
 export const normalizeAiSettings = (settings = {}, providers, fallbackSettings) => {
     const provider = providers[settings.provider] ? settings.provider : fallbackSettings.provider;
-    const providerConfig = providers[provider] || providers.gemini;
+    const providerConfig = providers[provider] || providers[fallbackSettings.provider];
 
     return {
         provider,

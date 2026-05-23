@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Volume2, Check, X, Sparkles, AlertTriangle, FileText, Brain, ArrowRightLeft, Quote, ChevronRight } from './Icons';
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
+import { hasAiProviderAccess } from '../services/aiModelService';
 import { playSound } from '../utils/soundEffects';
 import { Badge } from '../design-system';
 
@@ -40,7 +41,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
 
     try {
       let result;
-      if (aiMode && aiConfig?.apiKey) {
+      if (aiMode && hasAiProviderAccess(aiConfig)) {
         try {
           const aiResult = await gradeWithAI(userAnswer, word.meaning_ko, word, aiConfig);
           result = {

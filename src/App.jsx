@@ -108,7 +108,7 @@ function App() {
         showNotification,
     });
     const activeAiConfig = useMemo(() => getActiveAiConfig(accountAiSettings), [accountAiSettings]);
-    const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS.gemini;
+    const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS[DEFAULT_AI_SETTINGS.provider];
     const {
         addToFolderId,
         handleAddWord,

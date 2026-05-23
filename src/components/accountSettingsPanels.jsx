@@ -21,8 +21,9 @@ import {
 const labelClass = 'block text-sm font-bold text-surface-700 mb-2';
 const inputClass = 'w-full px-4 py-2 border border-surface-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500';
 const providerDisplay = {
+  codex: { label: 'Codex CLI', caption: 'gpt-5.3-codex-spark' },
   gemini: { label: 'Gemini', caption: 'Google AI' },
-  openai: { label: 'Codex', caption: 'OpenAI' },
+  openai: { label: 'OpenAI', caption: 'API Key' },
   claude: { label: 'Claude', caption: 'Anthropic' },
 };
 
@@ -160,7 +161,7 @@ export function ProfileSettingsPanel({
       <div className="space-y-4 border border-surface-200 rounded-xl p-4">
         <div>
           <label className={labelClass}>AI Provider</label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="AI Provider">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4" role="radiogroup" aria-label="AI Provider">
             {Object.values(AI_PROVIDERS).map((provider) => {
               const display = providerDisplay[provider.id] || { label: provider.label, caption: provider.name };
 
@@ -210,7 +211,7 @@ export function ProfileSettingsPanel({
           { key: 'gemini', label: 'Google AI API Key', value: geminiApiKey, setter: setGeminiApiKey, placeholder: 'Google AI Studio에서 발급받은 키 입력', linkText: 'Google AI Studio' },
           { key: 'openai', label: 'OpenAI API Key', value: openaiApiKey, setter: setOpenaiApiKey, placeholder: 'OpenAI API Keys에서 발급받은 키 입력', linkText: 'OpenAI API Keys' },
           { key: 'claude', label: 'Claude API Key', value: claudeApiKey, setter: setClaudeApiKey, placeholder: 'Anthropic Console에서 발급받은 키 입력', linkText: 'Anthropic Console' },
-        ].map(({ key, label, value, setter, placeholder, linkText }) => (
+        ].filter(({ key }) => AI_PROVIDERS[key]?.requiresApiKey !== false).map(({ key, label, value, setter, placeholder, linkText }) => (
           <div key={key}>
             <label className={labelClass}>{label}</label>
             <input

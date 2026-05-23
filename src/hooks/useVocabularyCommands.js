@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { generateWordData } from '../services/geminiService';
+import { hasAiProviderAccess } from '../services/aiModelService';
 import { createWord, deleteWord, updateWord } from '../services/wordApi';
 import {
   buildVocabularyPayload,
@@ -40,13 +41,15 @@ export function useVocabularyCommands({
   const resetAddToFolder = () => setAddToFolderId(null);
   const clearAddToFolderIfFolder = (folderId) =>
     setAddToFolderId((current) => (current === folderId ? null : current));
+  const activeAiProviderNeedsKey = !hasAiProviderAccess(activeAiConfig);
+  const activeAiProviderAccessError = `${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`;
 
   const handleAddWord = async (event) => {
     event.preventDefault();
     if (!inputWord.trim() || !user) return;
     setIsWordSuggestOpen(false);
-    if (!activeAiConfig.apiKey) {
-      showNotification(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`, 'error');
+    if (activeAiProviderNeedsKey) {
+      showNotification(activeAiProviderAccessError, 'error');
       return;
     }
 
@@ -86,8 +89,8 @@ export function useVocabularyCommands({
       return existingWord;
     }
 
-    if (!activeAiConfig.apiKey) {
-      throw new Error(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`);
+    if (activeAiProviderNeedsKey) {
+      throw new Error(activeAiProviderAccessError);
     }
 
     const analysisResult = await generateWordData(capturedWord, activeAiConfig);
@@ -101,8 +104,8 @@ export function useVocabularyCommands({
     if (!user) throw new Error('로그인이 필요합니다.');
     const capturedWord = normalizeCapturedWord(rawWord);
     if (!capturedWord) throw new Error('설명할 단어를 찾을 수 없습니다.');
-    if (!activeAiConfig.apiKey) {
-      throw new Error(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`);
+    if (activeAiProviderNeedsKey) {
+      throw new Error(activeAiProviderAccessError);
     }
 
     const existingWord = words.find((word) => getVocabularyWordKey(word.word) === capturedWord);
@@ -134,8 +137,8 @@ export function useVocabularyCommands({
 
   const handleRegenerateWord = async (wordId) => {
     if (!user) return;
-    if (!activeAiConfig.apiKey) {
-      showNotification(`${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`, 'error');
+    if (activeAiProviderNeedsKey) {
+      showNotification(activeAiProviderAccessError, 'error');
       return;
     }
 

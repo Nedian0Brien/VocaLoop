@@ -91,3 +91,59 @@ def test_bootstrap_db_adds_missing_toefl_target_column(monkeypatch, tmp_path):
     conn.close()
 
     assert "toefl_target" in columns
+
+
+def test_bootstrap_db_migrates_gemini_settings_to_codex_default(monkeypatch, tmp_path):
+    db_path = tmp_path / "legacy-gemini-settings.db"
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            display_name VARCHAR(255),
+            password_hash VARCHAR(255) NOT NULL,
+            session_version INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            photo_url VARCHAR(512)
+        );
+        CREATE TABLE user_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            toefl_target INTEGER,
+            ai_provider VARCHAR(50) NOT NULL,
+            ai_model VARCHAR(100) NOT NULL,
+            gemini_api_key TEXT,
+            openai_api_key TEXT,
+            claude_api_key TEXT,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users (id, email, display_name, password_hash)
+        VALUES (1, 'legacy@example.com', 'Legacy User', 'hash');
+        INSERT INTO user_settings (user_id, ai_provider, ai_model, gemini_api_key)
+        VALUES (1, 'gemini', 'gemini-3-flash-preview', 'legacy-gemini-key');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("AUTH_SECRET_KEY", "test-auth-secret")
+    monkeypatch.setenv("UPLOADS_ROOT", str(tmp_path / "uploads"))
+
+    for module_name in [name for name in sys.modules if name == "app" or name.startswith("app.")]:
+        sys.modules.pop(module_name)
+
+    importlib.invalidate_caches()
+
+    from app.db import bootstrap_db
+
+    bootstrap_db()
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT ai_provider, ai_model FROM user_settings WHERE user_id = 1").fetchone()
+    conn.close()
+
+    assert row == ("codex", "gpt-5.3-codex-spark")

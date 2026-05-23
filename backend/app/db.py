@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import load_settings
+from .ai_contract import get_default_model, get_default_provider
 
 
 class Base(DeclarativeBase):
@@ -51,6 +52,10 @@ def bootstrap_db() -> None:
             }
             if "toefl_target" not in existing_settings_columns:
                 connection.exec_driver_sql("ALTER TABLE user_settings ADD COLUMN toefl_target INTEGER")
+            connection.exec_driver_sql(
+                "UPDATE user_settings SET ai_provider = ?, ai_model = ? WHERE ai_provider = ?",
+                (get_default_provider(), get_default_model(), "gemini"),
+            )
 
     with SessionLocal() as session:
         seed_database(session)

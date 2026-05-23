@@ -230,7 +230,7 @@ function LoginScreen({ onEmailLogin, onEmailSignup, isLoading }) {
                 </Card>
 
                 <p className="text-center text-xs text-surface-400 mt-6 font-semibold">
-                    © 2025 VocaLoop · Powered by Gemini AI
+                    © 2025 VocaLoop · Powered by Codex CLI
                 </p>
             </div>
         </div>

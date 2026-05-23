@@ -1,14 +1,41 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig, parseJsonOutput } from './aiModelService';
+import {
+  AI_PROVIDERS,
+  DEFAULT_AI_SETTINGS,
+  callAiModel,
+  getActiveAiConfig,
+  hasAiProviderAccess,
+  parseJsonOutput,
+} from './aiModelService';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('AI provider contract', () => {
   test('exposes provider defaults from the shared contract', () => {
     expect(DEFAULT_AI_SETTINGS).toMatchObject({
-      provider: 'gemini',
-      model: 'gemini-3-flash-preview',
+      provider: 'codex',
+      model: 'gpt-5.3-codex-spark',
     });
+    expect(AI_PROVIDERS.codex.requiresApiKey).toBe(false);
     expect(AI_PROVIDERS.openai.models).toContain('gpt-4.1');
+  });
+
+  test('uses Codex CLI without requiring a browser API key', () => {
+    const config = getActiveAiConfig({
+      provider: 'codex',
+      model: 'gpt-5.3-codex-spark',
+    });
+
+    expect(config).toMatchObject({
+      provider: 'codex',
+      model: 'gpt-5.3-codex-spark',
+      apiKey: '',
+      requiresApiKey: false,
+    });
+    expect(hasAiProviderAccess(config)).toBe(true);
   });
 
   test('normalizes legacy stored models to the current provider default', () => {
@@ -21,6 +48,32 @@ describe('AI provider contract', () => {
       model: 'gemini-3-flash-preview',
       apiKey: 'key',
     });
+  });
+
+  test('routes Codex calls through the authenticated backend endpoint', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ text: '{"word":"cat"}' }),
+    });
+
+    const text = await callAiModel({
+      provider: 'codex',
+      model: 'gpt-5.3-codex-spark',
+      prompt: 'Return JSON for cat.',
+      jsonOutput: true,
+    });
+
+    expect(text).toBe('{"word":"cat"}');
+    expect(fetchMock).toHaveBeenCalledWith('/api/ai/codex', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({
+        model: 'gpt-5.3-codex-spark',
+        prompt: 'Return JSON for cat.',
+        jsonOutput: true,
+      }),
+    }));
   });
 });
 

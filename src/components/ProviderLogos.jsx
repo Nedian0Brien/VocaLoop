@@ -19,7 +19,7 @@ const LOGOS = {
 };
 
 export default function ProviderLogo({ provider, className = 'h-6 w-6', title }) {
-  const logo = LOGOS[provider] || LOGOS.gemini;
+  const logo = LOGOS[provider] || (provider === 'codex' ? LOGOS.openai : LOGOS.gemini);
   const accessibilityProps = title
     ? { role: 'img', 'aria-label': title }
     : { 'aria-hidden': 'true' };

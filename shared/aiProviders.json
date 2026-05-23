@@ -1,10 +1,22 @@
 {
-  "defaultProvider": "gemini",
+  "defaultProvider": "codex",
   "providers": {
+    "codex": {
+      "id": "codex",
+      "label": "Codex CLI",
+      "name": "Codex CLI",
+      "requiresApiKey": false,
+      "defaultModel": "gpt-5.3-codex-spark",
+      "models": [
+        "gpt-5.3-codex-spark"
+      ],
+      "legacyModels": []
+    },
     "gemini": {
       "id": "gemini",
       "label": "Gemini",
       "name": "Gemini",
+      "requiresApiKey": true,
       "keyLabel": "Google AI API Key",
       "keyPlaceholder": "Google AI API 키 입력",
       "keyHelpUrl": "https://aistudio.google.com/app/apikey",
@@ -23,6 +35,7 @@
       "id": "openai",
       "label": "GPT",
       "name": "OpenAI",
+      "requiresApiKey": true,
       "keyLabel": "OpenAI API Key",
       "keyPlaceholder": "OpenAI API 키 입력",
       "keyHelpUrl": "https://platform.openai.com/api-keys",
@@ -38,6 +51,7 @@
       "id": "claude",
       "label": "Claude",
       "name": "Anthropic",
+      "requiresApiKey": true,
       "keyLabel": "Claude API Key",
       "keyPlaceholder": "Claude API 키 입력",
       "keyHelpUrl": "https://console.anthropic.com/settings/keys",

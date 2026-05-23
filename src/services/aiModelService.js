@@ -1,4 +1,5 @@
 import aiProviderContract from '../../shared/aiProviders.json';
+import { apiRequest } from './apiClient';
 
 export const AI_PROVIDER_CONTRACT = aiProviderContract;
 
@@ -16,6 +17,17 @@ export const getDefaultModelForProvider = (providerId) => (
   AI_PROVIDERS[providerId]?.defaultModel || AI_PROVIDERS[providerId]?.models?.[0] || ''
 );
 
+export const providerRequiresApiKey = (providerId) => (
+  AI_PROVIDERS[providerId]?.requiresApiKey !== false
+);
+
+const getApiKeyForProvider = (settings, provider) => {
+  if (provider === 'gemini') return settings.geminiApiKey;
+  if (provider === 'openai') return settings.openaiApiKey;
+  if (provider === 'claude') return settings.claudeApiKey;
+  return '';
+};
+
 export const DEFAULT_AI_SETTINGS = {
   provider: AI_PROVIDER_CONTRACT.defaultProvider,
   model: getDefaultModelForProvider(AI_PROVIDER_CONTRACT.defaultProvider),
@@ -32,19 +44,19 @@ export const getActiveAiConfig = (settings = DEFAULT_AI_SETTINGS) => {
     ? settings.model
     : getDefaultModelForProvider(selectedProvider);
 
-  const apiKey =
-    selectedProvider === 'gemini'
-      ? settings.geminiApiKey
-      : selectedProvider === 'openai'
-        ? settings.openaiApiKey
-        : settings.claudeApiKey;
+  const apiKey = getApiKeyForProvider(settings, selectedProvider);
 
   return {
     provider: selectedProvider,
     model,
-    apiKey: apiKey || ''
+    apiKey: apiKey || '',
+    requiresApiKey: providerRequiresApiKey(selectedProvider),
   };
 };
+
+export const hasAiProviderAccess = (aiConfig = {}) => (
+  Boolean(aiConfig.provider) && (!providerRequiresApiKey(aiConfig.provider) || Boolean(aiConfig.apiKey))
+);
 
 const parseAiErrorText = async (response) => {
   const text = await response.text();
@@ -67,7 +79,28 @@ export const callAiModel = async ({
   prompt,
   jsonOutput = false
 }) => {
-  if (!apiKey) {
+  if (!provider) {
+    throw new Error('AI Provider가 필요합니다.');
+  }
+
+  if (provider === 'codex') {
+    const data = await apiRequest('/api/ai/codex', {
+      method: 'POST',
+      body: {
+        model,
+        prompt,
+        jsonOutput,
+      },
+    });
+
+    const text = data?.text;
+    if (!text) {
+      throw new Error('Codex CLI에서 응답을 받지 못했습니다.');
+    }
+    return text;
+  }
+
+  if (providerRequiresApiKey(provider) && !apiKey) {
     throw new Error('AI API key is required.');
   }
 
