@@ -7,5 +7,15 @@ export default defineConfig({
     server: {
         port: 3050,
         historyApiFallback: true,
-    }
+    },
+    test: {
+        exclude: [
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/.{idea,git,cache,output,temp}/**',
+            '**/.claude/**',
+            '**/.codegraph/**',
+            '**/.worktrees/**',
+        ],
+    },
 })
