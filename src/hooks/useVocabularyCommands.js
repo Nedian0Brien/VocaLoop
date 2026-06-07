@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { generateWordData } from '../services/geminiService';
+import { generateBulkWordData, generateWordData } from '../services/geminiService';
 import { hasAiProviderAccess } from '../services/aiModelService';
 import { createWord, deleteWord, updateWord } from '../services/wordApi';
 import {
@@ -8,6 +8,27 @@ import {
   normalizeCapturedWord,
 } from '../utils/vocabularyCapture';
 import { normalizeWord, sortWordsByNewest } from '../utils/appDataTransforms';
+
+const BULK_WORD_CHUNK_SIZE = 6;
+
+const normalizeFolderId = (folderId) => {
+  if (folderId === null || folderId === undefined || folderId === '') return null;
+  const numericFolderId = Number(folderId);
+  return Number.isNaN(numericFolderId) ? null : numericFolderId;
+};
+
+const normalizeBulkWordQueue = (items) => {
+  const seen = new Set();
+  return items
+    .map((word) => String(word || '').trim())
+    .filter((word) => {
+      if (!word) return false;
+      const key = word.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
 
 export function useVocabularyCommands({
   activeAiConfig,
@@ -24,6 +45,7 @@ export function useVocabularyCommands({
 }) {
   const [addToFolderId, setAddToFolderId] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [bulkAddProgress, setBulkAddProgress] = useState(null);
 
   useEffect(() => {
     setAddToFolderId(selectedFolderId);
@@ -98,6 +120,63 @@ export function useVocabularyCommands({
     const normalizedWord = upsertWordInState(createdWord);
     showNotification(`'${normalizedWord.word}' 단어장에 저장했습니다.`);
     return normalizedWord;
+  };
+
+  const handleBulkAddWords = async ({ words: queuedWords, folderId }) => {
+    if (!user) throw new Error('로그인이 필요합니다.');
+    const normalizedWords = normalizeBulkWordQueue(queuedWords);
+    if (normalizedWords.length === 0) throw new Error('저장할 단어를 입력해 주세요.');
+
+    if (activeAiProviderNeedsKey) {
+      showNotification(activeAiProviderAccessError, 'error');
+      throw new Error(activeAiProviderAccessError);
+    }
+
+    const targetFolderId = normalizeFolderId(folderId);
+    const createdWords = [];
+
+    try {
+      for (let index = 0; index < normalizedWords.length; index += BULK_WORD_CHUNK_SIZE) {
+        const chunk = normalizedWords.slice(index, index + BULK_WORD_CHUNK_SIZE);
+        setBulkAddProgress({
+          phase: 'analyzing',
+          completed: index,
+          total: normalizedWords.length,
+          currentWord: chunk[0],
+        });
+
+        const analysisResults = await generateBulkWordData(chunk, activeAiConfig);
+        setBulkAddProgress({
+          phase: 'saving',
+          completed: createdWords.length,
+          total: normalizedWords.length,
+          currentWord: chunk[0],
+        });
+
+        const savedWords = await Promise.all(analysisResults.map((analysisResult) => createWord({
+          ...analysisResult,
+          folder_id: targetFolderId,
+        })));
+        savedWords.forEach((word) => {
+          createdWords.push(upsertWordInState(word));
+        });
+      }
+
+      setBulkAddProgress({
+        phase: 'done',
+        completed: createdWords.length,
+        total: normalizedWords.length,
+        currentWord: '',
+      });
+      showNotification(`${createdWords.length}개 단어를 저장했습니다.`);
+      return createdWords;
+    } catch (error) {
+      console.error('Bulk Add Word Error:', error);
+      showNotification('대량 추가 실패: ' + error.message, 'error');
+      throw error;
+    } finally {
+      setBulkAddProgress(null);
+    }
   };
 
   const handleExplainVocabularyWord = async (rawWord) => {
@@ -189,8 +268,10 @@ export function useVocabularyCommands({
 
   return {
     addToFolderId,
+    bulkAddProgress,
     clearAddToFolderIfFolder,
     handleAddWord,
+    handleBulkAddWords,
     handleDeleteWord,
     handleExplainVocabularyWord,
     handleMoveWord,

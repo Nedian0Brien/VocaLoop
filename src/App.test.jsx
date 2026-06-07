@@ -32,6 +32,7 @@ const folderApi = vi.hoisted(() => ({
 
 const geminiService = vi.hoisted(() => ({
     generateWordData: vi.fn(),
+    generateBulkWordData: vi.fn(),
 }));
 
 vi.mock('./services/authApi', () => authApi);
@@ -628,5 +629,151 @@ describe('App backend session bootstrap', () => {
         const listbox = await screen.findByRole('listbox', { name: '단어 자동완성 제안' });
         expect(listbox.dataset.portalRoot).toBe('document-body');
         expect(listbox.parentElement).toBe(document.body);
+    });
+
+    test('bulk add queues words with Enter and stores generated words in the selected folder', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([
+            { id: 301, name: 'TOEFL', color: 'blue', order: 0, created_at: '2026-04-01T00:00:00Z' },
+        ]);
+        geminiService.generateBulkWordData.mockResolvedValue([
+            {
+                word: 'abate',
+                meaning_ko: '줄다',
+                pronunciation: '/əˈbeɪt/',
+                pos: 'Verb',
+                definitions: ['To become less intense.'],
+                definitions_ko: ['강도가 약해지다.'],
+                examples: [{ en: 'The storm began to abate.', ko: '폭풍이 잦아들기 시작했다.' }],
+                synonyms: ['subside'],
+                nuance: 'formal',
+            },
+            {
+                word: 'candid',
+                meaning_ko: '솔직한',
+                pronunciation: '/ˈkæn.dɪd/',
+                pos: 'Adjective',
+                definitions: ['Truthful and straightforward.'],
+                definitions_ko: ['진실하고 직접적인.'],
+                examples: [{ en: 'She gave a candid answer.', ko: '그녀는 솔직하게 답했다.' }],
+                synonyms: ['frank'],
+                nuance: 'neutral',
+            },
+        ]);
+        wordApi.createWord
+            .mockResolvedValueOnce({ id: 401, word: 'abate', folder_id: 301, created_at: '2026-04-02T00:00:00Z' })
+            .mockResolvedValueOnce({ id: 402, word: 'candid', folder_id: 301, created_at: '2026-04-02T00:00:01Z' });
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: '여러 단어 추가' }));
+
+        const bulkInput = screen.getByLabelText('대량 추가 단어 입력');
+        fireEvent.change(bulkInput, { target: { value: 'abate' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(bulkInput, { target: { value: 'candid' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(screen.getByLabelText('대량 단어 저장 폴더'), { target: { value: '301' } });
+        fireEvent.click(screen.getByRole('button', { name: '2개 저장' }));
+
+        expect(await screen.findByText('AI 분석 중')).toBeTruthy();
+
+        await waitFor(() => {
+            expect(geminiService.generateBulkWordData).toHaveBeenCalledWith(
+                ['abate', 'candid'],
+                expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+            );
+            expect(wordApi.createWord).toHaveBeenCalledTimes(2);
+        });
+
+        expect(wordApi.createWord).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            word: 'abate',
+            folder_id: 301,
+        }));
+        expect(wordApi.createWord).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            word: 'candid',
+            folder_id: 301,
+        }));
+    });
+
+    test('bulk add can create a folder before saving queued words', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+        folderApi.createFolder.mockResolvedValue({
+            id: 501,
+            name: 'SAT',
+            color: 'blue',
+            icon: null,
+            order: 0,
+            created_at: '2026-04-01T00:00:00Z',
+        });
+        geminiService.generateBulkWordData.mockResolvedValue([
+            {
+                word: 'laconic',
+                meaning_ko: '간결한',
+                pronunciation: '/ləˈkɑː.nɪk/',
+                pos: 'Adjective',
+                definitions: ['Using few words.'],
+                definitions_ko: ['말수가 적고 간결한.'],
+                examples: [{ en: 'His reply was laconic.', ko: '그의 답은 간결했다.' }],
+                synonyms: ['concise'],
+                nuance: 'formal',
+            },
+        ]);
+        wordApi.createWord.mockResolvedValue({
+            id: 601,
+            word: 'laconic',
+            folder_id: 501,
+            created_at: '2026-04-02T00:00:00Z',
+        });
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: '여러 단어 추가' }));
+
+        const bulkInput = screen.getByLabelText('대량 추가 단어 입력');
+        fireEvent.change(bulkInput, { target: { value: 'laconic' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(screen.getByLabelText('대량 단어 저장 폴더'), { target: { value: '__new__' } });
+        fireEvent.change(screen.getByLabelText('새 폴더 이름'), { target: { value: 'SAT' } });
+        fireEvent.click(screen.getByRole('button', { name: '1개 저장' }));
+
+        await waitFor(() => {
+            expect(folderApi.createFolder).toHaveBeenCalledWith({
+                name: 'SAT',
+                color: 'blue',
+                icon: null,
+            });
+            expect(wordApi.createWord).toHaveBeenCalledWith(expect.objectContaining({
+                word: 'laconic',
+                folder_id: 501,
+            }));
+        });
     });
 });

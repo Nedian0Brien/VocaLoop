@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import WordCard from './WordCard';
 import EmptyState from './EmptyState';
 import FolderSidebar from './FolderSidebar';
 import CompactFolderPicker from './CompactFolderPicker';
+import BulkWordAddModal from './BulkWordAddModal';
 import { Folder, Loader2, Plus, Search, Sparkles } from './Icons';
 import {
     getLearningStatus,
@@ -26,7 +27,9 @@ export default function VocabularyDashboard({
     wordInputRef,
     shouldShowWordSuggestions,
     isAnalyzing,
+    bulkAddProgress,
     onAddWord,
+    onBulkAddWords,
     addToFolderId,
     setAddToFolderId,
     sortMode,
@@ -39,6 +42,7 @@ export default function VocabularyDashboard({
     onMoveWord,
     onRegenerateWord,
 }) {
+    const [isBulkWordModalOpen, setIsBulkWordModalOpen] = useState(false);
     const wordCountByFolder = useMemo(() => {
         const counts = {};
         words.forEach((word) => {
@@ -213,10 +217,21 @@ export default function VocabularyDashboard({
             <div className="flex-1 min-w-0 w-full">
                 <div className="bg-white rounded-card shadow-[var(--shadow-soft)] border border-surface-200 p-6 mb-8 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 via-accent-500 to-brand-500 opacity-20"></div>
-                    <h2 className="text-lg font-black text-surface-900 mb-4 flex items-center gap-2 tracking-tight">
-                        <Plus className="w-5 h-5 text-brand-600" aria-hidden="true" />
-                        Add New Word
-                    </h2>
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-surface-900">
+                            <Plus className="w-5 h-5 text-brand-600" aria-hidden="true" />
+                            Add New Word
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={() => setIsBulkWordModalOpen(true)}
+                            disabled={isAnalyzing || Boolean(bulkAddProgress)}
+                            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            여러 단어 추가
+                        </button>
+                    </div>
                     <form onSubmit={onAddWord} className="relative">
                         <div className="flex gap-3">
                             <div
@@ -301,6 +316,14 @@ export default function VocabularyDashboard({
                         </div>
                     </form>
                 </div>
+                <BulkWordAddModal
+                    isOpen={isBulkWordModalOpen}
+                    folders={folders}
+                    defaultFolderId={addToFolderId}
+                    onClose={() => setIsBulkWordModalOpen(false)}
+                    onSubmit={onBulkAddWords}
+                    progress={bulkAddProgress}
+                />
 
                 <div className="space-y-6">
                     {!showSidebar && (

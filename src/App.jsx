@@ -111,7 +111,9 @@ function App() {
     const activeAiProvider = AI_PROVIDERS[activeAiConfig.provider] || AI_PROVIDERS[DEFAULT_AI_SETTINGS.provider];
     const {
         addToFolderId,
+        bulkAddProgress,
         handleAddWord,
+        handleBulkAddWords,
         handleDeleteWord,
         handleExplainVocabularyWord,
         handleMoveWord,
@@ -149,6 +151,17 @@ function App() {
         showNotification,
         user,
     });
+    const handleBulkAddWordsWithFolder = useCallback(async ({ words: bulkWords, folderId, newFolderName }) => {
+        let targetFolderId = folderId;
+        if (newFolderName) {
+            const createdFolder = await handleCreateFolder(newFolderName, 'blue', null);
+            if (!createdFolder) {
+                throw new Error('폴더를 만들지 못했습니다.');
+            }
+            targetFolderId = createdFolder.id;
+        }
+        return handleBulkAddWords({ words: bulkWords, folderId: targetFolderId });
+    }, [handleBulkAddWords, handleCreateFolder]);
     const shouldShowWordSuggestions = isWordSuggestOpen && !isAnalyzing && wordAutocompleteSuggestions.length > 0;
     const updateWordSuggestionPanel = useCallback(() => {
         if (!wordInputRef.current || typeof window === 'undefined') return;
@@ -329,7 +342,9 @@ function App() {
                         wordInputRef={wordInputRef}
                         shouldShowWordSuggestions={shouldShowWordSuggestions}
                         isAnalyzing={isAnalyzing}
+                        bulkAddProgress={bulkAddProgress}
                         onAddWord={handleAddWord}
+                        onBulkAddWords={handleBulkAddWordsWithFolder}
                         addToFolderId={addToFolderId}
                         setAddToFolderId={setAddToFolderId}
                         sortMode={sortMode}

@@ -26,10 +26,12 @@ export function useFolderCommands({
     if (!user) return;
     try {
       const createdFolder = await createFolder({ name, color, icon: icon || null });
-      upsertFolderInState(createdFolder);
+      const normalizedFolder = upsertFolderInState(createdFolder);
       showNotification(`'${name}' 폴더가 생성되었습니다.`);
+      return normalizedFolder;
     } catch (error) {
       showNotification('폴더 생성 실패: ' + error.message, 'error');
+      return null;
     }
   };
 
