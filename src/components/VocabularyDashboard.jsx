@@ -12,7 +12,7 @@ import {
     groupWordsByStatus,
     sortByLearningRate,
 } from '../utils/learningRate';
-import { getCreatedAtValue } from '../utils/appDataTransforms';
+import { getCreatedAtValue, getWordFolderIds, wordBelongsToFolder } from '../utils/appDataTransforms';
 
 export default function VocabularyDashboard({
     words,
@@ -46,15 +46,21 @@ export default function VocabularyDashboard({
     const wordCountByFolder = useMemo(() => {
         const counts = {};
         words.forEach((word) => {
-            const folderId = word.folderId || '__uncategorized';
-            counts[folderId] = (counts[folderId] || 0) + 1;
+            const folderIds = getWordFolderIds(word);
+            if (folderIds.length === 0) {
+                counts.__uncategorized = (counts.__uncategorized || 0) + 1;
+                return;
+            }
+            folderIds.forEach((folderId) => {
+                counts[folderId] = (counts[folderId] || 0) + 1;
+            });
         });
         return counts;
     }, [words]);
 
     const filteredWords = useMemo(() => {
         const base = selectedFolderId
-            ? words.filter((word) => word.folderId === selectedFolderId)
+            ? words.filter((word) => wordBelongsToFolder(word, selectedFolderId))
             : words;
 
         switch (sortMode) {

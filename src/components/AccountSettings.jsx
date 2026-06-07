@@ -4,6 +4,7 @@ import { getSettings, updateSettings } from '../services/settingsApi';
 import { uploadProfileImage, deleteProfileImage } from '../services/uploadApi';
 import { deleteAccount, resetAccountData } from '../services/accountApi';
 import { X, User, BarChart3, FileText, Shield, Settings as SettingsIcon, Folder } from './Icons';
+import { getWordFolderIds } from '../utils/appDataTransforms';
 import {
   AccountDangerPanel,
   DataSettingsPanel,
@@ -61,8 +62,14 @@ const buildStats = (words) => ({
 });
 
 const buildWordCountByFolder = (words) => words.reduce((counts, word) => {
-  const folderId = word.folderId || '__uncategorized';
-  return { ...counts, [folderId]: (counts[folderId] || 0) + 1 };
+  const folderIds = getWordFolderIds(word);
+  if (folderIds.length === 0) {
+    return { ...counts, __uncategorized: (counts.__uncategorized || 0) + 1 };
+  }
+  return folderIds.reduce((nextCounts, folderId) => ({
+    ...nextCounts,
+    [folderId]: (nextCounts[folderId] || 0) + 1,
+  }), counts);
 }, {});
 
 export default function AccountSettings({
@@ -228,7 +235,10 @@ export default function AccountSettings({
     try {
       const header = 'Word,Korean Meaning,Pronunciation,Part of Speech,Definitions,Examples,Nuance,Synonyms,Status,Wrong Count,Review Count,Folder\n';
       const rows = words.map((word) => {
-        const folderName = word.folderId ? folders.find((folder) => folder.id === word.folderId)?.name || '' : '';
+        const folderName = getWordFolderIds(word)
+          .map((folderId) => folders.find((folder) => folder.id === folderId)?.name)
+          .filter(Boolean)
+          .join(', ');
         const definitions = word.definitions?.join('; ') || '';
         const examples = word.examples?.map((example) => `${example.en} (${example.ko})`).join('; ') || '';
         const synonyms = word.synonyms?.join(', ') || '';

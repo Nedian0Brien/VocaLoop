@@ -237,16 +237,67 @@ const extractFirstJsonValue = (value) => {
   return text.slice(start);
 };
 
+const removeTrailingJsonCommas = (value) => {
+  const text = String(value || '');
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      result += char;
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === ',') {
+      let nextIndex = index + 1;
+      while (nextIndex < text.length && /\s/.test(text[nextIndex])) {
+        nextIndex += 1;
+      }
+      if (text[nextIndex] === '}' || text[nextIndex] === ']') {
+        continue;
+      }
+    }
+
+    result += char;
+  }
+
+  return result;
+};
+
+const parseJsonWithRepairs = (value) => {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    const repaired = removeTrailingJsonCommas(value);
+    if (repaired !== value) {
+      return JSON.parse(repaired);
+    }
+    throw error;
+  }
+};
+
 export const parseJsonOutput = (rawText) => {
   const text = stripJsonFence(rawText);
 
   try {
-    return JSON.parse(text);
+    return parseJsonWithRepairs(text);
   } catch (firstError) {
     const candidate = extractFirstJsonValue(text);
     if (candidate !== text) {
       try {
-        return JSON.parse(candidate);
+        return parseJsonWithRepairs(candidate);
       } catch {
         // Preserve the original parser error; it usually points to the model response issue most clearly.
       }

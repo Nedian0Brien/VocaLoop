@@ -57,6 +57,13 @@ def bootstrap_db() -> None:
                 (get_default_provider(), get_default_model(), "gemini"),
             )
 
+            connection.exec_driver_sql(
+                """
+                INSERT OR IGNORE INTO word_folders (word_id, folder_id)
+                SELECT id, folder_id FROM words WHERE folder_id IS NOT NULL
+                """
+            )
+
     with SessionLocal() as session:
         seed_database(session)
         session.commit()

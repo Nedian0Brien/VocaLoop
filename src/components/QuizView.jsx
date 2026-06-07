@@ -8,6 +8,7 @@ import { TOEFL_MODE_TITLES } from './quizModeRegistry';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
+import { wordBelongsToFolder } from '../utils/appDataTransforms';
 import { Badge, Button, Card } from '../design-system';
 import {
   createAdaptiveSession,
@@ -161,7 +162,7 @@ export default function QuizView({
     if (folders.length === 0 || words.length === 0) return null;
     const candidates = folders
       .map((f) => {
-        const folderWords = words.filter((w) => w.folderId === f.id);
+        const folderWords = words.filter((w) => wordBelongsToFolder(w, f.id));
         if (folderWords.length === 0) return null;
         const avg = folderWords.reduce((sum, w) => sum + (w.learningRate || 0), 0) / folderWords.length;
         return { id: f.id, name: f.name, avgRate: Math.round(avg), wordCount: folderWords.length };
@@ -269,7 +270,7 @@ export default function QuizView({
     }
 
     const targetWords = selectedFolderIds.length > 0
-      ? words.filter(w => selectedFolderIds.includes(w.folderId))
+      ? words.filter(w => selectedFolderIds.some((folderId) => wordBelongsToFolder(w, folderId)))
       : words;
 
     if (targetWords.length === 0) {

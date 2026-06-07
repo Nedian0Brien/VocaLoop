@@ -7,7 +7,7 @@ import {
   getVocabularyWordKey,
   normalizeCapturedWord,
 } from '../utils/vocabularyCapture';
-import { normalizeWord, sortWordsByNewest } from '../utils/appDataTransforms';
+import { getWordFolderIds, normalizeWord, sortWordsByNewest } from '../utils/appDataTransforms';
 
 const BULK_WORD_CHUNK_SIZE = 6;
 
@@ -65,6 +65,7 @@ const buildBulkWordPayload = (analysisResult, fallbackWord, folderId) => ({
   synonyms: normalizeTextList(analysisResult?.synonyms),
   nuance: normalizeTextValue(analysisResult?.nuance),
   folder_id: folderId,
+  folder_ids: folderId === null ? [] : [folderId],
 });
 
 const shouldRetryWordSave = (error) => (
@@ -126,6 +127,7 @@ export function useVocabularyCommands({
       const createdWord = await createWord({
         ...analysisResult,
         folder_id: Number.isNaN(folderId) ? null : folderId,
+        folder_ids: Number.isNaN(folderId) || folderId === null ? [] : [folderId],
       });
       upsertWordInState(createdWord);
 
@@ -176,16 +178,72 @@ export function useVocabularyCommands({
 
     const targetFolderId = normalizeFolderId(folderId);
     const createdWords = [];
+    const assignedWords = [];
+    const skippedWords = [];
     const failedWords = [];
+    const completedCount = () => createdWords.length + assignedWords.length + skippedWords.length;
+
+    const existingWordsByKey = new Map(
+      words.map((word) => [getVocabularyWordKey(word.word), word])
+    );
+    const wordsToCreate = [];
+
+    const assignExistingWordToFolder = async (existingWord) => {
+      if (targetFolderId === null) {
+        skippedWords.push(existingWord);
+        return null;
+      }
+      const currentFolderIds = getWordFolderIds(existingWord);
+      if (currentFolderIds.includes(targetFolderId)) {
+        skippedWords.push(existingWord);
+        return null;
+      }
+      const updatedWord = await updateWord(existingWord.id, {
+        folder_ids: [...currentFolderIds, targetFolderId],
+      });
+      const normalizedWord = upsertWordInState(updatedWord);
+      assignedWords.push(normalizedWord);
+      return normalizedWord;
+    };
+
+    for (const word of normalizedWords) {
+      const existingWord = existingWordsByKey.get(getVocabularyWordKey(word));
+      if (!existingWord) {
+        wordsToCreate.push(word);
+        continue;
+      }
+
+      setBulkAddProgress({
+        phase: 'saving',
+        completed: completedCount(),
+        total: normalizedWords.length,
+        currentWord: word,
+      });
+
+      try {
+        await assignExistingWordToFolder(existingWord);
+      } catch (error) {
+        console.error('Bulk word folder assignment failed:', word, error);
+        failedWords.push({ word, error });
+      }
+    }
 
     const generateWordForRetry = async (word) => {
       setBulkAddProgress({
         phase: 'retrying',
-        completed: createdWords.length,
+        completed: completedCount(),
         total: normalizedWords.length,
         currentWord: word,
       });
-      return generateWordData(word, activeAiConfig);
+      let lastError = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          return await generateWordData(word, activeAiConfig);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
     };
 
     const saveWordWithRetry = async (analysisResult, requestedWord) => {
@@ -218,11 +276,11 @@ export function useVocabularyCommands({
     };
 
     try {
-      for (let index = 0; index < normalizedWords.length; index += BULK_WORD_CHUNK_SIZE) {
-        const chunk = normalizedWords.slice(index, index + BULK_WORD_CHUNK_SIZE);
+      for (let index = 0; index < wordsToCreate.length; index += BULK_WORD_CHUNK_SIZE) {
+        const chunk = wordsToCreate.slice(index, index + BULK_WORD_CHUNK_SIZE);
         setBulkAddProgress({
           phase: 'analyzing',
-          completed: index,
+          completed: completedCount(),
           total: normalizedWords.length,
           currentWord: chunk[0],
         });
@@ -230,7 +288,7 @@ export function useVocabularyCommands({
         const analysisResults = await generateChunk(chunk);
         setBulkAddProgress({
           phase: 'saving',
-          completed: createdWords.length,
+          completed: completedCount(),
           total: normalizedWords.length,
           currentWord: chunk[0],
         });
@@ -242,7 +300,7 @@ export function useVocabularyCommands({
           if (!analysisResult) continue;
           setBulkAddProgress({
             phase: 'saving',
-            completed: createdWords.length,
+            completed: completedCount(),
             total: normalizedWords.length,
             currentWord: requestedWord,
           });
@@ -258,20 +316,28 @@ export function useVocabularyCommands({
 
       setBulkAddProgress({
         phase: 'done',
-        completed: createdWords.length,
+        completed: completedCount(),
         total: normalizedWords.length,
         currentWord: '',
       });
       if (failedWords.length > 0) {
-        const message = `${createdWords.length}개 저장, ${failedWords.length}개 실패`;
+        const message = `${createdWords.length + assignedWords.length}개 처리, ${failedWords.length}개 실패`;
         showNotification(message, 'error');
-        if (createdWords.length === 0) {
+        if (createdWords.length + assignedWords.length === 0) {
           throw new Error(message);
         }
-        return createdWords;
+        return [...assignedWords, ...createdWords];
       }
-      showNotification(`${createdWords.length}개 단어를 저장했습니다.`);
-      return createdWords;
+      const messageParts = [];
+      if (createdWords.length > 0) messageParts.push(`${createdWords.length}개 저장`);
+      if (assignedWords.length > 0) messageParts.push(`${assignedWords.length}개 폴더 추가`);
+      if (skippedWords.length > 0) messageParts.push(`${skippedWords.length}개 중복 스킵`);
+      showNotification(
+        assignedWords.length === 0 && skippedWords.length === 0
+          ? `${createdWords.length}개 단어를 저장했습니다.`
+          : messageParts.join(', ') || '저장할 새 단어가 없습니다.'
+      );
+      return [...assignedWords, ...createdWords];
     } catch (error) {
       console.error('Bulk Add Word Error:', error);
       showNotification('대량 추가 실패: ' + error.message, 'error');

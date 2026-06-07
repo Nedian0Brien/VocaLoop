@@ -3,6 +3,7 @@ import {
     Folder, FolderOpen, BookOpen, Brain, Trophy, Target, FileText, TrendingUp, Shield,
     Check, Sparkles
 } from './Icons';
+import { getWordFolderIds } from '../utils/appDataTransforms';
 
 /**
  * 폴더 색상 팔레트.
@@ -38,7 +39,9 @@ export default function FolderQuizPicker({ folders, words, quizFolderIds = [], o
     const totalCount = words.length;
     const folderCounts = {};
     words.forEach(w => {
-        if (w.folderId) folderCounts[w.folderId] = (folderCounts[w.folderId] || 0) + 1;
+        getWordFolderIds(w).forEach((folderId) => {
+            folderCounts[folderId] = (folderCounts[folderId] || 0) + 1;
+        });
     });
 
     const isAllSelected = quizFolderIds.length === 0;

@@ -13,6 +13,7 @@ import {
   VOCAB_SAMPLE_MAX,
   VOCAB_SAMPLE_MIN,
 } from './quizConfigConstants';
+import { wordBelongsToFolder } from '../../utils/appDataTransforms';
 
 const readJsonArray = (key, fallback = []) => {
   try {
@@ -97,7 +98,7 @@ export function useQuizConfigState({
   }, [isOpen]);
 
   const filteredWords = selectedFolderIds.length > 0
-    ? words.filter((word) => selectedFolderIds.includes(word.folderId))
+    ? words.filter((word) => selectedFolderIds.some((folderId) => wordBelongsToFolder(word, folderId)))
     : words;
 
   const maxQuestions = isToefl ? 10 : Math.max(1, filteredWords.length);
@@ -120,7 +121,7 @@ export function useQuizConfigState({
   const toeflVocabPool = useMemo(() => {
     if (!isToefl || vocabMode === 'off') return [];
     if (vocabMode === 'all') return words;
-    return words.filter((word) => vocabFolderIds.includes(word.folderId));
+    return words.filter((word) => vocabFolderIds.some((folderId) => wordBelongsToFolder(word, folderId)));
   }, [isToefl, vocabMode, vocabFolderIds, words]);
 
   const toggleVocabFolder = (folderId) => {

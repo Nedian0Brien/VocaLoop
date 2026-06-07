@@ -72,6 +72,7 @@ export const buildVocabularyPayload = (wordData, fallbackWord, context = {}) => 
     synonyms: Array.isArray(wordData?.synonyms) ? wordData.synonyms : [],
     nuance: nuanceParts.join('\n'),
     folder_id: null,
+    folder_ids: [],
     learning_rate: 0,
     status: 'new',
     stats: { wrong_count: 0, review_count: 0 },

@@ -91,6 +91,12 @@ def _validate_text_list(values: list[str]) -> list[str]:
     return cleaned_values
 
 
+def _validate_folder_id_list(value: list[int]) -> list[int]:
+    if len(value) != len(set(value)):
+        raise ValueError("must not contain duplicate folder ids")
+    return value
+
+
 class SignupRequest(BaseModel):
     email: str
     password: str
@@ -306,6 +312,7 @@ class WordCreate(BaseModel):
     synonyms: list[str] = Field(default_factory=list)
     nuance: str | None = None
     folder_id: int | None = None
+    folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int = 0
     status: str = "new"
     stats: WordStats = Field(default_factory=WordStats)
@@ -330,6 +337,11 @@ class WordCreate(BaseModel):
     def validate_text_lists(cls, value: list[str]) -> list[str]:
         return _validate_text_list(value)
 
+    @field_validator("folder_ids")
+    @classmethod
+    def validate_folder_ids(cls, value: list[int]) -> list[int]:
+        return _validate_folder_id_list(value)
+
     @field_validator("stats", mode="before")
     @classmethod
     def validate_stats(cls, value: object) -> object:
@@ -347,6 +359,7 @@ class WordUpdate(BaseModel):
     synonyms: list[str] | None = None
     nuance: str | None = None
     folder_id: int | None = None
+    folder_ids: list[int] | None = None
     learning_rate: int | None = None
     status: str | None = None
     stats: WordStats | None = None
@@ -377,6 +390,13 @@ class WordUpdate(BaseModel):
             return value
         return _validate_text_list(value)
 
+    @field_validator("folder_ids")
+    @classmethod
+    def validate_folder_ids(cls, value: list[int] | None) -> list[int] | None:
+        if value is None:
+            return value
+        return _validate_folder_id_list(value)
+
     @field_validator("stats", mode="before")
     @classmethod
     def validate_stats(cls, value: object) -> object:
@@ -397,6 +417,7 @@ class WordRead(BaseModel):
     synonyms: list[str]
     nuance: str | None = None
     folder_id: int | None = None
+    folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int
     status: str
     stats: WordStats

@@ -17,7 +17,14 @@ export function useFolderCommands({
 
   const removeFolderFromState = (folderId) => {
     setFolders((prev) => prev.filter((it) => it.id !== folderId));
-    setWords((prev) => prev.map((it) => (it.folderId === folderId ? { ...it, folderId: null } : it)));
+    setWords((prev) => prev.map((it) => {
+      const folderIds = Array.isArray(it.folderIds) ? it.folderIds.filter((id) => id !== folderId) : [];
+      return {
+        ...it,
+        folderId: it.folderId === folderId ? null : it.folderId,
+        folderIds,
+      };
+    }));
     setSelectedFolderId((current) => (current === folderId ? null : current));
     clearAddToFolderIfFolder?.(folderId);
   };

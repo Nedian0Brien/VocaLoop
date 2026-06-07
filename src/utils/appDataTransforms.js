@@ -26,13 +26,46 @@ export const normalizeFolder = (folder) => ({
     updatedAt: folder.updatedAt ?? folder.updated_at ?? null,
 });
 
-export const normalizeWord = (word) => ({
-    ...word,
-    folderId: word.folderId ?? word.folder_id ?? null,
-    learningRate: word.learningRate ?? word.learning_rate ?? 0,
-    createdAt: word.createdAt ?? word.created_at ?? null,
-    updatedAt: word.updatedAt ?? word.updated_at ?? null,
-});
+const normalizeFolderIds = (word) => {
+    const folderId = word.folderId ?? word.folder_id ?? null;
+    const folderIds = Array.isArray(word.folderIds)
+        ? word.folderIds
+        : Array.isArray(word.folder_ids)
+            ? word.folder_ids
+            : [];
+    const normalizedIds = folderIds
+        .map((id) => Number(id))
+        .filter((id) => !Number.isNaN(id));
+    const numericFolderId = folderId === null || folderId === undefined ? null : Number(folderId);
+    if (numericFolderId !== null && !Number.isNaN(numericFolderId) && !normalizedIds.includes(numericFolderId)) {
+        normalizedIds.unshift(numericFolderId);
+    }
+    return [...new Set(normalizedIds)];
+};
+
+export const getWordFolderIds = (word) => {
+    if (!word) return [];
+    if (Array.isArray(word.folderIds)) return word.folderIds;
+    return normalizeFolderIds(word);
+};
+
+export const wordBelongsToFolder = (word, folderId) => {
+    const numericFolderId = Number(folderId);
+    if (Number.isNaN(numericFolderId)) return false;
+    return getWordFolderIds(word).includes(numericFolderId);
+};
+
+export const normalizeWord = (word) => {
+    const folderId = word.folderId ?? word.folder_id ?? null;
+    return {
+        ...word,
+        folderId,
+        folderIds: normalizeFolderIds(word),
+        learningRate: word.learningRate ?? word.learning_rate ?? 0,
+        createdAt: word.createdAt ?? word.created_at ?? null,
+        updatedAt: word.updatedAt ?? word.updated_at ?? null,
+    };
+};
 
 export const sortWordsByNewest = (items) =>
     [...items].sort((a, b) => getCreatedAtValue(b.createdAt) - getCreatedAtValue(a.createdAt));

@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Table, Text, UniqueConstraint, func
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .ai_contract import get_default_model, get_default_provider
 from .db import Base
+
+
+word_folder_association = Table(
+    "word_folders",
+    Base.metadata,
+    Column("word_id", ForeignKey("words.id", ondelete="CASCADE"), primary_key=True),
+    Column("folder_id", ForeignKey("folders.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class User(Base):
@@ -75,7 +83,11 @@ class Folder(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="folders")
-    words: Mapped[list[Word]] = relationship(back_populates="folder")
+    words: Mapped[list[Word]] = relationship(
+        "Word",
+        secondary=word_folder_association,
+        back_populates="folders",
+    )
 
 
 class Word(Base):
@@ -105,7 +117,19 @@ class Word(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="words")
-    folder: Mapped[Folder | None] = relationship(back_populates="words")
+    folder: Mapped[Folder | None] = relationship("Folder", foreign_keys=[folder_id])
+    folders: Mapped[list[Folder]] = relationship(
+        "Folder",
+        secondary=word_folder_association,
+        back_populates="words",
+    )
+
+    @property
+    def folder_ids(self) -> list[int]:
+        ids = {folder.id for folder in self.folders}
+        if self.folder_id is not None:
+            ids.add(self.folder_id)
+        return sorted(ids)
 
 
 class ToeflQuizAsset(Base):

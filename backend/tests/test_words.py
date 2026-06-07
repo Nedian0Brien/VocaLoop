@@ -258,6 +258,48 @@ def test_words_reject_foreign_folder_ids_and_missing_folders(client):
     assert patch_response.json()["detail"] == "Folder not found"
 
 
+def test_words_can_belong_to_multiple_folders(client):
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "multi-folder@example.com",
+            "password": "Password123!",
+            "display_name": "Multi Folder",
+        },
+    )
+    assert signup_response.status_code == 201
+
+    first_folder_response = client.post("/api/folders", json={"name": "TOEFL"})
+    second_folder_response = client.post("/api/folders", json={"name": "SAT"})
+    assert first_folder_response.status_code == 201
+    assert second_folder_response.status_code == 201
+    first_folder_id = first_folder_response.json()["id"]
+    second_folder_id = second_folder_response.json()["id"]
+
+    create_response = client.post(
+        "/api/words",
+        json={"word": "abate", "folder_ids": [first_folder_id]},
+    )
+    assert create_response.status_code == 201
+    created_word = create_response.json()
+    assert created_word["folder_id"] == first_folder_id
+    assert created_word["folder_ids"] == [first_folder_id]
+
+    patch_response = client.patch(
+        f"/api/words/{created_word['id']}",
+        json={"folder_ids": [first_folder_id, second_folder_id]},
+    )
+    assert patch_response.status_code == 200
+    updated_word = patch_response.json()
+    assert updated_word["folder_id"] == first_folder_id
+    assert updated_word["folder_ids"] == [first_folder_id, second_folder_id]
+
+    list_response = client.get("/api/words")
+    assert list_response.status_code == 200
+    listed_word = next(word for word in list_response.json() if word["id"] == created_word["id"])
+    assert listed_word["folder_ids"] == [first_folder_id, second_folder_id]
+
+
 def test_words_return_404_for_missing_word_ids(client):
     signup_response = client.post(
         "/api/auth/signup",

@@ -709,6 +709,90 @@ describe('App backend session bootstrap', () => {
         }));
     });
 
+    test('bulk add skips existing words and adds the selected folder relationship', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([
+            {
+                id: 101,
+                word: 'abate',
+                folder_id: 201,
+                folder_ids: [201],
+                created_at: '2026-04-01T00:00:00Z',
+                learning_rate: 0,
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+        ]);
+        folderApi.listFolders.mockResolvedValue([
+            { id: 201, name: 'Core', color: 'blue', order: 0, created_at: '2026-04-01T00:00:00Z' },
+            { id: 301, name: 'TOEFL', color: 'green', order: 1, created_at: '2026-04-01T00:00:01Z' },
+        ]);
+        wordApi.updateWord.mockResolvedValue({
+            id: 101,
+            word: 'abate',
+            folder_id: 201,
+            folder_ids: [201, 301],
+            created_at: '2026-04-01T00:00:00Z',
+        });
+        geminiService.generateBulkWordData.mockResolvedValue([
+            {
+                word: 'candid',
+                meaning_ko: '솔직한',
+                pronunciation: '/ˈkæn.dɪd/',
+                pos: 'Adjective',
+                definitions: ['Truthful and straightforward.'],
+                definitions_ko: ['진실하고 직접적인.'],
+                examples: [{ en: 'She gave a candid answer.', ko: '그녀는 솔직하게 답했다.' }],
+                synonyms: ['frank'],
+                nuance: 'neutral',
+            },
+        ]);
+        wordApi.createWord.mockResolvedValue({
+            id: 402,
+            word: 'candid',
+            folder_id: 301,
+            folder_ids: [301],
+            created_at: '2026-04-02T00:00:01Z',
+        });
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: '여러 단어 추가' }));
+
+        const bulkInput = screen.getByLabelText('대량 추가 단어 입력');
+        fireEvent.change(bulkInput, { target: { value: 'abate' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(bulkInput, { target: { value: 'candid' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(screen.getByLabelText('대량 단어 저장 폴더'), { target: { value: '301' } });
+        fireEvent.click(screen.getByRole('button', { name: '2개 저장' }));
+
+        await waitFor(() => {
+            expect(wordApi.updateWord).toHaveBeenCalledWith(101, { folder_ids: [201, 301] });
+            expect(geminiService.generateBulkWordData).toHaveBeenCalledWith(
+                ['candid'],
+                expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+            );
+            expect(wordApi.createWord).toHaveBeenCalledTimes(1);
+        });
+        expect(wordApi.createWord).toHaveBeenCalledWith(expect.objectContaining({
+            word: 'candid',
+            folder_id: 301,
+            folder_ids: [301],
+        }));
+    });
+
     test('bulk add can create a folder before saving queued words', async () => {
         authApi.getCurrentUser.mockResolvedValue({
             user: { id: 1, email: 'user@example.com', display_name: 'User' },

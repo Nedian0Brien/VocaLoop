@@ -129,4 +129,20 @@ describe('parseJsonOutput', () => {
       ],
     });
   });
+
+  test('repairs trailing commas before parsing provider JSON', () => {
+    const output = `{
+      "words": [
+        { "word": "abate", "synonyms": ["subside",] },
+        { "word": "candid", "definitions": ["Truthful",], },
+      ],
+    }`;
+
+    expect(parseJsonOutput(output)).toEqual({
+      words: [
+        { word: 'abate', synonyms: ['subside'] },
+        { word: 'candid', definitions: ['Truthful'] },
+      ],
+    });
+  });
 });

@@ -8,6 +8,7 @@ import {
 } from './quizConfig/quizConfigConstants';
 import { SectionHead, ToggleCard, TopicChip } from './quizConfig/QuizConfigControls';
 import { useQuizConfigState } from './quizConfig/useQuizConfigState';
+import { wordBelongsToFolder } from '../utils/appDataTransforms';
 const MIXED_MODE_OPTIONS = [
   {
     id: 'multiple',
@@ -178,7 +179,7 @@ export default function QuizConfigModal({
                   selectedFolderIds={selectedFolderIds}
                   onSelectFolder={toggleFolder}
                   wordCountByFolder={folders.reduce((acc, f) => {
-                    acc[f.id] = words.filter(w => w.folderId === f.id).length;
+                    acc[f.id] = words.filter(w => wordBelongsToFolder(w, f.id)).length;
                     return acc;
                   }, {})}
                   totalWordCount={words.length}
@@ -466,7 +467,7 @@ export default function QuizConfigModal({
                               selectedFolderIds={vocabFolderIds}
                               onSelectFolder={toggleVocabFolder}
                               wordCountByFolder={folders.reduce((acc, f) => {
-                                acc[f.id] = words.filter((w) => w.folderId === f.id).length;
+                                acc[f.id] = words.filter((w) => wordBelongsToFolder(w, f.id)).length;
                                 return acc;
                               }, {})}
                               totalWordCount={words.length}
