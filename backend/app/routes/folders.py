@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from ..auth import get_current_user, get_db
 from ..models import Folder, User, Word
@@ -101,15 +101,33 @@ def reorder_folders(
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_folder(
     folder_id: int,
+    delete_words: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Response:
     folder = _get_owned_folder(db, current_user, folder_id)
     words = db.scalars(
-        select(Word).where(Word.user_id == current_user.id, Word.folder_id == folder.id)
+        select(Word)
+        .options(selectinload(Word.folders))
+        .outerjoin(Word.folders)
+        .where(
+            Word.user_id == current_user.id,
+            or_(Word.folder_id == folder.id, Folder.id == folder.id),
+        )
+        .distinct()
     ).all()
-    for word in words:
-        word.folder_id = None
+
+    if delete_words:
+        for word in words:
+            db.delete(word)
+    else:
+        for word in words:
+            if word.folder_id == folder.id:
+                word.folder_id = next(
+                    (word_folder.id for word_folder in word.folders if word_folder.id != folder.id),
+                    None,
+                )
+
     db.delete(folder)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

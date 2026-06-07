@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Header from './components/Header';
 import LoginScreen from './components/LoginScreen';
 import VocabularyDashboard from './components/VocabularyDashboard';
+import FolderDeleteDialog from './components/FolderDeleteDialog';
 import { Loader2, Check, RotateCw } from './components/Icons';
 
 // Hooks & Services
@@ -16,6 +17,7 @@ import useThemePreference from './hooks/useThemePreference';
 import { useVocabularyCommands } from './hooks/useVocabularyCommands';
 import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig } from './services/aiModelService';
 import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutocompleteService';
+import { wordBelongsToFolder } from './utils/appDataTransforms';
 
 const AccountSettings = React.lazy(() => import('./components/AccountSettings'));
 const QuizView = React.lazy(() => import('./components/QuizView'));
@@ -81,6 +83,8 @@ function App() {
     const [wordSuggestionPanelStyle, setWordSuggestionPanelStyle] = useState({});
     const [aiMode, setAiMode] = useState(false);
     const [sortMode, setSortMode] = useState('newest');
+    const [folderDeleteId, setFolderDeleteId] = useState(null);
+    const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 
     const windowSize = useWindowSize();
     const wordInputRef = useRef(null);
@@ -151,6 +155,30 @@ function App() {
         showNotification,
         user,
     });
+    const folderPendingDelete = useMemo(
+        () => folders.find((folder) => folder.id === folderDeleteId) || null,
+        [folderDeleteId, folders],
+    );
+    const folderPendingDeleteWordCount = useMemo(
+        () => (folderPendingDelete ? words.filter((word) => wordBelongsToFolder(word, folderPendingDelete.id)).length : 0),
+        [folderPendingDelete, words],
+    );
+    const requestDeleteFolder = useCallback((folderId) => {
+        setFolderDeleteId(folderId);
+    }, []);
+    const cancelDeleteFolder = useCallback(() => {
+        if (!isDeletingFolder) setFolderDeleteId(null);
+    }, [isDeletingFolder]);
+    const confirmDeleteFolder = useCallback(async ({ deleteWords }) => {
+        if (!folderPendingDelete) return;
+        setIsDeletingFolder(true);
+        try {
+            const deleted = await handleDeleteFolder(folderPendingDelete.id, { deleteWords });
+            if (deleted) setFolderDeleteId(null);
+        } finally {
+            setIsDeletingFolder(false);
+        }
+    }, [folderPendingDelete, handleDeleteFolder]);
     const handleBulkAddWordsWithFolder = useCallback(async ({ words: bulkWords, folderId, newFolderName }) => {
         let targetFolderId = folderId;
         if (newFolderName) {
@@ -326,6 +354,13 @@ function App() {
             />
             <NotificationToast />
             {wordSuggestionPortal}
+            <FolderDeleteDialog
+                folder={folderPendingDelete}
+                wordCount={folderPendingDeleteWordCount}
+                isDeleting={isDeletingFolder}
+                onCancel={cancelDeleteFolder}
+                onConfirm={confirmDeleteFolder}
+            />
 
             <main className="max-w-6xl mx-auto px-4 pt-8">
                 {view === 'dashboard' && (
@@ -351,7 +386,7 @@ function App() {
                         setSortMode={setSortMode}
                         onCreateFolder={handleCreateFolder}
                         onUpdateFolder={handleUpdateFolder}
-                        onDeleteFolder={handleDeleteFolder}
+                        onDeleteFolder={requestDeleteFolder}
                         onReorderFolders={handleReorderFolders}
                         onDeleteWord={handleDeleteWord}
                         onMoveWord={handleMoveWord}
@@ -395,7 +430,7 @@ function App() {
                             onAiSettingsChange={setAccountAiSettings}
                             onCreateFolder={handleCreateFolder}
                             onRenameFolder={handleRenameFolder}
-                            onDeleteFolder={handleDeleteFolder}
+                            onDeleteFolder={requestDeleteFolder}
                             onUserUpdate={handleUserUpdate}
                             onDataReset={handleDataReset}
                             onAccountDeleted={handleAccountDeleted}

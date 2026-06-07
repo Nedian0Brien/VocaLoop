@@ -1,5 +1,5 @@
 import { createFolder, deleteFolder, reorderFolders, updateFolder } from '../services/folderApi';
-import { normalizeFolder, sortFoldersForDisplay } from '../utils/appDataTransforms';
+import { normalizeFolder, sortFoldersForDisplay, wordBelongsToFolder } from '../utils/appDataTransforms';
 
 export function useFolderCommands({
   clearAddToFolderIfFolder,
@@ -15,16 +15,17 @@ export function useFolderCommands({
     return normalizedFolder;
   };
 
-  const removeFolderFromState = (folderId) => {
+  const removeFolderFromState = (folderId, { deleteWords = false } = {}) => {
     setFolders((prev) => prev.filter((it) => it.id !== folderId));
     setWords((prev) => prev.map((it) => {
+      if (deleteWords && wordBelongsToFolder(it, folderId)) return null;
       const folderIds = Array.isArray(it.folderIds) ? it.folderIds.filter((id) => id !== folderId) : [];
       return {
         ...it,
-        folderId: it.folderId === folderId ? null : it.folderId,
+        folderId: it.folderId === folderId ? folderIds[0] ?? null : it.folderId,
         folderIds,
       };
-    }));
+    }).filter(Boolean));
     setSelectedFolderId((current) => (current === folderId ? null : current));
     clearAddToFolderIfFolder?.(folderId);
   };
@@ -74,14 +75,16 @@ export function useFolderCommands({
     await handleUpdateFolder(folderId, newName);
   };
 
-  const handleDeleteFolder = async (folderId) => {
-    if (!user) return;
+  const handleDeleteFolder = async (folderId, options = {}) => {
+    if (!user) return false;
     try {
-      await deleteFolder(folderId);
-      removeFolderFromState(folderId);
-      showNotification('폴더가 삭제되었습니다.');
+      await deleteFolder(folderId, options);
+      removeFolderFromState(folderId, options);
+      showNotification(options.deleteWords ? '폴더와 단어를 삭제했습니다.' : '폴더가 삭제되었습니다.');
+      return true;
     } catch (error) {
       showNotification('폴더 삭제 실패: ' + error.message, 'error');
+      return false;
     }
   };
 

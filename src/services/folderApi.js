@@ -14,8 +14,8 @@ export const updateFolder = (folderId, payload) =>
         body: payload,
     });
 
-export const deleteFolder = (folderId) =>
-    apiRequest(`/api/folders/${folderId}`, {
+export const deleteFolder = (folderId, { deleteWords = false } = {}) =>
+    apiRequest(`/api/folders/${folderId}${deleteWords ? '?delete_words=true' : ''}`, {
         method: 'DELETE',
     });
 

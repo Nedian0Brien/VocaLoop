@@ -94,7 +94,6 @@ export default function FolderSidebar({
     };
 
     const handleDelete = (id) => {
-        if (!window.confirm('이 폴더를 삭제하시겠습니까? 폴더 안의 단어는 삭제되지 않고 미분류로 이동합니다.')) return;
         onDeleteFolder(id);
         setMenuOpenId(null);
         if (selectedFolderId === id) onSelectFolder(null);

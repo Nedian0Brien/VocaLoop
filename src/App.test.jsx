@@ -482,9 +482,11 @@ describe('App backend session bootstrap', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'mock-delete-folder' }));
+        expect(await screen.findByText('폴더 삭제')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: '폴더만 삭제' }));
 
         await waitFor(() => {
-            expect(folderApi.deleteFolder).toHaveBeenCalledWith(301);
+            expect(folderApi.deleteFolder).toHaveBeenCalledWith(301, { deleteWords: false });
         });
 
         fireEvent.change(screen.getByPlaceholderText('Enter an English word (e.g., Epiphany)'), {
@@ -499,6 +501,49 @@ describe('App backend session bootstrap', () => {
                 }),
             );
         });
+    });
+
+    test('folder deletion can remove words in the selected folder', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: null,
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([
+            {
+                id: 101,
+                word: 'abate',
+                folder_id: 301,
+                folder_ids: [301],
+                created_at: '2026-04-01T00:00:00Z',
+                learning_rate: 0,
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+        ]);
+        folderApi.listFolders.mockResolvedValue([
+            { id: 301, name: 'Core', color: '#2563EB', order: 0, created_at: '2026-04-01T00:00:00Z' },
+        ]);
+        folderApi.deleteFolder.mockResolvedValue(undefined);
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        expect(screen.getByText('abate')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'mock-delete-folder' }));
+        fireEvent.click(await screen.findByRole('button', { name: '단어도 삭제' }));
+
+        await waitFor(() => {
+            expect(folderApi.deleteFolder).toHaveBeenCalledWith(301, { deleteWords: true });
+        });
+        expect(screen.queryByText('abate')).toBeNull();
     });
 
     test('does not emit React key warnings while rendering the generating word card', async () => {

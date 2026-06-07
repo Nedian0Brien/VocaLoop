@@ -493,11 +493,7 @@ function FolderRow({
                 label="삭제"
                 tone="danger"
                 icon={Trash2}
-                onClick={() => {
-                  if (window.confirm(`'${folder.name}' 폴더를 삭제하시겠습니까?\n\n폴더 내 단어들은 미분류로 이동됩니다.`)) {
-                    onDeleteFolder(folder.id);
-                  }
-                }}
+                onClick={() => onDeleteFolder(folder.id)}
               />
             </>
           )}

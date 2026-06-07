@@ -60,6 +60,55 @@ def test_authenticated_user_can_list_create_update_delete_and_reorder_folders(cl
     assert [folder["id"] for folder in final_list_response.json()] == [second_folder_id]
 
 
+def test_delete_folder_can_keep_or_remove_words(client):
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "folder-delete-choice@example.com",
+            "password": "Password123!",
+            "display_name": "Folder Delete Choice",
+        },
+    )
+    assert signup_response.status_code == 201
+
+    keep_folder_response = client.post("/api/folders", json={"name": "Keep Source"})
+    fallback_folder_response = client.post("/api/folders", json={"name": "Fallback"})
+    remove_folder_response = client.post("/api/folders", json={"name": "Remove Source"})
+    assert keep_folder_response.status_code == 201
+    assert fallback_folder_response.status_code == 201
+    assert remove_folder_response.status_code == 201
+    keep_folder_id = keep_folder_response.json()["id"]
+    fallback_folder_id = fallback_folder_response.json()["id"]
+    remove_folder_id = remove_folder_response.json()["id"]
+
+    kept_word_response = client.post(
+        "/api/words",
+        json={"word": "abate", "folder_ids": [keep_folder_id, fallback_folder_id]},
+    )
+    removed_word_response = client.post(
+        "/api/words",
+        json={"word": "candid", "folder_ids": [remove_folder_id, fallback_folder_id]},
+    )
+    assert kept_word_response.status_code == 201
+    assert removed_word_response.status_code == 201
+    kept_word_id = kept_word_response.json()["id"]
+    removed_word_id = removed_word_response.json()["id"]
+
+    keep_delete_response = client.delete(f"/api/folders/{keep_folder_id}")
+    assert keep_delete_response.status_code == 204
+    words_after_keep = client.get("/api/words").json()
+    kept_word = next(word for word in words_after_keep if word["id"] == kept_word_id)
+    assert kept_word["folder_id"] == fallback_folder_id
+    assert kept_word["folder_ids"] == [fallback_folder_id]
+    assert any(word["id"] == removed_word_id for word in words_after_keep)
+
+    remove_delete_response = client.delete(f"/api/folders/{remove_folder_id}?delete_words=true")
+    assert remove_delete_response.status_code == 204
+    words_after_remove = client.get("/api/words").json()
+    assert any(word["id"] == kept_word_id for word in words_after_remove)
+    assert all(word["id"] != removed_word_id for word in words_after_remove)
+
+
 def test_folders_are_scoped_to_the_authenticated_user(client):
     first_signup = client.post(
         "/api/auth/signup",
