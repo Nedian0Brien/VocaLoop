@@ -10,6 +10,7 @@ const splitWordInput = (value) =>
         .filter(Boolean);
 
 const getProgressLabel = (phase) => {
+    if (phase === 'retrying') return '재시도 중';
     if (phase === 'saving') return '저장 중';
     if (phase === 'folder') return '폴더 생성 중';
     if (phase === 'done') return '완료';

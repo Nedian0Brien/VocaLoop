@@ -30,6 +30,48 @@ const normalizeBulkWordQueue = (items) => {
     });
 };
 
+const normalizeTextValue = (value) => {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
+const normalizeTextList = (values) => {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((value) => normalizeTextValue(value))
+    .filter(Boolean);
+};
+
+const normalizeExamples = (examples) => {
+  if (!Array.isArray(examples)) return [];
+  return examples
+    .map((example) => ({
+      en: normalizeTextValue(example?.en),
+      ko: normalizeTextValue(example?.ko),
+    }))
+    .filter((example) => example.en && example.ko);
+};
+
+const buildBulkWordPayload = (analysisResult, fallbackWord, folderId) => ({
+  ...analysisResult,
+  word: normalizeTextValue(analysisResult?.word) || fallbackWord,
+  meaning_ko: normalizeTextValue(analysisResult?.meaning_ko),
+  pronunciation: normalizeTextValue(analysisResult?.pronunciation),
+  pos: normalizeTextValue(analysisResult?.pos),
+  definitions: normalizeTextList(analysisResult?.definitions),
+  definitions_ko: normalizeTextList(analysisResult?.definitions_ko),
+  examples: normalizeExamples(analysisResult?.examples),
+  synonyms: normalizeTextList(analysisResult?.synonyms),
+  nuance: normalizeTextValue(analysisResult?.nuance),
+  folder_id: folderId,
+});
+
+const shouldRetryWordSave = (error) => (
+  error?.status === 422 ||
+  /validation|unprocessable|must not contain empty values/i.test(error?.message || '')
+);
+
 export function useVocabularyCommands({
   activeAiConfig,
   activeAiProvider,
@@ -134,6 +176,46 @@ export function useVocabularyCommands({
 
     const targetFolderId = normalizeFolderId(folderId);
     const createdWords = [];
+    const failedWords = [];
+
+    const generateWordForRetry = async (word) => {
+      setBulkAddProgress({
+        phase: 'retrying',
+        completed: createdWords.length,
+        total: normalizedWords.length,
+        currentWord: word,
+      });
+      return generateWordData(word, activeAiConfig);
+    };
+
+    const saveWordWithRetry = async (analysisResult, requestedWord) => {
+      const firstPayload = buildBulkWordPayload(analysisResult, requestedWord, targetFolderId);
+      try {
+        return await createWord(firstPayload);
+      } catch (error) {
+        if (!shouldRetryWordSave(error)) throw error;
+        const retriedAnalysis = await generateWordForRetry(requestedWord);
+        const retryPayload = buildBulkWordPayload(retriedAnalysis, requestedWord, targetFolderId);
+        return createWord(retryPayload);
+      }
+    };
+
+    const generateChunk = async (chunk) => {
+      try {
+        return await generateBulkWordData(chunk, activeAiConfig);
+      } catch (error) {
+        console.error('Bulk word generation failed; retrying words one by one:', error);
+        const fallbackResults = [];
+        for (const word of chunk) {
+          try {
+            fallbackResults.push(await generateWordForRetry(word));
+          } catch (wordError) {
+            failedWords.push({ word, error: wordError });
+          }
+        }
+        return fallbackResults;
+      }
+    };
 
     try {
       for (let index = 0; index < normalizedWords.length; index += BULK_WORD_CHUNK_SIZE) {
@@ -145,7 +227,7 @@ export function useVocabularyCommands({
           currentWord: chunk[0],
         });
 
-        const analysisResults = await generateBulkWordData(chunk, activeAiConfig);
+        const analysisResults = await generateChunk(chunk);
         setBulkAddProgress({
           phase: 'saving',
           completed: createdWords.length,
@@ -153,13 +235,25 @@ export function useVocabularyCommands({
           currentWord: chunk[0],
         });
 
-        const savedWords = await Promise.all(analysisResults.map((analysisResult) => createWord({
-          ...analysisResult,
-          folder_id: targetFolderId,
-        })));
-        savedWords.forEach((word) => {
-          createdWords.push(upsertWordInState(word));
-        });
+        for (const requestedWord of chunk) {
+          const analysisResult = analysisResults.find((item) =>
+            String(item?.word || '').trim().toLowerCase() === requestedWord.toLowerCase()
+          );
+          if (!analysisResult) continue;
+          setBulkAddProgress({
+            phase: 'saving',
+            completed: createdWords.length,
+            total: normalizedWords.length,
+            currentWord: requestedWord,
+          });
+          try {
+            const savedWord = await saveWordWithRetry(analysisResult, requestedWord);
+            createdWords.push(upsertWordInState(savedWord));
+          } catch (error) {
+            console.error('Bulk word save failed after retry:', requestedWord, error);
+            failedWords.push({ word: requestedWord, error });
+          }
+        }
       }
 
       setBulkAddProgress({
@@ -168,6 +262,14 @@ export function useVocabularyCommands({
         total: normalizedWords.length,
         currentWord: '',
       });
+      if (failedWords.length > 0) {
+        const message = `${createdWords.length}개 저장, ${failedWords.length}개 실패`;
+        showNotification(message, 'error');
+        if (createdWords.length === 0) {
+          throw new Error(message);
+        }
+        return createdWords;
+      }
       showNotification(`${createdWords.length}개 단어를 저장했습니다.`);
       return createdWords;
     } catch (error) {

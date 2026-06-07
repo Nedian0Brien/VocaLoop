@@ -776,4 +776,94 @@ describe('App backend session bootstrap', () => {
             }));
         });
     });
+
+    test('bulk add retries a word that fails backend validation without stopping the queue', async () => {
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+        geminiService.generateBulkWordData.mockResolvedValue([
+            {
+                word: 'abate',
+                meaning_ko: '줄다',
+                pronunciation: '/əˈbeɪt/',
+                pos: 'Verb',
+                definitions: ['To become less intense.'],
+                definitions_ko: ['강도가 약해지다.'],
+                examples: [{ en: 'The storm began to abate.', ko: '폭풍이 잦아들기 시작했다.' }],
+                synonyms: ['subside'],
+                nuance: 'formal',
+            },
+            {
+                word: 'candid',
+                meaning_ko: '솔직한',
+                pronunciation: '/ˈkæn.dɪd/',
+                pos: 'Adjective',
+                definitions: ['Truthful and straightforward.', ''],
+                definitions_ko: ['진실하고 직접적인.', ''],
+                examples: [{ en: 'She gave a candid answer.', ko: '그녀는 솔직하게 답했다.' }],
+                synonyms: ['frank', ''],
+                nuance: 'neutral',
+            },
+        ]);
+        geminiService.generateWordData.mockResolvedValue({
+            word: 'candid',
+            meaning_ko: '솔직한',
+            pronunciation: '/ˈkæn.dɪd/',
+            pos: 'Adjective',
+            definitions: ['Truthful and straightforward.'],
+            definitions_ko: ['진실하고 직접적인.'],
+            examples: [{ en: 'She gave a candid answer.', ko: '그녀는 솔직하게 답했다.' }],
+            synonyms: ['frank'],
+            nuance: 'neutral',
+        });
+        wordApi.createWord
+            .mockResolvedValueOnce({ id: 701, word: 'abate', folder_id: null, created_at: '2026-04-02T00:00:00Z' })
+            .mockRejectedValueOnce(new Error('Value error, must not contain empty values'))
+            .mockResolvedValueOnce({ id: 702, word: 'candid', folder_id: null, created_at: '2026-04-02T00:00:01Z' });
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: '여러 단어 추가' }));
+
+        const bulkInput = screen.getByLabelText('대량 추가 단어 입력');
+        fireEvent.change(bulkInput, { target: { value: 'abate' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.change(bulkInput, { target: { value: 'candid' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.click(screen.getByRole('button', { name: '2개 저장' }));
+
+        await waitFor(() => {
+            expect(geminiService.generateWordData).toHaveBeenCalledWith(
+                'candid',
+                expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+            );
+            expect(wordApi.createWord).toHaveBeenCalledTimes(3);
+        });
+
+        expect(wordApi.createWord).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            word: 'candid',
+            definitions: ['Truthful and straightforward.'],
+            definitions_ko: ['진실하고 직접적인.'],
+            synonyms: ['frank'],
+        }));
+        expect(wordApi.createWord).toHaveBeenNthCalledWith(3, expect.objectContaining({
+            word: 'candid',
+            definitions: ['Truthful and straightforward.'],
+            definitions_ko: ['진실하고 직접적인.'],
+            synonyms: ['frank'],
+        }));
+        expect(await screen.findByText(/2개 단어를 저장했습니다/)).toBeTruthy();
+    });
 });
