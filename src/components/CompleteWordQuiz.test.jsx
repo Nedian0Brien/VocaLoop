@@ -36,18 +36,34 @@ describe('CompleteWordQuiz', () => {
 
     expect(screen.getByText(/Careful planning can/i)).toBeTruthy();
     expect(screen.getByText(/the risk\./i)).toBeTruthy();
-    expect(screen.getByLabelText('빈칸 1의 4번째 철자')).toBeTruthy();
+    expect(screen.getByLabelText('빈칸 1의 1번째 철자')).toBeTruthy();
+    expect(screen.getByLabelText('빈칸 1의 8번째 철자')).toBeTruthy();
     expect(screen.queryByLabelText('문장 빈칸에 들어갈 영어 단어')).toBeNull();
     expect(screen.queryByText('Meaning')).toBeNull();
     expect(screen.queryByText('완화하다')).toBeNull();
+  });
+
+  test('reveals only the first two letters after requesting a hint', () => {
+    render(<CompleteWordQuiz {...baseProps} />);
+
+    expect(screen.getByLabelText('빈칸 1의 1번째 철자')).toBeTruthy();
+    expect(screen.getByLabelText('빈칸 1의 2번째 철자')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /hint/i }));
+
+    expect(screen.queryByLabelText('빈칸 1의 1번째 철자')).toBeNull();
+    expect(screen.queryByLabelText('빈칸 1의 2번째 철자')).toBeNull();
+    expect(screen.getByLabelText('빈칸 1의 3번째 철자')).toBeTruthy();
+    expect(screen.getByText('m')).toBeTruthy();
+    expect(screen.getByText('i')).toBeTruthy();
   });
 
   test('checks the inline blank answer before advancing', () => {
     const onAnswer = vi.fn();
     render(<CompleteWordQuiz {...baseProps} onAnswer={onAnswer} />);
 
-    ['i', 'g', 'a', 't', 'e'].forEach((letter, index) => {
-      fireEvent.change(screen.getByLabelText(`빈칸 1의 ${index + 4}번째 철자`), {
+    ['m', 'i', 't', 'i', 'g', 'a', 't', 'e'].forEach((letter, index) => {
+      fireEvent.change(screen.getByLabelText(`빈칸 1의 ${index + 1}번째 철자`), {
         target: { value: letter },
       });
     });

@@ -4,7 +4,7 @@ export const getPrefixRevealCount = (letterCount) => {
   return 3;
 };
 
-export const getBlankSegments = (answer = '') => {
+export const getBlankSegments = (answer = '', options = {}) => {
   const safeAnswer = String(answer);
   if (!safeAnswer) return [{ type: 'editable', value: '' }];
 
@@ -19,7 +19,8 @@ export const getBlankSegments = (answer = '') => {
 
   const hiddenSet = new Set(editableIndexes);
   const revealedIndexes = new Set();
-  const prefixRevealCount = Math.min(getPrefixRevealCount(editableIndexes.length), editableIndexes.length - 1);
+  const requestedPrefixRevealCount = options.prefixRevealCount ?? getPrefixRevealCount(editableIndexes.length);
+  const prefixRevealCount = Math.min(requestedPrefixRevealCount, editableIndexes.length - 1);
 
   editableIndexes.slice(0, prefixRevealCount).forEach((index) => {
     hiddenSet.delete(index);

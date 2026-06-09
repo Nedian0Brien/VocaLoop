@@ -10,12 +10,12 @@ import {
 
 const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const buildSingleSentenceQuestion = (word) => {
+const buildSingleSentenceQuestion = (word, { prefixRevealCount } = {}) => {
   const target = String(word?.word || '').trim();
   const blank = {
     id: 1,
     answer: target,
-    segments: getBlankSegments(target),
+    segments: getBlankSegments(target, { prefixRevealCount }),
   };
   if (!target) return { paragraph: '{{1}}.', blank };
 
@@ -50,7 +50,10 @@ export default function CompleteWordQuiz({
   const [answers, setAnswers] = useState([]);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const question = useMemo(() => buildSingleSentenceQuestion(word), [word]);
+  const [showHint, setShowHint] = useState(false);
+  const question = useMemo(() => buildSingleSentenceQuestion(word, {
+    prefixRevealCount: showHint ? 2 : 0,
+  }), [word, showHint]);
   const editableIndices = useMemo(() => getEditableIndices(question.blank), [question.blank]);
   const isFilled = editableIndices.every((inputIndex) => (answers[inputIndex] || '').trim().length > 0);
 
@@ -58,6 +61,7 @@ export default function CompleteWordQuiz({
     setAnswers(new Array(String(word?.word || '').length).fill(''));
     setIsAnswered(false);
     setIsCorrect(false);
+    setShowHint(false);
   }, [word]);
 
   const submit = () => {
@@ -187,6 +191,14 @@ export default function CompleteWordQuiz({
           <div className="flex items-center gap-3 mb-6">
             <div className="w-1.5 h-7 bg-brand-600 rounded-pill shadow-sm shadow-brand-200" aria-hidden="true" />
             <h3 className="text-lg font-black text-surface-800 tracking-tight">문장의 빈칸에 들어갈 단어를 입력하세요</h3>
+            <button
+              type="button"
+              onClick={() => setShowHint(true)}
+              disabled={isAnswered || showHint}
+              className="ml-auto text-2xs font-black text-brand-600 uppercase tracking-widest hover:underline disabled:opacity-30 disabled:no-underline"
+            >
+              Hint
+            </button>
           </div>
 
           <p className="mb-8 rounded-xl border border-surface-100 bg-surface-50 p-5 text-xl sm:text-2xl font-bold leading-relaxed text-surface-900">
