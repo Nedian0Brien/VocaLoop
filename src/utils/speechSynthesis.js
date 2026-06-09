@@ -10,7 +10,7 @@ const ENGLISH_VOICE_NAMES = [
 const VOICES_READY_TIMEOUT_MS = 1500;
 let speechRequestId = 0;
 
-const getSpeechSynthesis = () => window.speechSynthesis;
+const getSpeechSynthesis = () => globalThis.window?.speechSynthesis || globalThis.speechSynthesis;
 
 export const getPreferredEnglishVoice = (voices = []) => {
   const englishVoices = voices.filter((voice) => voice?.lang?.toLowerCase().startsWith('en'));
@@ -25,7 +25,7 @@ export const getPreferredEnglishVoice = (voices = []) => {
   );
 };
 
-export const createEnglishWordUtterance = (text, voices = window.speechSynthesis?.getVoices?.() || []) => {
+export const createEnglishWordUtterance = (text, voices = getSpeechSynthesis()?.getVoices?.() || []) => {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
   utterance.rate = 0.8;
@@ -49,7 +49,7 @@ const waitForEnglishVoices = (speechSynthesis) => new Promise((resolve) => {
   let timeoutId;
   const previousVoicesChangedHandler = speechSynthesis.onvoiceschanged;
   const cleanup = () => {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
     speechSynthesis.removeEventListener?.('voiceschanged', handleVoicesChanged);
     speechSynthesis.onvoiceschanged = previousVoicesChangedHandler;
   };
@@ -67,7 +67,7 @@ const waitForEnglishVoices = (speechSynthesis) => new Promise((resolve) => {
 
   speechSynthesis.addEventListener?.('voiceschanged', handleVoicesChanged);
   speechSynthesis.onvoiceschanged = handleVoicesChanged;
-  timeoutId = window.setTimeout(() => finish(speechSynthesis.getVoices?.() || []), VOICES_READY_TIMEOUT_MS);
+  timeoutId = globalThis.setTimeout(() => finish(speechSynthesis.getVoices?.() || []), VOICES_READY_TIMEOUT_MS);
 });
 
 export const preloadSpeechSynthesisVoices = () => {
@@ -83,7 +83,18 @@ export const preloadSpeechSynthesisVoices = () => {
   };
 };
 
-export const speakEnglishWord = async (text) => {
+const playPronunciationAudio = async (audioUrl) => {
+  if (!audioUrl || typeof Audio !== 'function') return false;
+
+  const audio = new Audio(audioUrl);
+  audio.preload = 'auto';
+  await audio.play();
+  return true;
+};
+
+export const speakEnglishWord = async (text, audioUrl = null) => {
+  if (await playPronunciationAudio(audioUrl)) return;
+
   const speechSynthesis = getSpeechSynthesis();
   if (!speechSynthesis || !text) return;
 

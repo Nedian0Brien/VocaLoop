@@ -88,6 +88,34 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
     assert all(word["id"] != word_id for word in final_list_response.json())
 
 
+def test_create_word_generates_pronunciation_audio_url(client, monkeypatch):
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "tts@example.com",
+            "password": "Password123!",
+            "display_name": "TTS",
+        },
+    )
+    assert signup_response.status_code == 201
+
+    from app.routes import words as words_module
+
+    calls = []
+
+    def fake_generate(word_text):
+        calls.append(word_text)
+        return f"/uploads/tts/words/{word_text}.wav"
+
+    monkeypatch.setattr(words_module, "generate_word_audio", fake_generate)
+
+    response = client.post("/api/words", json={"word": "solution", "meaning_ko": "해결책"})
+
+    assert response.status_code == 201
+    assert response.json()["pronunciation_audio_url"] == "/uploads/tts/words/solution.wav"
+    assert calls == ["solution"]
+
+
 def test_words_are_scoped_to_the_authenticated_user(client):
     first_signup = client.post(
         "/api/auth/signup",

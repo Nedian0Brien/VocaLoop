@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createEnglishWordUtterance, speakEnglishWord } from './speechSynthesis';
 
+const setWindowSpeechSynthesis = (speechSynthesis) => {
+  globalThis.speechSynthesis = speechSynthesis;
+  globalThis.window = globalThis.window || {};
+  globalThis.window.speechSynthesis = speechSynthesis;
+  globalThis.window.setTimeout = globalThis.setTimeout;
+  globalThis.window.clearTimeout = globalThis.clearTimeout;
+};
+
 describe('createEnglishWordUtterance', () => {
   beforeEach(() => {
     vi.useRealTimers();
     delete globalThis.speechSynthesis;
     delete globalThis.window;
+    delete globalThis.Audio;
     globalThis.SpeechSynthesisUtterance = class {
       constructor(text) {
         this.text = text;
@@ -33,8 +42,7 @@ describe('createEnglishWordUtterance', () => {
     let currentVoices = [];
     let voicesChangedHandler;
 
-    globalThis.window = globalThis;
-    globalThis.speechSynthesis = {
+    const speechSynthesis = {
       cancel: vi.fn(),
       speak: vi.fn(),
       getVoices: vi.fn(() => currentVoices),
@@ -43,16 +51,18 @@ describe('createEnglishWordUtterance', () => {
       }),
       removeEventListener: vi.fn(),
     };
+    setWindowSpeechSynthesis(speechSynthesis);
 
     const speaking = speakEnglishWord('serendipity');
-    expect(globalThis.speechSynthesis.speak).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(speechSynthesis.speak).not.toHaveBeenCalled();
 
     currentVoices = voices;
     voicesChangedHandler();
     await speaking;
 
-    expect(globalThis.speechSynthesis.speak).toHaveBeenCalledTimes(1);
-    expect(globalThis.speechSynthesis.speak.mock.calls[0][0].voice).toBe(voices[1]);
+    expect(speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    expect(speechSynthesis.speak.mock.calls[0][0].voice).toBe(voices[1]);
   });
 
   test('uses onvoiceschanged when addEventListener is unavailable', async () => {
@@ -61,24 +71,25 @@ describe('createEnglishWordUtterance', () => {
     ];
     let currentVoices = [];
 
-    globalThis.window = globalThis;
-    globalThis.speechSynthesis = {
+    const speechSynthesis = {
       cancel: vi.fn(),
       speak: vi.fn(),
       getVoices: vi.fn(() => currentVoices),
       removeEventListener: vi.fn(),
       onvoiceschanged: null,
     };
+    setWindowSpeechSynthesis(speechSynthesis);
 
     const speaking = speakEnglishWord('solution');
-    expect(globalThis.speechSynthesis.speak).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(speechSynthesis.speak).not.toHaveBeenCalled();
 
     currentVoices = voices;
-    globalThis.speechSynthesis.onvoiceschanged();
+    speechSynthesis.onvoiceschanged();
     await speaking;
 
-    expect(globalThis.speechSynthesis.speak).toHaveBeenCalledTimes(1);
-    expect(globalThis.speechSynthesis.speak.mock.calls[0][0].voice).toBe(voices[0]);
+    expect(speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    expect(speechSynthesis.speak.mock.calls[0][0].voice).toBe(voices[0]);
   });
 
   test('does not speak through a Korean voice when no English voice is available', async () => {
@@ -87,19 +98,41 @@ describe('createEnglishWordUtterance', () => {
       { name: 'Yuna', lang: 'ko-KR', default: true },
     ];
 
-    globalThis.window = globalThis;
-    globalThis.speechSynthesis = {
+    const speechSynthesis = {
       cancel: vi.fn(),
       speak: vi.fn(),
       getVoices: vi.fn(() => voices),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     };
+    setWindowSpeechSynthesis(speechSynthesis);
 
     const speaking = speakEnglishWord('solution');
     await vi.advanceTimersByTimeAsync(1500);
     await speaking;
 
-    expect(globalThis.speechSynthesis.speak).not.toHaveBeenCalled();
+    expect(speechSynthesis.speak).not.toHaveBeenCalled();
+  });
+
+  test('plays a server pronunciation audio file before browser speech synthesis', async () => {
+    const play = vi.fn().mockResolvedValue(undefined);
+    const audioInstances = [];
+    globalThis.Audio = vi.fn(function Audio(url) {
+      const instance = { play, preload: '', src: url };
+      audioInstances.push(instance);
+      return instance;
+    });
+    const speechSynthesis = {
+      cancel: vi.fn(),
+      speak: vi.fn(),
+    };
+    setWindowSpeechSynthesis(speechSynthesis);
+
+    await speakEnglishWord('solution', '/uploads/tts/words/solution.wav');
+
+    expect(globalThis.Audio).toHaveBeenCalledWith('/uploads/tts/words/solution.wav');
+    expect(audioInstances[0].preload).toBe('auto');
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(speechSynthesis.speak).not.toHaveBeenCalled();
   });
 });

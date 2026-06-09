@@ -47,8 +47,8 @@ export default function ShortAnswerQuiz({
 
   const speakWord = useCallback(() => {
     if (!word?.word || !soundEnabled || isKoreanToEnglish) return;
-    speakEnglishWord(word.word);
-  }, [isKoreanToEnglish, word?.word, soundEnabled]);
+    speakEnglishWord(word.word, word.pronunciationAudioUrl);
+  }, [isKoreanToEnglish, word?.word, word?.pronunciationAudioUrl, soundEnabled]);
 
   useEffect(() => {
     setUserAnswer('');

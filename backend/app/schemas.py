@@ -324,6 +324,7 @@ class WordCreate(BaseModel):
     word: str
     meaning_ko: str | None = None
     pronunciation: str | None = None
+    pronunciation_audio_url: str | None = None
     pos: str | None = None
     definitions: list[str] = Field(default_factory=list)
     definitions_ko: list[str] = Field(default_factory=list)
@@ -342,7 +343,7 @@ class WordCreate(BaseModel):
     def validate_word(cls, value: str) -> str:
         return _validate_word_text(value)
 
-    @field_validator("meaning_ko", "pronunciation", "pos", "nuance", mode="before")
+    @field_validator("meaning_ko", "pronunciation", "pronunciation_audio_url", "pos", "nuance", mode="before")
     @classmethod
     def normalize_optional_text(cls, value: object) -> object:
         return _normalize_optional_word_text(value)
@@ -372,6 +373,7 @@ class WordUpdate(BaseModel):
     word: str | None = None
     meaning_ko: str | None = None
     pronunciation: str | None = None
+    pronunciation_audio_url: str | None = None
     pos: str | None = None
     definitions: list[str] | None = None
     definitions_ko: list[str] | None = None
@@ -392,7 +394,7 @@ class WordUpdate(BaseModel):
             return value
         return _validate_word_text(value)
 
-    @field_validator("meaning_ko", "pronunciation", "pos", "nuance", mode="before")
+    @field_validator("meaning_ko", "pronunciation", "pronunciation_audio_url", "pos", "nuance", mode="before")
     @classmethod
     def normalize_optional_text(cls, value: object) -> object:
         return _normalize_optional_word_text(value)
@@ -431,6 +433,7 @@ class WordRead(BaseModel):
     word: str
     meaning_ko: str | None = None
     pronunciation: str | None = None
+    pronunciation_audio_url: str | None = None
     pos: str | None = None
     definitions: list[str]
     definitions_ko: list[str]

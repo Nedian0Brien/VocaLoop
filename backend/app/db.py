@@ -54,6 +54,10 @@ def bootstrap_db() -> None:
                 connection.exec_driver_sql(
                     "ALTER TABLE words ADD COLUMN accepted_answers JSON NOT NULL DEFAULT '[]'"
                 )
+            if "pronunciation_audio_url" not in existing_word_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE words ADD COLUMN pronunciation_audio_url VARCHAR(512)"
+                )
 
             existing_settings_columns = {
                 row[1]

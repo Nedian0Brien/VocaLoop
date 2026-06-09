@@ -62,8 +62,8 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
 
   const speakWord = useCallback(() => {
     if (!word?.word || !soundEnabled) return;
-    speakEnglishWord(word.word);
-  }, [word?.word, soundEnabled]);
+    speakEnglishWord(word.word, word.pronunciationAudioUrl);
+  }, [word?.word, word?.pronunciationAudioUrl, soundEnabled]);
 
   useEffect(() => {
     if (!loading && word && soundEnabled) speakWord();

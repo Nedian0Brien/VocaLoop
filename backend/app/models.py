@@ -99,6 +99,7 @@ class Word(Base):
     word: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     meaning_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
     pronunciation: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pronunciation_audio_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     pos: Mapped[str | None] = mapped_column(String(100), nullable=True)
     definitions: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
     definitions_ko: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)

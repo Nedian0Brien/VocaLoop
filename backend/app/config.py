@@ -12,6 +12,10 @@ class Settings:
     auth_secret_key: str = ""
     uploads_root: Path = Path("./uploads")
     max_profile_image_size: int = 5 * 1024 * 1024
+    piper_bin: str = "piper"
+    piper_voice_model: Path | None = None
+    piper_voice_config: Path | None = None
+    piper_timeout_seconds: int = 10
 
 
 AUTH_SECRET_FILE_DEFAULT = Path(__file__).resolve().parents[2] / ".auth_secret"
@@ -36,6 +40,8 @@ def _load_auth_secret(auth_secret_file: Path) -> str:
 def load_settings() -> Settings:
     auth_secret_file = Path(os.getenv("AUTH_SECRET_FILE", str(AUTH_SECRET_FILE_DEFAULT))).expanduser()
     auth_secret_key = _load_auth_secret(auth_secret_file)
+    piper_voice_model = os.getenv("PIPER_VOICE_MODEL", "").strip()
+    piper_voice_config = os.getenv("PIPER_VOICE_CONFIG", "").strip()
 
     return Settings(
         app_name=os.getenv("APP_NAME", "VocaLoop"),
@@ -43,4 +49,8 @@ def load_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", "sqlite:///./vocaloop.db"),
         auth_secret_key=auth_secret_key,
         uploads_root=Path(os.getenv("UPLOADS_ROOT", "./uploads")).expanduser(),
+        piper_bin=os.getenv("PIPER_BIN", "piper").strip() or "piper",
+        piper_voice_model=Path(piper_voice_model).expanduser() if piper_voice_model else None,
+        piper_voice_config=Path(piper_voice_config).expanduser() if piper_voice_config else None,
+        piper_timeout_seconds=int(os.getenv("PIPER_TIMEOUT_SECONDS", "10")),
     )

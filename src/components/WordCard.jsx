@@ -74,7 +74,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
     const currentHeight = isFlipped ? backHeight : '12rem';
 
     const playTTS = (text) => {
-        speakEnglishWord(text);
+        speakEnglishWord(text, item.pronunciationAudioUrl);
     };
 
     const handleRegenerate = async (e) => {

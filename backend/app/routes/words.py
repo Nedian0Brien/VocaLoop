@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from ..auth import get_current_user, get_db
 from ..models import Folder, User, Word
 from ..schemas import WordCreate, WordRead, WordUpdate
+from ..tts import generate_word_audio
 
 
 router = APIRouter(prefix="/api/words", tags=["words"])
@@ -77,6 +78,7 @@ def create_word(
         folder_id=folder_ids[0] if folder_ids else None,
         **data,
     )
+    word.pronunciation_audio_url = word.pronunciation_audio_url or generate_word_audio(word.word)
     word.folders = folders
     db.add(word)
     db.commit()
@@ -100,6 +102,9 @@ def patch_word(
 
     for field, value in updates.items():
         setattr(word, field, value)
+
+    if "word" in updates:
+        word.pronunciation_audio_url = generate_word_audio(word.word)
 
     if has_folder_ids:
         requested_folder_ids = folder_ids or []
