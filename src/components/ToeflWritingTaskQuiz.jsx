@@ -293,6 +293,7 @@ export default function ToeflWritingTaskQuiz({
           value={response}
           onChange={(event) => setResponse(event.target.value)}
           disabled={status === 'checking'}
+          autoComplete="off"
           rows={12}
           placeholder={isEmail ? 'Write your email here.' : 'Write your discussion contribution here.'}
           className="w-full rounded-md border border-surface-200 bg-white p-4 text-base font-semibold leading-7 text-surface-800 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100 disabled:opacity-60"

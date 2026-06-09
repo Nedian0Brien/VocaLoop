@@ -466,6 +466,7 @@ export default function ToeflWritingMockTest({
           <textarea
             value={emailResponse}
             onChange={(event) => setEmailResponse(event.target.value)}
+            autoComplete="off"
             rows={10}
             placeholder="Write your email here."
             className="w-full rounded-md border border-surface-200 bg-white p-4 text-base font-semibold leading-7 text-surface-800 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
