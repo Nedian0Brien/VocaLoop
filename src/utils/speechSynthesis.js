@@ -7,7 +7,7 @@ const ENGLISH_VOICE_NAMES = [
   'Alex',
 ];
 
-const VOICES_READY_TIMEOUT_MS = 500;
+const VOICES_READY_TIMEOUT_MS = 1500;
 let speechRequestId = 0;
 
 const getSpeechSynthesis = () => window.speechSynthesis;
@@ -18,8 +18,8 @@ export const getPreferredEnglishVoice = (voices = []) => {
     ENGLISH_VOICE_NAMES
       .map((name) => englishVoices.find((voice) => voice.name === name || voice.name.includes(name)))
       .find(Boolean) ||
-    englishVoices.find((voice) => voice.lang === 'en-US') ||
-    englishVoices.find((voice) => voice.lang === 'en-GB') ||
+    englishVoices.find((voice) => voice.lang?.toLowerCase() === 'en-us') ||
+    englishVoices.find((voice) => voice.lang?.toLowerCase() === 'en-gb') ||
     englishVoices[0] ||
     null
   );
@@ -40,19 +40,23 @@ export const createEnglishWordUtterance = (text, voices = window.speechSynthesis
 
 const waitForEnglishVoices = (speechSynthesis) => new Promise((resolve) => {
   const voices = speechSynthesis.getVoices?.() || [];
-  if (getPreferredEnglishVoice(voices)) {
-    resolve(voices);
+  const preferredVoice = getPreferredEnglishVoice(voices);
+  if (preferredVoice) {
+    resolve({ preferredVoice, voices });
     return;
   }
 
   let timeoutId;
+  const previousVoicesChangedHandler = speechSynthesis.onvoiceschanged;
   const cleanup = () => {
     window.clearTimeout(timeoutId);
     speechSynthesis.removeEventListener?.('voiceschanged', handleVoicesChanged);
+    speechSynthesis.onvoiceschanged = previousVoicesChangedHandler;
   };
   const finish = (nextVoices) => {
+    const nextPreferredVoice = getPreferredEnglishVoice(nextVoices);
     cleanup();
-    resolve(nextVoices);
+    resolve({ preferredVoice: nextPreferredVoice, voices: nextVoices });
   };
   const handleVoicesChanged = () => {
     const nextVoices = speechSynthesis.getVoices?.() || [];
@@ -62,6 +66,7 @@ const waitForEnglishVoices = (speechSynthesis) => new Promise((resolve) => {
   };
 
   speechSynthesis.addEventListener?.('voiceschanged', handleVoicesChanged);
+  speechSynthesis.onvoiceschanged = handleVoicesChanged;
   timeoutId = window.setTimeout(() => finish(speechSynthesis.getVoices?.() || []), VOICES_READY_TIMEOUT_MS);
 });
 
@@ -84,8 +89,9 @@ export const speakEnglishWord = async (text) => {
 
   const requestId = ++speechRequestId;
   speechSynthesis.cancel();
-  const voices = await waitForEnglishVoices(speechSynthesis);
+  const { preferredVoice, voices } = await waitForEnglishVoices(speechSynthesis);
   if (requestId !== speechRequestId) return;
+  if (!preferredVoice) return;
 
   speechSynthesis.speak(createEnglishWordUtterance(text, voices));
 };
