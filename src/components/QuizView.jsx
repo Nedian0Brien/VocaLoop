@@ -5,7 +5,7 @@ import QuizConfigModal from './QuizConfigModal';
 import QuizResult from './QuizResult';
 import QuizModeContent from './QuizModeContent';
 import { TOEFL_MODE_TITLES, QUIZ_MODE_BY_ID } from './quizModeRegistry';
-import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
+import { calculateCorrectRate, calculateWrongRate, sortByLearningRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
 import { wordBelongsToFolder } from '../utils/appDataTransforms';
@@ -316,13 +316,13 @@ export default function QuizView({
       return;
     }
 
-    const shuffledWords = [...targetWords].sort(() => Math.random() - 0.5);
-    const limitedQueue = shuffledWords.slice(0, Math.min(questionCount, targetWords.length));
+    const prioritizedWords = sortByLearningRate(targetWords, 'asc');
+    const limitedQueue = prioritizedWords.slice(0, Math.min(questionCount, targetWords.length));
 
     if (modeId === 'mixed') {
-      setAdaptiveSession(createAdaptiveSession(targetWords, adaptiveModes, {
+      setAdaptiveSession(createAdaptiveSession(prioritizedWords, adaptiveModes, {
         setSize: studySetSize || 5,
-        randomize: true,
+        randomize: false,
       }));
       setQueue([]);
     } else {

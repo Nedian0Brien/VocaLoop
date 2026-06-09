@@ -12,11 +12,12 @@ const toeflAssetApi = vi.hoisted(() => ({
 }));
 
 vi.mock('./MultipleChoiceQuiz', () => ({
-    default: ({ onAnswer }) => {
+    default: ({ word, onAnswer }) => {
         const [answered, setAnswered] = React.useState(false);
         return (
             <div>
                 multiple-choice-quiz
+                <span data-testid="current-quiz-word">{word?.word}</span>
                 {answered ? <span>multiple-choice-answered</span> : null}
                 <button
                     type="button"
@@ -209,6 +210,119 @@ describe('QuizView', () => {
         expect(screen.getByText('Sound: On')).toBeTruthy();
         expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
         expect(screen.getByTestId('quiz-view-shell').className).toContain('px-0');
+    });
+
+    test('starts folder quizzes with the lowest learning-rate word in that folder', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'mastered-outside',
+                        meaning_ko: '외부 숙달',
+                        folderId: 2,
+                        folderIds: [2],
+                        learningRate: 0,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                    {
+                        id: 2,
+                        word: 'nearly-mastered',
+                        meaning_ko: '거의 숙달',
+                        folderId: 1,
+                        folderIds: [1],
+                        learningRate: 92,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                    {
+                        id: 3,
+                        word: 'needs-practice',
+                        meaning_ko: '연습 필요',
+                        folderId: 1,
+                        folderIds: [1],
+                        learningRate: 18,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={false}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[
+                    { id: 1, name: 'TOEFL Core', color: 'blue' },
+                    { id: 2, name: 'Outside', color: 'green' },
+                ]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('객관식 퀴즈'));
+        fireEvent.mouseUp(screen.getByRole('button', { name: /TOEFL Core/ }));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+
+        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.getByTestId('current-quiz-word').textContent).toBe('needs-practice');
+    });
+
+    test('starts mixed folder quizzes with the lowest learning-rate word in that folder', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        render(
+            <QuizView
+                words={[
+                    {
+                        id: 1,
+                        word: 'nearly-mastered',
+                        meaning_ko: '거의 숙달',
+                        folderId: 1,
+                        folderIds: [1],
+                        learningRate: 92,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                    {
+                        id: 2,
+                        word: 'half-ready',
+                        meaning_ko: '절반 준비',
+                        folderId: 1,
+                        folderIds: [1],
+                        learningRate: 54,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                    {
+                        id: 3,
+                        word: 'needs-practice',
+                        meaning_ko: '연습 필요',
+                        folderId: 1,
+                        folderIds: [1],
+                        learningRate: 18,
+                        createdAt: '2026-04-01T00:00:00Z',
+                        stats: { wrong_count: 0, review_count: 0 },
+                    },
+                ]}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={false}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'test-key' }}
+                folders={[{ id: 1, name: 'TOEFL Core', color: 'blue' }]}
+                onUpdateLearningRate={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('AI 복합 퀴즈'));
+        fireEvent.mouseUp(screen.getByRole('button', { name: /TOEFL Core/ }));
+        fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+
+        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.getByTestId('current-quiz-word').textContent).toBe('needs-practice');
     });
 
     test('advances mixed quiz through selected difficulty stages', () => {
