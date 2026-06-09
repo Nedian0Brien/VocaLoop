@@ -1,15 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, Sparkles, X } from './Icons';
 import { Badge, Button, Card } from '../design-system';
 import { playSound } from '../utils/soundEffects';
-
-const normalizeAnswer = (value = '') => String(value).trim().toLowerCase().replace(/\s+/g, '');
+import {
+  getBlankSegments,
+  getEditableIndices,
+  isBlankCorrect,
+} from '../services/toefl/completeWordEngine';
 
 const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const buildSentencePrompt = (word) => {
+const buildSingleSentenceQuestion = (word) => {
   const target = String(word?.word || '').trim();
-  if (!target) return { before: '', after: '' };
+  const blank = {
+    id: 1,
+    answer: target,
+    segments: getBlankSegments(target),
+  };
+  if (!target) return { paragraph: '{{1}}.', blank };
 
   const pattern = new RegExp(`\\b${escapeRegExp(target)}\\b`, 'i');
   const examples = Array.isArray(word?.examples) ? word.examples : [];
@@ -18,16 +26,15 @@ const buildSentencePrompt = (word) => {
     .find((sentence) => pattern.test(sentence));
 
   if (example) {
-    const match = example.match(pattern);
     return {
-      before: example.slice(0, match.index),
-      after: example.slice(match.index + match[0].length),
+      paragraph: example.replace(pattern, '{{1}}'),
+      blank,
     };
   }
 
   return {
-    before: `This word means ${word?.meaning_ko || 'the given meaning'}: `,
-    after: '.',
+    paragraph: 'The passage uses {{1}} as the missing vocabulary word.',
+    blank,
   };
 };
 
@@ -39,20 +46,23 @@ export default function CompleteWordQuiz({
   aiMode,
   soundEnabled = true,
 }) {
-  const [answer, setAnswer] = useState('');
+  const inputRefs = useRef({});
+  const [answers, setAnswers] = useState([]);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const sentencePrompt = useMemo(() => buildSentencePrompt(word), [word]);
+  const question = useMemo(() => buildSingleSentenceQuestion(word), [word]);
+  const editableIndices = useMemo(() => getEditableIndices(question.blank), [question.blank]);
+  const isFilled = editableIndices.every((inputIndex) => (answers[inputIndex] || '').trim().length > 0);
 
   useEffect(() => {
-    setAnswer('');
+    setAnswers(new Array(String(word?.word || '').length).fill(''));
     setIsAnswered(false);
     setIsCorrect(false);
   }, [word]);
 
   const submit = () => {
-    if (!answer.trim() || isAnswered) return;
-    const correct = normalizeAnswer(answer) === normalizeAnswer(word?.word);
+    if (!isFilled || isAnswered) return;
+    const correct = isBlankCorrect(question.blank, answers);
     setIsCorrect(correct);
     setIsAnswered(true);
     if (soundEnabled) playSound(correct ? 'SUCCESS' : 'FAIL');
@@ -69,6 +79,40 @@ export default function CompleteWordQuiz({
     event.stopPropagation();
     if (isAnswered) next();
     else submit();
+  };
+
+  const focusEditableInput = (inputIndex) => {
+    inputRefs.current[inputIndex]?.focus();
+  };
+
+  const focusNextInput = (inputIndex) => {
+    const nextInputIndex = editableIndices.find((index) => index > inputIndex);
+    if (nextInputIndex !== undefined) focusEditableInput(nextInputIndex);
+  };
+
+  const focusPreviousInput = (inputIndex) => {
+    const previousInputIndex = [...editableIndices].reverse().find((index) => index < inputIndex);
+    if (previousInputIndex !== undefined) focusEditableInput(previousInputIndex);
+  };
+
+  const handleAnswerChange = (inputIndex, value) => {
+    if (isAnswered) return;
+    const sanitized = String(value || '').replace(/[^a-zA-Z]/g, '').slice(-1);
+    setAnswers((current) => {
+      const nextAnswers = [...current];
+      nextAnswers[inputIndex] = sanitized;
+      return nextAnswers;
+    });
+    if (sanitized) focusNextInput(inputIndex);
+  };
+
+  const handleInputKeyDown = (event, inputIndex) => {
+    if (event.key === 'Backspace' && !(answers[inputIndex] || '')) {
+      event.preventDefault();
+      focusPreviousInput(inputIndex);
+      return;
+    }
+    handleKeyDown(event);
   };
 
   useEffect(() => {
@@ -118,7 +162,7 @@ export default function CompleteWordQuiz({
           <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-accent-500/10 rounded-pill blur-[80px] pointer-events-none" />
           <div className="relative z-10 flex items-center justify-between mb-6">
             <Badge tone="dark" style="tag" size="sm" className="!bg-white/5 !text-brand-100 !border-white/10">
-              Complete Word
+              TOEFL Complete Word
             </Badge>
             {aiMode && (
               <Badge tone="warning" style="tag" size="sm" className="shadow-lg shadow-warning-700/20">
@@ -129,8 +173,8 @@ export default function CompleteWordQuiz({
           </div>
 
           <div className="relative z-10 space-y-4">
-            <p className="text-2xs font-black uppercase tracking-[0.3em] text-brand-200/60">Meaning</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">{word?.meaning_ko}</h2>
+            <p className="text-2xs font-black uppercase tracking-[0.3em] text-brand-200/60">One-Sentence Task</p>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">Complete the missing word.</h2>
             {word?.pos && (
               <Badge tone="brand" style="tag" size="xs" className="!bg-brand-500/10 !text-brand-200 !border-brand-400/10">
                 {word.pos}
@@ -146,29 +190,71 @@ export default function CompleteWordQuiz({
           </div>
 
           <p className="mb-8 rounded-xl border border-surface-100 bg-surface-50 p-5 text-xl sm:text-2xl font-bold leading-relaxed text-surface-900">
-            <span>{sentencePrompt.before}</span>
-            <input
-              type="text"
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isAnswered}
-              placeholder="____"
-              autoFocus
-              inputMode="latin"
-              lang="en"
-              style={{ width: `${Math.max(8, String(word?.word || '').length + 2)}ch` }}
-              className={[
-                'mx-1 inline-block h-12 rounded-md border-2 px-3 text-center font-black text-brand-700 placeholder-surface-300 outline-none transition-all align-baseline',
-                isAnswered
-                  ? isCorrect
-                    ? 'border-success-500 bg-success-50 text-success-700'
-                    : 'border-danger-500 bg-danger-50 text-danger-700'
-                  : 'border-brand-200 bg-white focus:border-brand-500 focus:shadow-xl focus:shadow-brand-500/10',
-              ].join(' ')}
-              aria-label="문장 빈칸에 들어갈 영어 단어"
-            />
-            <span>{sentencePrompt.after}</span>
+            {question.paragraph.split(/(\{\{1\}\})/g).map((part, partIndex) => {
+              if (part !== '{{1}}') return <span key={`text-${partIndex}`}>{part}</span>;
+              return (
+                <span
+                  key="blank-1"
+                  className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-md border shadow-sm ${
+                    isAnswered
+                      ? isCorrect
+                        ? 'border-success-400 bg-success-50/70'
+                        : 'border-danger-400 bg-danger-50/70'
+                      : isFilled
+                        ? 'border-brand-300 bg-brand-50/40'
+                        : 'border-surface-300 bg-white'
+                  }`}
+                >
+                  {question.blank.segments.map((segment, segmentIndex) => {
+                    const isLastSegment = segmentIndex === question.blank.segments.length - 1;
+                    const baseCellClass = `inline-flex h-9 w-9 items-center justify-center text-xl font-black leading-none ${
+                      isLastSegment ? '' : 'border-r border-surface-200'
+                    }`;
+
+                    if (segment.type === 'fixed') {
+                      return (
+                        <span
+                          key={`fixed-${segmentIndex}`}
+                          className={`${baseCellClass} bg-surface-50 text-surface-800`}
+                        >
+                          {segment.value}
+                        </span>
+                      );
+                    }
+
+                    const answerValue = answers[segment.inputIndex] || '';
+                    const expectedLetter = question.blank.answer[segment.inputIndex] || '';
+                    const displayValue = isAnswered && !isCorrect ? expectedLetter : answerValue;
+
+                    return (
+                      <input
+                        key={`input-${segment.inputIndex}`}
+                        ref={(node) => {
+                          if (!node) return;
+                          inputRefs.current[segment.inputIndex] = node;
+                        }}
+                        value={displayValue}
+                        onChange={(event) => handleAnswerChange(segment.inputIndex, event.target.value)}
+                        onKeyDown={(event) => handleInputKeyDown(event, segment.inputIndex)}
+                        maxLength={1}
+                        disabled={isAnswered}
+                        autoFocus={segment.inputIndex === editableIndices[0]}
+                        inputMode="latin"
+                        lang="en"
+                        aria-label={`빈칸 1의 ${segment.inputIndex + 1}번째 철자`}
+                        className={`${baseCellClass} bg-white text-center text-brand-700 outline-none transition-colors focus:bg-brand-50/70 disabled:opacity-100 ${
+                          isAnswered
+                            ? isCorrect
+                              ? 'bg-success-50 text-success-700'
+                              : 'bg-danger-50 text-danger-600'
+                            : ''
+                        }`}
+                      />
+                    );
+                  })}
+                </span>
+              );
+            })}
           </p>
 
           <div className={`transition-all duration-300 overflow-hidden ${isAnswered ? 'max-h-48 opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
@@ -194,7 +280,7 @@ export default function CompleteWordQuiz({
               다음 문제
             </Button>
           ) : (
-            <Button variant="dark" size="lg" fullWidth onClick={submit} disabled={!answer.trim()}>
+            <Button variant="dark" size="lg" fullWidth onClick={submit} disabled={!isFilled}>
               정답 확인
             </Button>
           )}
