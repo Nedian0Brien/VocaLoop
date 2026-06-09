@@ -36,6 +36,27 @@ const normalizeTextValue = (value) => {
   return normalized || null;
 };
 
+const splitMeaningItems = (value = '') =>
+  String(value)
+    .split(/[,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+export const buildMeaningWithAcceptedAnswer = (currentMeaning, acceptedAnswer) => {
+  const normalizedAnswer = normalizeTextValue(acceptedAnswer?.answer);
+  if (!normalizedAnswer || acceptedAnswer?.mode !== 'short-en-ko') {
+    return currentMeaning || '';
+  }
+
+  const meaningItems = splitMeaningItems(currentMeaning);
+  const alreadyIncluded = meaningItems.some(
+    (item) => item.toLowerCase() === normalizedAnswer.toLowerCase(),
+  );
+  if (alreadyIncluded) return currentMeaning || normalizedAnswer;
+
+  return [...meaningItems, normalizedAnswer].join(', ');
+};
+
 const normalizeTextList = (values) => {
   if (!Array.isArray(values)) return [];
   return values
@@ -447,19 +468,27 @@ export function useVocabularyCommands({
       item?.mode === acceptedAnswer.mode &&
       String(item?.answer || '').trim().toLowerCase() === normalizedAnswer.toLowerCase()
     ));
-    if (alreadySaved) return currentWord;
+    const nextMeaningKo = buildMeaningWithAcceptedAnswer(currentWord.meaning_ko, {
+      ...acceptedAnswer,
+      answer: normalizedAnswer,
+    });
+    const shouldUpdateMeaning = nextMeaningKo !== (currentWord.meaning_ko || '');
+    if (alreadySaved && !shouldUpdateMeaning) return currentWord;
 
     try {
       const updatedWord = await updateWord(wordId, {
-        accepted_answers: [
-          ...currentAcceptedAnswers,
-          {
-            mode: acceptedAnswer.mode,
-            answer: normalizedAnswer,
-            source: acceptedAnswer.source || 'ai-review',
-            feedback: acceptedAnswer.feedback || null,
-          },
-        ],
+        ...(shouldUpdateMeaning ? { meaning_ko: nextMeaningKo } : {}),
+        ...(alreadySaved ? {} : {
+          accepted_answers: [
+            ...currentAcceptedAnswers,
+            {
+              mode: acceptedAnswer.mode,
+              answer: normalizedAnswer,
+              source: acceptedAnswer.source || 'ai-review',
+              feedback: acceptedAnswer.feedback || null,
+            },
+          ],
+        }),
       });
       const normalizedWord = upsertWordInState(updatedWord);
       showNotification('AI가 인정한 답안을 앞으로 정답으로 반영합니다.');
