@@ -29,6 +29,7 @@ export default function ShortAnswerQuiz({
   const correctAnswer = isKoreanToEnglish ? word?.word : word?.meaning_ko;
   const promptValue = isKoreanToEnglish ? word?.meaning_ko : word?.word;
   const inputLabel = isKoreanToEnglish ? '영어 단어 입력' : '한국어 뜻 입력';
+  const answerInputLang = isKoreanToEnglish ? 'en' : 'ko';
   const quizMode = isKoreanToEnglish ? 'short-ko-en' : 'short-en-ko';
   const wordResetKey = word?.id ?? word?.word ?? '';
   const gradeOptions = {
@@ -293,7 +294,11 @@ export default function ShortAnswerQuiz({
                 disabled={isAnswered || loading}
                 placeholder={showHint ? getHint() : isKoreanToEnglish ? '영어 단어 입력...' : '뜻을 입력하세요...'}
                 aria-label={inputLabel}
-                lang={isKoreanToEnglish ? 'en' : undefined}
+                lang={answerInputLang}
+                inputMode="text"
+                autoCapitalize={isKoreanToEnglish ? 'none' : undefined}
+                autoCorrect={isKoreanToEnglish ? 'off' : undefined}
+                spellCheck={isKoreanToEnglish ? false : undefined}
                 className={`w-full p-6 text-xl font-bold bg-surface-50 text-surface-900 placeholder-surface-400 border-2 rounded-xl transition-all outline-none ${
                   isAnswered
                     ? gradeResult?.isCorrect

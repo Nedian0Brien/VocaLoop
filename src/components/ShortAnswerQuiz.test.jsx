@@ -129,6 +129,22 @@ describe('ShortAnswerQuiz', () => {
     expect(onAnswer).not.toHaveBeenCalled();
   });
 
+  test('hints the answer input language for each short-answer direction', () => {
+    const { rerender } = render(<ShortAnswerQuiz {...baseProps} />);
+    const koreanAnswerInput = screen.getByLabelText('한국어 뜻 입력');
+
+    expect(koreanAnswerInput.getAttribute('lang')).toBe('ko');
+    expect(koreanAnswerInput.getAttribute('inputmode')).toBe('text');
+
+    rerender(<ShortAnswerQuiz {...baseProps} direction="ko-en" />);
+    const englishAnswerInput = screen.getByLabelText('영어 단어 입력');
+
+    expect(englishAnswerInput.getAttribute('lang')).toBe('en');
+    expect(englishAnswerInput.getAttribute('inputmode')).toBe('text');
+    expect(englishAnswerInput.getAttribute('autocapitalize')).toBe('none');
+    expect(englishAnswerInput.getAttribute('spellcheck')).toBe('false');
+  });
+
   test('lets an incorrect answer request AI review and saves an approved answer', async () => {
     callAiModelMock.mockResolvedValue(JSON.stringify({
       isCorrect: true,
