@@ -5,9 +5,19 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import ShortAnswerQuiz from './ShortAnswerQuiz';
 
+const callAiModelMock = vi.fn();
+
 vi.mock('../utils/soundEffects', () => ({
   playSound: vi.fn(),
 }));
+
+vi.mock('../services/aiModelService', async () => {
+  const actual = await vi.importActual('../services/aiModelService');
+  return {
+    ...actual,
+    callAiModel: (...args) => callAiModelMock(...args),
+  };
+});
 
 const baseProps = {
   word: {
@@ -117,5 +127,39 @@ describe('ShortAnswerQuiz', () => {
     expect(screen.getByText('Great Job! 🎉')).toBeTruthy();
     expect(screen.getByText(/정답:/)).toBeTruthy();
     expect(onAnswer).not.toHaveBeenCalled();
+  });
+
+  test('lets an incorrect answer request AI review and saves an approved answer', async () => {
+    callAiModelMock.mockResolvedValue(JSON.stringify({
+      isCorrect: true,
+      feedback: '의미상 같은 답입니다.',
+    }));
+    const onAcceptedAnswer = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ShortAnswerQuiz
+        {...baseProps}
+        word={{ ...baseProps.word, id: 7, meaning_ko: '어디에나 있는' }}
+        aiConfig={{ provider: 'codex', model: 'gpt-5.3-codex-spark' }}
+        onAcceptedAnswer={onAcceptedAnswer}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('한국어 뜻 입력'), {
+      target: { value: '곳곳에 있는' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /정답 확인/i }));
+
+    expect(screen.getByText('Incorrect 📚')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /AI 재검토/i }));
+    expect(await screen.findByText('Great Job! 🎉')).toBeTruthy();
+    expect(screen.getByText('의미상 같은 답입니다.')).toBeTruthy();
+    expect(onAcceptedAnswer).toHaveBeenCalledWith(7, {
+      mode: 'short-en-ko',
+      answer: '곳곳에 있는',
+      source: 'ai-review',
+      feedback: '의미상 같은 답입니다.',
+    });
   });
 });

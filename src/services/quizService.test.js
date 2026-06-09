@@ -41,4 +41,23 @@ describe('gradeShortAnswer', () => {
   test('keeps unrelated comma-separated meanings incorrect', () => {
     expect(gradeShortAnswer('줄이다', '늘리다, 증가시키다, 증대하다').isCorrect).toBe(false);
   });
+
+  test('accepts AI-approved alternate answers for the active quiz mode', () => {
+    const word = {
+      meaning_ko: '어디에나 있는',
+      accepted_answers: [
+        { mode: 'short-en-ko', answer: '곳곳에 있는', source: 'ai-review' },
+        { mode: 'short-ko-en', answer: 'ubiquitous', source: 'ai-review' },
+      ],
+    };
+
+    expect(gradeShortAnswer('곳곳에 있는', word.meaning_ko, {
+      acceptedAnswers: word.accepted_answers,
+      mode: 'short-en-ko',
+    })).toMatchObject({
+      isCorrect: true,
+      matchedAnswer: '곳곳에 있는',
+      matchedAnswers: ['곳곳에 있는'],
+    });
+  });
 });

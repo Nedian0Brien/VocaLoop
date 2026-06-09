@@ -36,6 +36,7 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
     assert create_response.json()["examples"] == [
         {"en": "Phones are ubiquitous.", "ko": "휴대폰은 어디에나 있다."}
     ]
+    assert create_response.json()["accepted_answers"] == []
 
     word_id = create_response.json()["id"]
 
@@ -51,6 +52,33 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
     assert patch_response.json()["meaning_ko"] == "널리 퍼진"
     assert patch_response.json()["definitions_ko"] == ["어디에나 존재하는", "흔한"]
     assert patch_response.json()["stats"] == {"wrong_count": 2, "review_count": 5}
+
+    accepted_response = client.patch(
+        f"/api/words/{word_id}",
+        json={
+            "accepted_answers": [
+                {
+                    "mode": "short-en-ko",
+                    "answer": "곳곳에 있는",
+                    "source": "ai-review",
+                    "feedback": "의미상 정답과 같습니다.",
+                }
+            ]
+        },
+    )
+    assert accepted_response.status_code == 200
+    assert accepted_response.json()["accepted_answers"] == [
+        {
+            "mode": "short-en-ko",
+            "answer": "곳곳에 있는",
+            "source": "ai-review",
+            "feedback": "의미상 정답과 같습니다.",
+        }
+    ]
+
+    list_after_acceptance = client.get("/api/words")
+    saved_word = next(word for word in list_after_acceptance.json() if word["id"] == word_id)
+    assert saved_word["accepted_answers"][0]["answer"] == "곳곳에 있는"
 
     delete_response = client.delete(f"/api/words/{word_id}")
     assert delete_response.status_code == 204

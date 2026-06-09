@@ -6,17 +6,42 @@ import { playSound } from '../utils/soundEffects';
 import { speakEnglishWord } from '../utils/speechSynthesis';
 import { Badge } from '../design-system';
 
-export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true, direction = 'en-ko' }) {
+export default function ShortAnswerQuiz({
+  word,
+  onAnswer,
+  progress,
+  stats,
+  aiMode,
+  aiConfig,
+  soundEnabled = true,
+  direction = 'en-ko',
+  onAcceptedAnswer,
+}) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [aiReviewError, setAiReviewError] = useState('');
   const [showHint, setShowHint] = useState(false);
   const scrollPositionRef = useRef(0);
   const isKoreanToEnglish = direction === 'ko-en';
   const correctAnswer = isKoreanToEnglish ? word?.word : word?.meaning_ko;
   const promptValue = isKoreanToEnglish ? word?.meaning_ko : word?.word;
   const inputLabel = isKoreanToEnglish ? '영어 단어 입력' : '한국어 뜻 입력';
+  const quizMode = isKoreanToEnglish ? 'short-ko-en' : 'short-en-ko';
+  const gradeOptions = {
+    acceptedAnswers: word?.accepted_answers,
+    mode: quizMode,
+  };
+  const hasAiReviewAccess = hasAiProviderAccess(aiConfig || {});
+  const canRequestAiReview = Boolean(
+    isAnswered &&
+    gradeResult &&
+    !gradeResult.isCorrect &&
+    !aiReviewLoading &&
+    hasAiReviewAccess
+  );
 
   const speakWord = useCallback(() => {
     if (!word?.word || !soundEnabled || isKoreanToEnglish) return;
@@ -27,6 +52,8 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     setUserAnswer('');
     setIsAnswered(false);
     setGradeResult(null);
+    setAiReviewError('');
+    setAiReviewLoading(false);
     setShowHint(false);
     if (word && soundEnabled) speakWord();
   }, [word, speakWord, soundEnabled]);
@@ -44,7 +71,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
       let result;
       if (!isKoreanToEnglish && aiMode && hasAiProviderAccess(aiConfig)) {
         try {
-          const aiResult = await gradeWithAI(userAnswer, correctAnswer, word, aiConfig);
+          const aiResult = await gradeWithAI(userAnswer, correctAnswer, word, aiConfig, gradeOptions);
           result = {
             ...aiResult,
             isCorrect: aiResult.isCorrect,
@@ -54,7 +81,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           };
         } catch (error) {
           console.warn('AI 채점 실패, 로컬 모드로 폴백:', error);
-          const localResult = gradeShortAnswer(userAnswer, word.meaning_ko);
+          const localResult = gradeShortAnswer(userAnswer, word.meaning_ko, gradeOptions);
           result = {
             ...localResult,
             feedback: localResult.isCorrect ? '정답입니다!' : `유사도: ${Math.round(localResult.similarity * 100)}%`,
@@ -62,7 +89,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           };
         }
       } else {
-        const localResult = gradeShortAnswer(userAnswer, correctAnswer);
+        const localResult = gradeShortAnswer(userAnswer, correctAnswer, gradeOptions);
         result = {
           ...localResult,
           feedback: localResult.isCorrect ? '정답입니다!' : `유사도: ${Math.round(localResult.similarity * 100)}%`,
@@ -78,6 +105,37 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
       alert('채점 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAiReview = async () => {
+    if (!isAnswered || !gradeResult || gradeResult.isCorrect || aiReviewLoading || !hasAiReviewAccess) return;
+
+    setAiReviewLoading(true);
+    setAiReviewError('');
+    try {
+      const aiResult = await gradeWithAI(userAnswer, correctAnswer, word, aiConfig, gradeOptions);
+      const nextResult = {
+        ...gradeResult,
+        ...aiResult,
+        similarity: aiResult.isCorrect ? 1.0 : gradeResult.similarity,
+        mode: 'AI Review',
+      };
+      setGradeResult(nextResult);
+      if (aiResult.isCorrect) {
+        if (soundEnabled) playSound('SUCCESS');
+        await onAcceptedAnswer?.(word?.id, {
+          mode: quizMode,
+          answer: userAnswer.trim(),
+          source: 'ai-review',
+          feedback: aiResult.feedback || null,
+        });
+      }
+    } catch (error) {
+      console.error('AI 재검토 실패:', error);
+      setAiReviewError('AI 재검토에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setAiReviewLoading(false);
     }
   };
 
@@ -284,6 +342,35 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {gradeResult?.feedback && (
+              <p className="mt-3 rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-bold text-surface-600">
+                {gradeResult.feedback}
+              </p>
+            )}
+
+            {!gradeResult?.isCorrect && hasAiReviewAccess && (
+              <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/60 p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-black text-brand-800">의미가 맞는 답이라면 AI 재검토를 요청할 수 있습니다.</p>
+                    <p className="mt-1 text-xs font-bold text-brand-600">정답으로 인정되면 이 표현은 다음 채점부터 자동으로 반영됩니다.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAiReview}
+                    disabled={!canRequestAiReview}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-3 text-sm font-black text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-200"
+                  >
+                    <Sparkles className="w-4 h-4" aria-hidden="true" />
+                    {aiReviewLoading ? '재검토 중...' : 'AI 재검토'}
+                  </button>
+                </div>
+                {aiReviewError && (
+                  <p className="mt-3 text-xs font-bold text-danger-600">{aiReviewError}</p>
+                )}
               </div>
             )}
 

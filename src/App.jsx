@@ -120,6 +120,7 @@ function App() {
         handleBulkAddWords,
         handleDeleteWord,
         handleExplainVocabularyWord,
+        handleAcceptQuizAnswer,
         handleMoveWord,
         handleRegenerateWord,
         handleSaveVocabularyWord,
@@ -406,6 +407,7 @@ function App() {
                             onUpdateLearningRate={handleUpdateLearningRate}
                             onSaveVocabularyWord={handleSaveVocabularyWord}
                             onExplainVocabularyWord={handleExplainVocabularyWord}
+                            onAcceptedAnswer={handleAcceptQuizAnswer}
                             initialReviewAsset={pendingToeflReviewAsset}
                             onInitialReviewAssetConsumed={() => setPendingToeflReviewAsset(null)}
                         />

@@ -149,6 +149,7 @@ export default function QuizView({
   onUpdateLearningRate,
   onSaveVocabularyWord,
   onExplainVocabularyWord,
+  onAcceptedAnswer,
   initialReviewAsset = null,
   onInitialReviewAssetConsumed,
 }) {
@@ -486,6 +487,33 @@ export default function QuizView({
     }
   };
 
+  const handleAcceptedAnswer = useCallback(async (wordId, acceptedAnswer) => {
+    if (!onAcceptedAnswer) return null;
+    const updatedWord = await onAcceptedAnswer(wordId, acceptedAnswer);
+    if (!updatedWord?.id) return updatedWord;
+
+    setQueue((currentQueue) => currentQueue.map((word) => (
+      word?.id === updatedWord.id ? { ...word, ...updatedWord } : word
+    )));
+    setAdaptiveSession((currentSession) => {
+      if (!currentSession) return currentSession;
+      const replaceWord = (word) => (
+        word?.id === updatedWord.id ? { ...word, ...updatedWord } : word
+      );
+      return {
+        ...currentSession,
+        currentSetWords: currentSession.currentSetWords?.map(replaceWord) || [],
+        studySets: currentSession.studySets?.map((setWords) => setWords.map(replaceWord)) || [],
+        queue: currentSession.queue?.map((task) => ({
+          ...task,
+          word: replaceWord(task.word),
+        })) || [],
+      };
+    });
+
+    return updatedWord;
+  }, [onAcceptedAnswer]);
+
   const resetQuiz = () => handleBackToModeSelect();
   const handleNextStudySet = () => {
     setAdaptiveSession((current) => startNextAdaptiveSet(current));
@@ -597,6 +625,7 @@ export default function QuizView({
                 onAttemptRecorded={handleToeflAttemptRecorded}
                 onSaveVocabularyWord={onSaveVocabularyWord}
                 onExplainVocabularyWord={onExplainVocabularyWord}
+                onAcceptedAnswer={handleAcceptedAnswer}
               />
             </div>
           )}

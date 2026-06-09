@@ -46,6 +46,15 @@ def bootstrap_db() -> None:
                     "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0"
                 )
 
+            existing_word_columns = {
+                row[1]
+                for row in connection.exec_driver_sql("PRAGMA table_info(words)").fetchall()
+            }
+            if "accepted_answers" not in existing_word_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE words ADD COLUMN accepted_answers JSON NOT NULL DEFAULT '[]'"
+                )
+
             existing_settings_columns = {
                 row[1]
                 for row in connection.exec_driver_sql("PRAGMA table_info(user_settings)").fetchall()

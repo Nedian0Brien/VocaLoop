@@ -147,6 +147,14 @@ function getMeaningCandidates(correctAnswer = '') {
   return Array.from(new Set([fullAnswer, ...candidates].filter(Boolean)));
 }
 
+function getAcceptedAnswerCandidates(acceptedAnswers = [], mode = '') {
+  if (!Array.isArray(acceptedAnswers)) return [];
+  return acceptedAnswers
+    .filter((item) => !mode || item?.mode === mode)
+    .map((item) => String(item?.answer || '').trim())
+    .filter(Boolean);
+}
+
 function compareShortAnswer(userAnswer, correctAnswer) {
   const userForms = getAnswerComparisonForms(userAnswer);
   const correctForms = getAnswerComparisonForms(correctAnswer);
@@ -178,8 +186,11 @@ function compareShortAnswer(userAnswer, correctAnswer) {
  * @param {String} correctAnswer - 정답
  * @returns {Object} - { similarity: 0-1, isCorrect: boolean }
  */
-export function gradeShortAnswer(userAnswer, correctAnswer) {
-  const candidates = getMeaningCandidates(correctAnswer);
+export function gradeShortAnswer(userAnswer, correctAnswer, options = {}) {
+  const candidates = [
+    ...getMeaningCandidates(correctAnswer),
+    ...getAcceptedAnswerCandidates(options.acceptedAnswers, options.mode),
+  ];
   const answersToCheck = candidates.length > 0 ? candidates : [correctAnswer];
   const fullAnswerResult = compareShortAnswer(userAnswer, correctAnswer);
   if (fullAnswerResult.isCorrect) {
@@ -279,8 +290,8 @@ function levenshteinDistance(a, b) {
  * @param {Object} aiConfig - AI 제공자/모델/키
  * @returns {Promise<Object>} - { isCorrect: boolean, feedback: string }
  */
-export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig) {
-  const localResult = gradeShortAnswer(userAnswer, correctAnswer);
+export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig, options = {}) {
+  const localResult = gradeShortAnswer(userAnswer, correctAnswer, options);
   if (localResult.isCorrect) {
     return {
       ...localResult,

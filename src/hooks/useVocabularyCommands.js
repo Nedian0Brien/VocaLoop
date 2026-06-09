@@ -434,6 +434,43 @@ export function useVocabularyCommands({
     }
   };
 
+  const handleAcceptQuizAnswer = async (wordId, acceptedAnswer) => {
+    if (!user || !wordId || !acceptedAnswer?.answer || !acceptedAnswer?.mode) return null;
+    const currentWord = words.find((word) => word.id === wordId);
+    if (!currentWord) return null;
+
+    const normalizedAnswer = acceptedAnswer.answer.trim();
+    const currentAcceptedAnswers = Array.isArray(currentWord.accepted_answers)
+      ? currentWord.accepted_answers
+      : [];
+    const alreadySaved = currentAcceptedAnswers.some((item) => (
+      item?.mode === acceptedAnswer.mode &&
+      String(item?.answer || '').trim().toLowerCase() === normalizedAnswer.toLowerCase()
+    ));
+    if (alreadySaved) return currentWord;
+
+    try {
+      const updatedWord = await updateWord(wordId, {
+        accepted_answers: [
+          ...currentAcceptedAnswers,
+          {
+            mode: acceptedAnswer.mode,
+            answer: normalizedAnswer,
+            source: acceptedAnswer.source || 'ai-review',
+            feedback: acceptedAnswer.feedback || null,
+          },
+        ],
+      });
+      const normalizedWord = upsertWordInState(updatedWord);
+      showNotification('AI가 인정한 답안을 앞으로 정답으로 반영합니다.');
+      return normalizedWord;
+    } catch (error) {
+      console.error('Accepted answer update failed:', error);
+      showNotification('AI 판정은 정답이지만 채점 기준 저장에 실패했습니다.', 'error');
+      throw error;
+    }
+  };
+
   return {
     addToFolderId,
     bulkAddProgress,
@@ -444,6 +481,7 @@ export function useVocabularyCommands({
     handleExplainVocabularyWord,
     handleMoveWord,
     handleRegenerateWord,
+    handleAcceptQuizAnswer,
     handleSaveVocabularyWord,
     handleUpdateLearningRate,
     isAnalyzing,

@@ -301,6 +301,25 @@ class WordStats(BaseModel):
         return _validate_non_negative(value)
 
 
+class AcceptedAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: str
+    answer: str
+    source: str = "ai-review"
+    feedback: str | None = None
+
+    @field_validator("mode", "answer", "source")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        return _validate_word_text(value)
+
+    @field_validator("feedback", mode="before")
+    @classmethod
+    def normalize_feedback(cls, value: object) -> object:
+        return _normalize_optional_word_text(value)
+
+
 class WordCreate(BaseModel):
     word: str
     meaning_ko: str | None = None
@@ -311,6 +330,7 @@ class WordCreate(BaseModel):
     examples: list[WordExample] = Field(default_factory=list)
     synonyms: list[str] = Field(default_factory=list)
     nuance: str | None = None
+    accepted_answers: list[AcceptedAnswer] = Field(default_factory=list)
     folder_id: int | None = None
     folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int = 0
@@ -358,6 +378,7 @@ class WordUpdate(BaseModel):
     examples: list[WordExample] | None = None
     synonyms: list[str] | None = None
     nuance: str | None = None
+    accepted_answers: list[AcceptedAnswer] | None = None
     folder_id: int | None = None
     folder_ids: list[int] | None = None
     learning_rate: int | None = None
@@ -416,6 +437,7 @@ class WordRead(BaseModel):
     examples: list[WordExample]
     synonyms: list[str]
     nuance: str | None = None
+    accepted_answers: list[AcceptedAnswer] = Field(default_factory=list)
     folder_id: int | None = None
     folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int

@@ -31,6 +31,7 @@ export default function QuizModeContent({
   onAttemptRecorded,
   onSaveVocabularyWord,
   onExplainVocabularyWord,
+  onAcceptedAnswer,
 }) {
   const modeId = selectedMode?.id;
   const readingTaskType = getReadingTaskType(modeId);
@@ -77,6 +78,7 @@ export default function QuizModeContent({
         aiConfig={aiConfig}
         soundEnabled={soundEnabled}
         direction="en-ko"
+        onAcceptedAnswer={onAcceptedAnswer}
       />
     );
   }
@@ -92,6 +94,7 @@ export default function QuizModeContent({
         aiConfig={aiConfig}
         soundEnabled={soundEnabled}
         direction={adaptiveMode === 'short-ko-en' ? 'ko-en' : 'en-ko'}
+        onAcceptedAnswer={onAcceptedAnswer}
       />
     );
   }
