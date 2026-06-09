@@ -1,5 +1,18 @@
-import { describe, expect, test } from 'vitest';
-import { gradeShortAnswer } from './quizService';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+const aiModelService = vi.hoisted(() => ({
+  callAiModel: vi.fn(),
+  hasAiProviderAccess: vi.fn(() => true),
+  parseJsonOutput: vi.fn((text) => JSON.parse(text)),
+}));
+
+vi.mock('./aiModelService', () => aiModelService);
+
+import { gradeShortAnswer, gradeWithAI } from './quizService';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('gradeShortAnswer', () => {
   test('accepts any comma-separated Korean meaning as correct', () => {
@@ -59,5 +72,27 @@ describe('gradeShortAnswer', () => {
       matchedAnswer: '곳곳에 있는',
       matchedAnswers: ['곳곳에 있는'],
     });
+  });
+});
+
+describe('gradeWithAI', () => {
+  test('maps the required AI judgment reason to feedback', async () => {
+    aiModelService.callAiModel.mockResolvedValueOnce(JSON.stringify({
+      isCorrect: true,
+      reason: '의미상 같은 답입니다.',
+    }));
+
+    const result = await gradeWithAI(
+      '곳곳에 있는',
+      '어디에나 있는',
+      { word: 'ubiquitous' },
+      { provider: 'codex', model: 'gpt-5.3-codex-spark' }
+    );
+
+    expect(result).toMatchObject({
+      isCorrect: true,
+      feedback: '의미상 같은 답입니다.',
+    });
+    expect(aiModelService.callAiModel.mock.calls[0][0].prompt).toContain('"reason"');
   });
 });

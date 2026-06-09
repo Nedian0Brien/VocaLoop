@@ -30,6 +30,7 @@ export default function ShortAnswerQuiz({
   const promptValue = isKoreanToEnglish ? word?.meaning_ko : word?.word;
   const inputLabel = isKoreanToEnglish ? '영어 단어 입력' : '한국어 뜻 입력';
   const quizMode = isKoreanToEnglish ? 'short-ko-en' : 'short-en-ko';
+  const wordResetKey = word?.id ?? word?.word ?? '';
   const gradeOptions = {
     acceptedAnswers: word?.accepted_answers,
     mode: quizMode,
@@ -55,8 +56,8 @@ export default function ShortAnswerQuiz({
     setAiReviewError('');
     setAiReviewLoading(false);
     setShowHint(false);
-    if (word && soundEnabled) speakWord();
-  }, [word, speakWord, soundEnabled]);
+    if (wordResetKey && soundEnabled) speakWord();
+  }, [wordResetKey, speakWord, soundEnabled]);
 
   const handleSubmit = async () => {
     if (!userAnswer.trim() || isAnswered || loading) return;
@@ -115,9 +116,15 @@ export default function ShortAnswerQuiz({
     setAiReviewError('');
     try {
       const aiResult = await gradeWithAI(userAnswer, correctAnswer, word, aiConfig, gradeOptions);
+      const reviewFeedback = aiResult.feedback || (
+        aiResult.isCorrect
+          ? 'AI가 답안과 정답의 의미가 같다고 판단했습니다.'
+          : 'AI가 답안과 정답의 핵심 의미가 다르다고 판단했습니다.'
+      );
       const nextResult = {
         ...gradeResult,
         ...aiResult,
+        feedback: reviewFeedback,
         similarity: aiResult.isCorrect ? 1.0 : gradeResult.similarity,
         mode: 'AI Review',
       };
@@ -128,7 +135,7 @@ export default function ShortAnswerQuiz({
           mode: quizMode,
           answer: userAnswer.trim(),
           source: 'ai-review',
-          feedback: aiResult.feedback || null,
+          feedback: reviewFeedback,
         });
       }
     } catch (error) {
@@ -346,9 +353,12 @@ export default function ShortAnswerQuiz({
             )}
 
             {gradeResult?.feedback && (
-              <p className="mt-3 rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-bold text-surface-600">
-                {gradeResult.feedback}
-              </p>
+              <div className="mt-3 rounded-xl border border-surface-200 bg-white px-4 py-3">
+                {gradeResult.mode === 'AI Review' && (
+                  <p className="mb-1 text-2xs font-black uppercase tracking-widest text-brand-600">AI 판단 이유</p>
+                )}
+                <p className="text-sm font-bold text-surface-600">{gradeResult.feedback}</p>
+              </div>
             )}
 
             {!gradeResult?.isCorrect && hasAiReviewAccess && (

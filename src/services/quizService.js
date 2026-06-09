@@ -312,11 +312,12 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig, opt
 - 완전히 같은 의미: 정답
 - 유사한 의미이지만 핵심이 다름: 오답
 - 철자 오류가 있지만 의도는 명확함: 정답 (단, 오타 지적)
+- 판단 결과에는 반드시 이유를 포함해주세요.
 
 응답 형식:
 {
   "isCorrect": true 또는 false,
-  "feedback": "간단한 피드백 (1-2문장)"
+  "reason": "판단 이유 (1-2문장)"
 }`;
 
   try {
@@ -326,10 +327,15 @@ export async function gradeWithAI(userAnswer, correctAnswer, word, aiConfig, opt
       jsonOutput: true
     });
     const data = parseJsonOutput(text);
+    const feedback = data.reason || data.feedback || (
+      data.isCorrect === true
+        ? 'AI가 답안과 정답의 의미가 같다고 판단했습니다.'
+        : 'AI가 답안과 정답의 핵심 의미가 다르다고 판단했습니다.'
+    );
 
     return {
       isCorrect: data.isCorrect === true,
-      feedback: data.feedback || '',
+      feedback,
       matchedAnswers: [],
       unmatchedAnswers: data.isCorrect === true ? [] : localResult.unmatchedAnswers || [],
     };

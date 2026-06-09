@@ -136,7 +136,7 @@ describe('ShortAnswerQuiz', () => {
     }));
     const onAcceptedAnswer = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    const { rerender } = render(
       <ShortAnswerQuiz
         {...baseProps}
         word={{ ...baseProps.word, id: 7, meaning_ko: '어디에나 있는' }}
@@ -154,6 +154,7 @@ describe('ShortAnswerQuiz', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /AI 재검토/i }));
     expect(await screen.findByText('Great Job! 🎉')).toBeTruthy();
+    expect(screen.getByText('AI 판단 이유')).toBeTruthy();
     expect(screen.getByText('의미상 같은 답입니다.')).toBeTruthy();
     expect(onAcceptedAnswer).toHaveBeenCalledWith(7, {
       mode: 'short-en-ko',
@@ -161,5 +162,23 @@ describe('ShortAnswerQuiz', () => {
       source: 'ai-review',
       feedback: '의미상 같은 답입니다.',
     });
+
+    rerender(
+      <ShortAnswerQuiz
+        {...baseProps}
+        word={{
+          ...baseProps.word,
+          id: 7,
+          meaning_ko: '어디에나 있는',
+          accepted_answers: [{ mode: 'short-en-ko', answer: '곳곳에 있는', source: 'ai-review' }],
+        }}
+        aiConfig={{ provider: 'codex', model: 'gpt-5.3-codex-spark' }}
+        onAcceptedAnswer={onAcceptedAnswer}
+      />
+    );
+
+    expect(screen.getByText('Great Job! 🎉')).toBeTruthy();
+    expect(screen.getByLabelText('한국어 뜻 입력').disabled).toBe(true);
+    expect(screen.getByLabelText('한국어 뜻 입력').value).toBe('곳곳에 있는');
   });
 });
