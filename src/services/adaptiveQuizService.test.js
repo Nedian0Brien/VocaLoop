@@ -23,20 +23,52 @@ describe('adaptiveQuizService', () => {
   });
 
   test('advances a word through selected stages before marking it complete', () => {
-    const initial = createAdaptiveSession(words.slice(0, 1), ['multiple', 'short', 'complete-word']);
+    const initial = createAdaptiveSession(words.slice(0, 1), ['multiple', 'short-en-ko', 'short-ko-en', 'complete-word']);
 
     const afterMultiple = resolveAdaptiveAnswer(initial, true);
     expect(afterMultiple.completedStages).toBe(1);
     expect(afterMultiple.queue[0]).toMatchObject({ stageIndex: 1, wrongStreak: 0 });
 
-    const afterShort = resolveAdaptiveAnswer(afterMultiple, true);
-    expect(afterShort.completedStages).toBe(2);
-    expect(afterShort.queue[0]).toMatchObject({ stageIndex: 2, wrongStreak: 0 });
+    const afterEnglishToKorean = resolveAdaptiveAnswer(afterMultiple, true);
+    expect(afterEnglishToKorean.completedStages).toBe(2);
+    expect(afterEnglishToKorean.queue[0]).toMatchObject({ mode: 'short-ko-en', stageIndex: 2, wrongStreak: 0 });
 
-    const afterComplete = resolveAdaptiveAnswer(afterShort, true);
-    expect(afterComplete.completedStages).toBe(3);
+    const afterKoreanToEnglish = resolveAdaptiveAnswer(afterEnglishToKorean, true);
+    expect(afterKoreanToEnglish.completedStages).toBe(3);
+    expect(afterKoreanToEnglish.queue[0]).toMatchObject({ mode: 'complete-word', stageIndex: 3, wrongStreak: 0 });
+
+    const afterComplete = resolveAdaptiveAnswer(afterKoreanToEnglish, true);
+    expect(afterComplete.completedStages).toBe(4);
     expect(afterComplete.queue).toEqual([]);
     expect(afterComplete.isComplete).toBe(true);
+  });
+
+  test('expands legacy short mode into both short-answer directions', () => {
+    const session = createAdaptiveSession(words.slice(0, 1), ['multiple', 'short', 'complete-word']);
+
+    expect(session.modes).toEqual(['multiple', 'short-en-ko', 'short-ko-en', 'complete-word']);
+    expect(session.totalStages).toBe(4);
+  });
+
+  test('avoids immediately repeating the same word when random progression picks the first slot', () => {
+    const session = {
+      modes: ['multiple', 'short-en-ko'],
+      queue: [
+        { word: words[0], mode: 'multiple', stageIndex: 0, wrongStreak: 0 },
+        { word: words[1], mode: 'multiple', stageIndex: 0, wrongStreak: 0 },
+      ],
+      totalStages: 4,
+      completedStages: 0,
+      currentSetIndex: 0,
+      totalSets: 1,
+      randomize: true,
+      rng: () => 0,
+    };
+
+    const nextSession = resolveAdaptiveAnswer(session, true);
+
+    expect(nextSession.queue[0].word.id).toBe('w2');
+    expect(nextSession.queue[1]).toMatchObject({ word: words[0], mode: 'short-en-ko' });
   });
 
   test('requeues a missed task and steps down after consecutive misses', () => {
@@ -79,7 +111,7 @@ describe('adaptiveQuizService', () => {
 
     expect(getAdaptiveProgress(afterOne)).toEqual({
       current: 2,
-      total: 4,
+      total: 6,
       completed: 1,
     });
   });
@@ -100,19 +132,19 @@ describe('adaptiveQuizService', () => {
     expect(session.totalSets).toBe(2);
     expect(session.currentSetIndex).toBe(0);
     expect(session.currentSetWords).toHaveLength(5);
-    expect(session.totalStages).toBe(15);
+    expect(session.totalStages).toBe(20);
     expect(session.queue).toHaveLength(5);
     expect(session.queue.every((task) => task.mode === 'multiple')).toBe(true);
 
     let activeSession = session;
     const answeredTasks = [];
-    for (let i = 0; i < 15; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       answeredTasks.push(activeSession.queue[0]);
       activeSession = resolveAdaptiveAnswer(activeSession, true);
     }
 
     expect(activeSession.isSetComplete).toBe(true);
-    expect(new Set(answeredTasks.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(15);
+    expect(new Set(answeredTasks.map((task) => `${task.word.id}:${task.mode}`)).size).toBe(20);
   });
 
   test('shuffles words before splitting them into study sets', () => {
@@ -162,7 +194,7 @@ describe('adaptiveQuizService', () => {
       guard += 1;
     }
 
-    expect([...nextStageByWord.values()]).toEqual([3, 3, 3, 3, 3]);
+    expect([...nextStageByWord.values()]).toEqual([4, 4, 4, 4, 4]);
   });
 
   test('pauses at each study set boundary and starts the next set on request', () => {
@@ -178,7 +210,7 @@ describe('adaptiveQuizService', () => {
       { setSize: 5, randomize: false }
     );
 
-    for (let i = 0; i < 15; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       session = resolveAdaptiveAnswer(session, true);
     }
 
@@ -189,7 +221,7 @@ describe('adaptiveQuizService', () => {
     const nextSet = startNextAdaptiveSet(session);
     expect(nextSet.currentSetIndex).toBe(1);
     expect(nextSet.currentSetWords).toHaveLength(1);
-    expect(nextSet.totalStages).toBe(3);
+    expect(nextSet.totalStages).toBe(4);
     expect(nextSet.queue).toHaveLength(1);
     expect(nextSet.isSetComplete).toBe(false);
   });

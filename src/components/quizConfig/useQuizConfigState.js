@@ -8,6 +8,7 @@ import {
 import {
   DEFAULT_MIXED_MODES,
   DEFAULT_STUDY_SET_SIZE,
+  MIXED_MODE_IDS,
   STORAGE_KEYS,
   VOCAB_SAMPLE_DEFAULT,
   VOCAB_SAMPLE_MAX,
@@ -29,6 +30,20 @@ const clampNumber = (value, min, max, fallback) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.round(parsed)));
+};
+
+const expandMixedModeId = (modeId) => (
+  modeId === 'short' ? ['short-en-ko', 'short-ko-en'] : [modeId]
+);
+
+const normalizeMixedModeIds = (modeIds = []) => {
+  const normalized = [];
+  modeIds.flatMap(expandMixedModeId).forEach((modeId) => {
+    if (MIXED_MODE_IDS.includes(modeId) && !normalized.includes(modeId)) {
+      normalized.push(modeId);
+    }
+  });
+  return MIXED_MODE_IDS.filter((modeId) => normalized.includes(modeId));
 };
 
 export function useQuizConfigState({
@@ -80,7 +95,7 @@ export function useQuizConfigState({
 
     setStudySetSize(clampNumber(savedStudySetSizeRaw, 1, Number.MAX_SAFE_INTEGER, DEFAULT_STUDY_SET_SIZE));
     const savedMixedModes = readJsonArray(STORAGE_KEYS.MIXED_MODES);
-    const normalizedModes = DEFAULT_MIXED_MODES.filter((id) => savedMixedModes.includes(id));
+    const normalizedModes = normalizeMixedModeIds(savedMixedModes);
     setMixedModeIds(normalizedModes.length > 0 ? normalizedModes : DEFAULT_MIXED_MODES);
 
     setSelectedFolderIds([]);
@@ -231,7 +246,7 @@ export function useQuizConfigState({
       if (prev.includes(modeId)) {
         return prev.length === 1 ? prev : prev.filter((id) => id !== modeId);
       }
-      return DEFAULT_MIXED_MODES.filter((id) => [...prev, modeId].includes(id));
+      return MIXED_MODE_IDS.filter((id) => [...prev, modeId].includes(id));
     });
   };
 

@@ -245,6 +245,9 @@ describe('QuizView', () => {
         expect(screen.getByText('short-answer-quiz')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
+        expect(screen.getByText('short-answer-quiz')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         expect(screen.getByText('complete-word-quiz')).toBeTruthy();
     });
 
@@ -313,7 +316,7 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByText('AI 복합 퀴즈'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
-        for (let i = 0; i < 15; i += 1) {
+        for (let i = 0; i < 20; i += 1) {
             fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         }
 
@@ -521,6 +524,81 @@ describe('QuizView', () => {
             expect(screen.getByText('review-asset:Generated Passage Set')).toBeTruthy();
         });
         expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
+    });
+
+    describe('session persistence across refresh', () => {
+        const wordFixture = [
+            {
+                id: 1,
+                word: 'serendipity',
+                meaning_ko: '뜻밖의 발견',
+                learningRate: 0,
+                createdAt: '2026-04-01T00:00:00Z',
+                stats: { wrong_count: 0, review_count: 0 },
+            },
+        ];
+
+        const renderView = (props = {}) => render(
+            <QuizView
+                words={wordFixture}
+                setView={vi.fn()}
+                user={{ id: 1 }}
+                aiMode={false}
+                setAiMode={vi.fn()}
+                aiConfig={{ provider: 'gemini', model: 'gemini-2.0-flash', geminiApiKey: 'test-key' }}
+                folders={[]}
+                onUpdateLearningRate={vi.fn()}
+                {...props}
+            />
+        );
+
+        test('restores an in-progress word quiz and reapplies its AI mode after remount', () => {
+            const { unmount } = renderView({ aiMode: true });
+            fireEvent.click(screen.getByText('객관식 퀴즈'));
+            fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+            expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+
+            unmount();
+
+            const setAiMode = vi.fn();
+            renderView({ aiMode: false, setAiMode });
+
+            // 모드 선택 없이 곧바로 진행 중이던 퀴즈가 복원된다.
+            expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+            expect(screen.queryByRole('button', { name: '퀴즈 시작하기' })).toBeNull();
+            // 새로고침 시 초기화된 AI 채점 모드도 되살린다.
+            expect(setAiMode).toHaveBeenCalledWith(true);
+        });
+
+        test('does not persist or restore TOEFL quizzes', () => {
+            const { unmount } = renderView();
+            fireEvent.click(screen.getByText('Build a Sentence'));
+            fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+            expect(screen.getByText('toefl-build-quiz')).toBeTruthy();
+            expect(localStorage.getItem('vocaloop_quiz_session')).toBeNull();
+
+            unmount();
+            renderView();
+
+            // 모드 선택 대시보드로 돌아간다(TOEFL은 복원 대상 아님).
+            expect(screen.queryByText('toefl-build-quiz')).toBeNull();
+            expect(screen.getByText('객관식 퀴즈')).toBeTruthy();
+        });
+
+        test('clears the saved session when the quiz is exited', () => {
+            const { unmount } = renderView();
+            fireEvent.click(screen.getByText('객관식 퀴즈'));
+            fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
+            expect(localStorage.getItem('vocaloop_quiz_session')).not.toBeNull();
+
+            fireEvent.click(screen.getByRole('button', { name: '종료하기' }));
+            expect(localStorage.getItem('vocaloop_quiz_session')).toBeNull();
+
+            unmount();
+            renderView();
+            expect(screen.queryByText('multiple-choice-quiz')).toBeNull();
+            expect(screen.getByText('객관식 퀴즈')).toBeTruthy();
+        });
     });
 
     test('hydrates Recent Activity with previously saved TOEFL assets from the backend', async () => {

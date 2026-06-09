@@ -49,6 +49,8 @@ export const LEARNING_STATUS_CONFIG = {
 const QUIZ_TYPE_WEIGHT = {
   multiple: 1.0,      // 객관식: 기본
   short: 1.4,         // 주관식: 40% 더 높은 보상
+  'short-en-ko': 1.4, // 주관식 영→한
+  'short-ko-en': 1.4, // 주관식 한→영
   'complete-word': 1.8, // 단어 완성: 80% 더 높은 보상
   'toefl-complete': 1.8, // Complete-the-Word: 80% 더 높은 보상
 };

@@ -498,6 +498,12 @@ html[data-theme="dark"] select option {
     animation: borderPulse 2s infinite ease-in-out;
 }
 
+/* 진행 바·버튼 등에서 빛이 가로로 훑고 지나가는 광택 (loading shine) */
+@keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
 /* ==========================================================================
  * Utilities
  * ========================================================================== */

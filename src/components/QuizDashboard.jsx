@@ -104,20 +104,26 @@ const ModeCard = ({ mode, onSelect, wordCount }) => {
     <button
       onClick={() => !locked && onSelect(mode)}
       disabled={locked}
+      // 전역 `button { transition-property: ... }` 규칙(unlayered)이 트랜지션을 덮어쓰므로
+      // WordCard처럼 inline style로 직접 지정한다. Tailwind v4의 -translate-y/scale 유틸은
+      // transform 단축이 아니라 개별 `translate`/`scale` 속성을 쓰므로 반드시 그 둘을 나열해야
+      // 호버 lift가 스냅하지 않고 부드럽게 보간된다.
+      style={locked ? undefined : {
+        transition: 'translate 400ms var(--ease-spring), scale 400ms var(--ease-spring), box-shadow 400ms var(--ease-spring), border-color 400ms var(--ease-spring)',
+      }}
       className={[
-        'group relative flex flex-col p-6 rounded-card border-2 text-left overflow-hidden',
-        'transition-all duration-500',
+        'group relative flex flex-col p-6 rounded-card border-2 text-left overflow-hidden will-change-transform',
         locked
           ? 'bg-surface-50 border-surface-100 opacity-60 cursor-not-allowed grayscale'
-          : `bg-white border-surface-100 ${a.borderHover} hover:-translate-y-1 active:scale-[0.98]`,
+          : `bg-white border-surface-100 ${a.borderHover} hover:-translate-y-2 hover:scale-[1.02] active:scale-[0.98] active:translate-y-0`,
       ].join(' ')}
     >
-      <div className={`absolute -right-4 -bottom-4 w-24 h-24 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 ${accent === 'brand' ? 'text-brand-600' : 'text-accent-600'}`}>
+      <div className={`absolute -right-4 -bottom-4 w-24 h-24 opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-110 transition-[opacity,scale] duration-700 ease-[var(--ease-spring)] ${accent === 'brand' ? 'text-brand-600' : 'text-accent-600'}`}>
         <Icon className="w-full h-full" aria-hidden="true" />
       </div>
 
       <div className="relative z-10 flex flex-col h-full">
-        <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-all duration-700 group-hover:scale-110 group-hover:rotate-6 ${
+        <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform duration-500 ease-[var(--ease-spring)] group-hover:scale-110 ${
           locked ? 'bg-surface-200 text-surface-500' : a.iconBg
         }`}>
           <Icon className="w-7 h-7" aria-hidden="true" />
@@ -136,7 +142,7 @@ const ModeCard = ({ mode, onSelect, wordCount }) => {
           locked ? 'text-surface-400' : a.arrow
         }`}>
           {mode.disabled ? 'Coming Soon' : 'Configure Mode'}
-          <span className="text-base leading-none transition-transform duration-500 group-hover:translate-x-1.5" aria-hidden="true">→</span>
+          <span className="text-base leading-none transition-transform duration-500 ease-[var(--ease-spring)] group-hover:translate-x-1.5" aria-hidden="true">→</span>
         </div>
       </div>
     </button>

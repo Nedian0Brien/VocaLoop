@@ -1,11 +1,20 @@
-export const ADAPTIVE_MODE_ORDER = ['multiple', 'short', 'complete-word'];
+export const ADAPTIVE_MODE_ORDER = ['multiple', 'short-en-ko', 'short-ko-en', 'complete-word'];
 const DEFAULT_SET_SIZE = 5;
 
 const getWordKey = (word) => String(word?.id ?? word?.word ?? '');
 
+const expandAdaptiveMode = (mode) => (
+  mode === 'short' ? ['short-en-ko', 'short-ko-en'] : [mode]
+);
+
 export function normalizeAdaptiveModes(modes = ADAPTIVE_MODE_ORDER) {
   const selected = Array.isArray(modes) && modes.length > 0 ? modes : ADAPTIVE_MODE_ORDER;
-  const valid = selected.filter((mode) => ADAPTIVE_MODE_ORDER.includes(mode));
+  const valid = [];
+  selected.flatMap(expandAdaptiveMode).forEach((mode) => {
+    if (ADAPTIVE_MODE_ORDER.includes(mode) && !valid.includes(mode)) {
+      valid.push(mode);
+    }
+  });
   return valid.length > 0 ? valid : ADAPTIVE_MODE_ORDER;
 }
 
@@ -51,6 +60,28 @@ function insertAt(items, index, item) {
   ];
 }
 
+function isSameWordTask(a, b) {
+  return getWordKey(a?.word) && getWordKey(a?.word) === getWordKey(b?.word);
+}
+
+function avoidImmediateRepeatInsertionIndex(queue, proposedIndex, nextTask) {
+  if (queue.length === 0) return 0;
+
+  const boundedIndex = Math.max(0, Math.min(proposedIndex, queue.length));
+  const candidates = [
+    ...Array.from({ length: queue.length - boundedIndex + 1 }, (_, offset) => boundedIndex + offset),
+    ...Array.from({ length: boundedIndex }, (_, index) => index),
+  ];
+
+  const candidate = candidates.find((index) => (
+    index > 0 &&
+    !isSameWordTask(queue[index - 1], nextTask) &&
+    !isSameWordTask(queue[index], nextTask)
+  ));
+
+  return candidate ?? Math.min(1, queue.length);
+}
+
 function getProgressedTaskInsertionIndex(queue, nextTask, session) {
   if (!session?.randomize) return queue.length;
 
@@ -67,17 +98,25 @@ function getProgressedTaskInsertionIndex(queue, nextTask, session) {
   }
 
   const availableSlots = queue.length - earliestIndex + 1;
-  return earliestIndex + Math.floor(rng() * availableSlots);
+  return avoidImmediateRepeatInsertionIndex(
+    queue,
+    earliestIndex + Math.floor(rng() * availableSlots),
+    nextTask
+  );
 }
 
-function getMissedTaskInsertionIndex(queue, session) {
+function getMissedTaskInsertionIndex(queue, nextTask, session) {
   if (queue.length === 0) return 0;
-  if (!session?.randomize) return queue.length;
+  if (!session?.randomize) return avoidImmediateRepeatInsertionIndex(queue, queue.length, nextTask);
 
   const rng = session.rng || Math.random;
   const earliestIndex = Math.min(2, queue.length);
   const availableSlots = queue.length - earliestIndex + 1;
-  return earliestIndex + Math.floor(rng() * availableSlots);
+  return avoidImmediateRepeatInsertionIndex(
+    queue,
+    earliestIndex + Math.floor(rng() * availableSlots),
+    nextTask
+  );
 }
 
 function buildStudySetQueue(setWords = [], modes = ADAPTIVE_MODE_ORDER) {
@@ -201,7 +240,7 @@ export function resolveAdaptiveAnswer(session, isCorrect) {
     totalStages: session.totalStages,
     queue: insertAt(
       remainingQueue,
-      getMissedTaskInsertionIndex(remainingQueue, session),
+      getMissedTaskInsertionIndex(remainingQueue, nextTask, session),
       nextTask
     ),
     completedStages: Math.max(0, currentCompletedStages - completedRollback),

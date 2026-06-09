@@ -17,9 +17,15 @@ const MIXED_MODE_OPTIONS = [
     icon: CheckCircle,
   },
   {
-    id: 'short',
-    title: '주관식',
-    desc: '한국어 뜻을 직접 입력',
+    id: 'short-en-ko',
+    title: '주관식 영→한',
+    desc: '영어 단어를 보고 한국어 뜻 입력',
+    icon: Edit3,
+  },
+  {
+    id: 'short-ko-en',
+    title: '주관식 한→영',
+    desc: '한국어 뜻을 보고 영어 단어 입력',
     icon: Edit3,
   },
   {
@@ -208,7 +214,7 @@ export default function QuizConfigModal({
                 <Badge tone="warning" size="xs" className="shrink-0">{mixedModeIds.length} Steps</Badge>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 {MIXED_MODE_OPTIONS.map((option, index) => {
                   const selected = mixedModeIds.includes(option.id);
                   const Icon = option.icon;

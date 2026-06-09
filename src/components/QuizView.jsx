@@ -4,7 +4,7 @@ import QuizDashboard from './QuizDashboard';
 import QuizConfigModal from './QuizConfigModal';
 import QuizResult from './QuizResult';
 import QuizModeContent from './QuizModeContent';
-import { TOEFL_MODE_TITLES } from './quizModeRegistry';
+import { TOEFL_MODE_TITLES, QUIZ_MODE_BY_ID } from './quizModeRegistry';
 import { calculateCorrectRate, calculateWrongRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
@@ -19,6 +19,34 @@ import {
 import { createToeflAsset, createToeflAttempt, getToeflAsset } from '../services/toeflAssetApi';
 
 const QUIZ_HISTORY_STORAGE_KEY = 'vocaloop_quiz_history';
+const QUIZ_SESSION_STORAGE_KEY = 'vocaloop_quiz_session';
+
+// 새로고침 후 복원 가능한 단어 기반 모드. TOEFL 모드는 자식 컴포넌트가 문제를
+// 내부에서(AI로) 생성/보관하므로 여기서 복원하지 않는다.
+const RESTORABLE_MODE_IDS = new Set(['multiple', 'short', 'mixed']);
+
+/**
+ * localStorage에 저장된 진행 중 퀴즈 세션을 읽어 복원 가능한 경우에만 반환한다.
+ */
+const loadPersistedQuizSession = () => {
+  try {
+    const raw = localStorage.getItem(QUIZ_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || data.quizState !== 'quiz') return null;
+    if (!RESTORABLE_MODE_IDS.has(data.modeId) || !QUIZ_MODE_BY_ID[data.modeId]) return null;
+
+    const valid = data.modeId === 'mixed'
+      ? Boolean(data.adaptiveSession) && !data.adaptiveSession.isComplete
+      : Array.isArray(data.queue) && data.queue.length > 0;
+    if (!valid) return null;
+
+    return data;
+  } catch (error) {
+    console.warn('Failed to read saved quiz session', error);
+    return null;
+  }
+};
 
 const recordToeflAssetActivity = (asset) => {
   if (!asset?.id) return;
@@ -124,15 +152,24 @@ export default function QuizView({
   initialReviewAsset = null,
   onInitialReviewAssetConsumed,
 }) {
-  const [quizState, setQuizState] = useState('select');
-  const [selectedMode, setSelectedMode] = useState(null);
+  // 새로고침 시 진행 중이던 퀴즈를 복원한다. 마운트 시 1회만 읽는다.
+  const restoredSessionRef = useRef(undefined);
+  if (restoredSessionRef.current === undefined) {
+    restoredSessionRef.current = loadPersistedQuizSession();
+  }
+  const restoredSession = restoredSessionRef.current;
+
+  const [quizState, setQuizState] = useState(restoredSession ? 'quiz' : 'select');
+  const [selectedMode, setSelectedMode] = useState(
+    restoredSession ? QUIZ_MODE_BY_ID[restoredSession.modeId] : null
+  );
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [reviewAsset, setReviewAsset] = useState(null);
 
-  const [queue, setQueue] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [adaptiveSession, setAdaptiveSession] = useState(null);
-  const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
+  const [queue, setQueue] = useState(restoredSession?.queue ?? []);
+  const [currentIndex, setCurrentIndex] = useState(restoredSession?.currentIndex ?? 0);
+  const [adaptiveSession, setAdaptiveSession] = useState(restoredSession?.adaptiveSession ?? null);
+  const [stats, setStats] = useState(restoredSession?.stats ?? { correct: 0, wrong: 0, total: 0 });
 
   const [toeflConfig, setToeflConfig] = useState({
     questionCount: 5,
@@ -140,7 +177,7 @@ export default function QuizView({
     vocabSource: { mode: 'off', folderIds: [], sampleSize: 0, pool: [] },
     topicSelection: { enabled: false, allTopics: [], selectedIds: [], pickCount: 0 },
   });
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(restoredSession?.soundEnabled ?? true);
 
   // Avg. Mastery 정수값 — 트렌드 계산용 의존성으로 분리.
   const avgRateInt = useMemo(() => {
@@ -200,7 +237,7 @@ export default function QuizView({
     };
   }, [words, folders, avgRateInt, rateTrend, weakestFolder]);
 
-  const wordQuizTracker = useRef({});
+  const wordQuizTracker = useRef(restoredSession?.wordQuizTracker ?? {});
   const consumedInitialReviewAssetIdRef = useRef(null);
 
   const handleToeflAssetCreated = useCallback(async (payload) => {
@@ -336,6 +373,45 @@ export default function QuizView({
     handleToeflAssetSelect(initialReviewAsset);
     onInitialReviewAssetConsumed?.();
   }, [handleToeflAssetSelect, initialReviewAsset, onInitialReviewAssetConsumed]);
+
+  // 복원된 세션의 AI 채점 모드를 부모 상태에 반영한다.
+  // (App의 aiMode는 새로고침 시 false로 초기화되므로 직접 되살린다.)
+  useEffect(() => {
+    if (restoredSession && typeof restoredSession.aiMode === 'boolean' && restoredSession.aiMode !== aiMode) {
+      setAiMode(restoredSession.aiMode);
+    }
+    // 마운트 시 1회만 실행한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 진행 중인 단어 퀴즈 세션을 저장하여 새로고침 후에도 풀던 문제가 유지되게 한다.
+  // 퀴즈가 아니거나 복원 불가능한(TOEFL) 모드면 저장본을 제거한다.
+  useEffect(() => {
+    const modeId = selectedMode?.id;
+    if (quizState !== 'quiz' || !RESTORABLE_MODE_IDS.has(modeId)) {
+      localStorage.removeItem(QUIZ_SESSION_STORAGE_KEY);
+      return;
+    }
+    try {
+      localStorage.setItem(
+        QUIZ_SESSION_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          quizState,
+          modeId,
+          queue,
+          currentIndex,
+          adaptiveSession,
+          stats,
+          wordQuizTracker: wordQuizTracker.current,
+          soundEnabled,
+          aiMode,
+        })
+      );
+    } catch (error) {
+      console.warn('Failed to persist quiz session', error);
+    }
+  }, [quizState, selectedMode, queue, currentIndex, adaptiveSession, stats, soundEnabled, aiMode]);
 
   const handleAnswer = (isCorrect) => {
     const isAdaptive = selectedMode?.id === 'mixed';

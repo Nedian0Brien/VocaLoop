@@ -1,31 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, Edit3, Sparkles, X } from './Icons';
+import { AlertCircle, Check, Sparkles, X } from './Icons';
 import { Badge, Button, Card } from '../design-system';
 import { playSound } from '../utils/soundEffects';
 
 const normalizeAnswer = (value = '') => String(value).trim().toLowerCase().replace(/\s+/g, '');
 
-const buildMask = (word = '') => {
-  const chars = String(word).split('');
-  const letters = chars
-    .map((char, index) => (/^[a-zA-Z]$/.test(char) ? index : null))
-    .filter((index) => index !== null);
+const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  if (letters.length <= 2) {
-    return chars.map((char, index) => ({ char, hidden: /^[a-zA-Z]$/.test(char), index }));
+const buildSentencePrompt = (word) => {
+  const target = String(word?.word || '').trim();
+  if (!target) return { before: '', after: '' };
+
+  const pattern = new RegExp(`\\b${escapeRegExp(target)}\\b`, 'i');
+  const examples = Array.isArray(word?.examples) ? word.examples : [];
+  const example = examples
+    .map((item) => item?.en || '')
+    .find((sentence) => pattern.test(sentence));
+
+  if (example) {
+    const match = example.match(pattern);
+    return {
+      before: example.slice(0, match.index),
+      after: example.slice(match.index + match[0].length),
+    };
   }
 
-  const revealCount = letters.length <= 5 ? 1 : 2;
-  const revealed = new Set([
-    ...letters.slice(0, revealCount),
-    letters[letters.length - 1],
-  ]);
-
-  return chars.map((char, index) => ({
-    char,
-    hidden: /^[a-zA-Z]$/.test(char) && !revealed.has(index),
-    index,
-  }));
+  return {
+    before: `This word means ${word?.meaning_ko || 'the given meaning'}: `,
+    after: '.',
+  };
 };
 
 export default function CompleteWordQuiz({
@@ -39,7 +42,7 @@ export default function CompleteWordQuiz({
   const [answer, setAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const mask = useMemo(() => buildMask(word?.word), [word?.word]);
+  const sentencePrompt = useMemo(() => buildSentencePrompt(word), [word]);
 
   useEffect(() => {
     setAnswer('');
@@ -63,9 +66,21 @@ export default function CompleteWordQuiz({
   const handleKeyDown = (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
+    event.stopPropagation();
     if (isAnswered) next();
     else submit();
   };
+
+  useEffect(() => {
+    if (!isAnswered) return;
+    const handleNextKey = (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      next();
+    };
+    window.addEventListener('keydown', handleNextKey);
+    return () => window.removeEventListener('keydown', handleNextKey);
+  }, [isAnswered, next]);
 
   return (
     <div className="max-w-2xl mx-auto animate-in fade-in duration-700">
@@ -125,51 +140,36 @@ export default function CompleteWordQuiz({
         </div>
 
         <div className="p-8 sm:p-10">
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-6">
             <div className="w-1.5 h-7 bg-brand-600 rounded-pill shadow-sm shadow-brand-200" aria-hidden="true" />
-            <h3 className="text-lg font-black text-surface-800 tracking-tight">빈칸의 영어 단어를 완성하세요</h3>
+            <h3 className="text-lg font-black text-surface-800 tracking-tight">문장의 빈칸에 들어갈 단어를 입력하세요</h3>
           </div>
 
-          <div className="flex flex-wrap gap-2 mb-8" aria-label="단어 힌트">
-            {mask.map((cell) => (
-              <span
-                key={`${cell.char}-${cell.index}`}
-                className={[
-                  'w-11 h-12 rounded-md border-2 inline-flex items-center justify-center text-xl font-black font-serif',
-                  cell.hidden
-                    ? 'bg-surface-50 border-surface-200 text-surface-300'
-                    : 'bg-brand-50 border-brand-100 text-brand-700',
-                ].join(' ')}
-              >
-                {cell.hidden ? '' : cell.char}
-              </span>
-            ))}
-          </div>
-
-          <label className="block space-y-3 mb-8">
-            <span className="text-2xs font-black text-surface-400 uppercase tracking-widest">Your Answer</span>
-            <div className="relative">
-              <Edit3 className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300" aria-hidden="true" />
-              <input
-                type="text"
-                value={answer}
-                onChange={(event) => setAnswer(event.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isAnswered}
-                placeholder="영어 단어 입력"
-                autoFocus
-                className={[
-                  'w-full h-16 pl-14 pr-5 rounded-xl border-2 bg-surface-50 text-surface-900 placeholder-surface-400 text-xl font-black tracking-tight outline-none transition-all',
-                  isAnswered
-                    ? isCorrect
-                      ? 'border-success-500 bg-success-50 text-success-700'
-                      : 'border-danger-500 bg-danger-50 text-danger-700'
-                    : 'border-surface-100 focus:border-brand-500 focus:bg-surface-0 focus:shadow-xl focus:shadow-brand-500/5',
-                ].join(' ')}
-                aria-label="완성할 영어 단어"
-              />
-            </div>
-          </label>
+          <p className="mb-8 rounded-xl border border-surface-100 bg-surface-50 p-5 text-xl sm:text-2xl font-bold leading-relaxed text-surface-900">
+            <span>{sentencePrompt.before}</span>
+            <input
+              type="text"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isAnswered}
+              placeholder="____"
+              autoFocus
+              inputMode="latin"
+              lang="en"
+              style={{ width: `${Math.max(8, String(word?.word || '').length + 2)}ch` }}
+              className={[
+                'mx-1 inline-block h-12 rounded-md border-2 px-3 text-center font-black text-brand-700 placeholder-surface-300 outline-none transition-all align-baseline',
+                isAnswered
+                  ? isCorrect
+                    ? 'border-success-500 bg-success-50 text-success-700'
+                    : 'border-danger-500 bg-danger-50 text-danger-700'
+                  : 'border-brand-200 bg-white focus:border-brand-500 focus:shadow-xl focus:shadow-brand-500/10',
+              ].join(' ')}
+              aria-label="문장 빈칸에 들어갈 영어 단어"
+            />
+            <span>{sentencePrompt.after}</span>
+          </p>
 
           <div className={`transition-all duration-300 overflow-hidden ${isAnswered ? 'max-h-48 opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>
             <div className={`p-5 rounded-xl flex items-center gap-4 border-2 ${

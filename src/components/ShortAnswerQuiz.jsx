@@ -3,24 +3,25 @@ import { Volume2, Check, X, Sparkles, AlertTriangle, FileText, Brain, ArrowRight
 import { gradeShortAnswer, gradeWithAI } from '../services/quizService';
 import { hasAiProviderAccess } from '../services/aiModelService';
 import { playSound } from '../utils/soundEffects';
+import { speakEnglishWord } from '../utils/speechSynthesis';
 import { Badge } from '../design-system';
 
-export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true }) {
+export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMode, aiConfig, soundEnabled = true, direction = 'en-ko' }) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isAnswered, setIsAnswered] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const scrollPositionRef = useRef(0);
+  const isKoreanToEnglish = direction === 'ko-en';
+  const correctAnswer = isKoreanToEnglish ? word?.word : word?.meaning_ko;
+  const promptValue = isKoreanToEnglish ? word?.meaning_ko : word?.word;
+  const inputLabel = isKoreanToEnglish ? '영어 단어 입력' : '한국어 뜻 입력';
 
   const speakWord = useCallback(() => {
-    if (!word?.word || !soundEnabled) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(word.word);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.8;
-    window.speechSynthesis.speak(utterance);
-  }, [word?.word, soundEnabled]);
+    if (!word?.word || !soundEnabled || isKoreanToEnglish) return;
+    speakEnglishWord(word.word);
+  }, [isKoreanToEnglish, word?.word, soundEnabled]);
 
   useEffect(() => {
     setUserAnswer('');
@@ -41,9 +42,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
 
     try {
       let result;
-      if (aiMode && hasAiProviderAccess(aiConfig)) {
+      if (!isKoreanToEnglish && aiMode && hasAiProviderAccess(aiConfig)) {
         try {
-          const aiResult = await gradeWithAI(userAnswer, word.meaning_ko, word, aiConfig);
+          const aiResult = await gradeWithAI(userAnswer, correctAnswer, word, aiConfig);
           result = {
             ...aiResult,
             isCorrect: aiResult.isCorrect,
@@ -61,7 +62,7 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           };
         }
       } else {
-        const localResult = gradeShortAnswer(userAnswer, word.meaning_ko);
+        const localResult = gradeShortAnswer(userAnswer, correctAnswer);
         result = {
           ...localResult,
           feedback: localResult.isCorrect ? '정답입니다!' : `유사도: ${Math.round(localResult.similarity * 100)}%`,
@@ -81,7 +82,11 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !isAnswered) handleSubmit();
+    if (e.key === 'Enter' && !isAnswered) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSubmit();
+    }
   };
 
   const handleNextQuestion = useCallback(() => {
@@ -89,8 +94,22 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
     onAnswer(gradeResult.isCorrect);
   }, [gradeResult, isAnswered, onAnswer]);
 
+  // 채점 후에는 입력창이 비활성화되어 포커스를 잃으므로,
+  // 전역 Enter 키로 다음 문제로 넘어갈 수 있게 한다.
+  useEffect(() => {
+    if (!isAnswered) return;
+    const handleNextKey = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleNextQuestion();
+      }
+    };
+    window.addEventListener('keydown', handleNextKey);
+    return () => window.removeEventListener('keydown', handleNextKey);
+  }, [isAnswered, handleNextQuestion]);
+
   const getHint = () => {
-    const answer = word.meaning_ko;
+    const answer = correctAnswer || '';
     const firstChar = answer.charAt(0);
     const length = answer.length;
     return `${firstChar}${'*'.repeat(length - 1)} (${length}글자)`;
@@ -141,7 +160,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
 
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-md border border-white/10">
-              <span className="text-2xs font-black uppercase tracking-wider text-brand-200/70">Short Answer</span>
+              <span className="text-2xs font-black uppercase tracking-wider text-brand-200/70">
+                {isKoreanToEnglish ? 'Short Answer 한→영' : 'Short Answer 영→한'}
+              </span>
             </div>
             {aiMode && (
               <div className="flex items-center gap-1.5 bg-gradient-to-r from-warning-400 to-warning-500 px-3 py-1 rounded-md text-2xs font-black uppercase shadow-lg shadow-warning-700/20">
@@ -152,19 +173,23 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
           </div>
 
           <div className="flex items-center gap-6 relative z-10">
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight font-serif">{word.word}</h2>
-            <button
-              onClick={speakWord}
-              disabled={!soundEnabled}
-              aria-label="발음 듣기"
-              className={`w-11 h-11 bg-white/5 hover:bg-white/10 active:scale-90 rounded-md transition-all border border-white/10 flex items-center justify-center group/btn ${!soundEnabled ? 'opacity-20 cursor-not-allowed' : ''}`}
-            >
-              <Volume2 className="w-5 h-5 text-white/80 group-hover/btn:text-white transition-colors" aria-hidden="true" />
-            </button>
+            <h2 className={`font-black tracking-tight ${isKoreanToEnglish ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl font-serif'}`}>
+              {promptValue}
+            </h2>
+            {!isKoreanToEnglish && (
+              <button
+                onClick={speakWord}
+                disabled={!soundEnabled}
+                aria-label="발음 듣기"
+                className={`w-11 h-11 bg-white/5 hover:bg-white/10 active:scale-90 rounded-md transition-all border border-white/10 flex items-center justify-center group/btn ${!soundEnabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+              >
+                <Volume2 className="w-5 h-5 text-white/80 group-hover/btn:text-white transition-colors" aria-hidden="true" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3 mt-5 relative z-10">
-            {word.pronunciation && (
+            {!isKoreanToEnglish && word.pronunciation && (
               <p className="text-lg font-serif italic text-brand-200/50">{word.pronunciation}</p>
             )}
             {word.pos && (
@@ -181,7 +206,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-7 bg-brand-600 rounded-pill shadow-sm shadow-brand-200" aria-hidden="true" />
-                <h3 className="text-lg font-black text-surface-800 tracking-tight">한국어 뜻을 입력하세요</h3>
+                <h3 className="text-lg font-black text-surface-800 tracking-tight">
+                  {isKoreanToEnglish ? '영어 단어를 입력하세요' : '한국어 뜻을 입력하세요'}
+                </h3>
               </div>
               <button
                 onClick={() => setShowHint(true)}
@@ -199,8 +226,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                 onChange={(e) => setUserAnswer(e.target.value)}
                 onKeyDown={handleKeyPress}
                 disabled={isAnswered || loading}
-                placeholder={showHint ? getHint() : '뜻을 입력하세요...'}
-                aria-label="한국어 뜻 입력"
+                placeholder={showHint ? getHint() : isKoreanToEnglish ? '영어 단어 입력...' : '뜻을 입력하세요...'}
+                aria-label={inputLabel}
+                lang={isKoreanToEnglish ? 'en' : undefined}
                 className={`w-full p-6 text-xl font-bold bg-surface-50 text-surface-900 placeholder-surface-400 border-2 rounded-xl transition-all outline-none ${
                   isAnswered
                     ? gradeResult?.isCorrect
@@ -233,7 +261,9 @@ export default function ShortAnswerQuiz({ word, onAnswer, progress, stats, aiMod
                   {gradeResult?.isCorrect ? 'Great Job! 🎉' : 'Incorrect 📚'}
                 </h4>
                 <p className="text-base font-bold opacity-70">
-                  {gradeResult?.isCorrect ? <>전체 뜻: <span className="text-success-800 font-black">{word.meaning_ko}</span></> : <>정답은 <span className="text-danger-700 font-black">{word.meaning_ko}</span> 입니다.</>}
+                  {gradeResult?.isCorrect
+                    ? <>{isKoreanToEnglish ? '정답:' : '전체 뜻:'} <span className="text-success-800 font-black">{correctAnswer}</span></>
+                    : <>정답은 <span className="text-danger-700 font-black">{correctAnswer}</span> 입니다.</>}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw, Loader2 } from './Icons';
 import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
+import { preloadSpeechSynthesisVoices, speakEnglishWord } from '../utils/speechSynthesis';
 
 /**
  * 폴더 색상 팔레트.
@@ -67,25 +68,13 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
     }, [item, isFlipped]);
 
     useEffect(() => {
-        window.speechSynthesis.getVoices();
-        const handleVoicesChanged = () => window.speechSynthesis.getVoices();
-        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-        return () => window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        return preloadSpeechSynthesisVoices();
     }, []);
 
     const currentHeight = isFlipped ? backHeight : '12rem';
 
     const playTTS = (text) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice =
-            voices.find(v => v.name === 'Samantha') ||
-            voices.find(v => v.name.includes('Google US')) ||
-            voices.find(v => v.name.includes('Google') && v.lang === 'en-US') ||
-            voices.find(v => v.name === 'Daniel');
-        if (preferredVoice) utterance.voice = preferredVoice;
-        window.speechSynthesis.speak(utterance);
+        speakEnglishWord(text);
     };
 
     const handleRegenerate = async (e) => {

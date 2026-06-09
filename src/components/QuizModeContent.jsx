@@ -76,11 +76,12 @@ export default function QuizModeContent({
         aiMode={aiMode}
         aiConfig={aiConfig}
         soundEnabled={soundEnabled}
+        direction="en-ko"
       />
     );
   }
 
-  if (modeId === 'mixed' && adaptiveMode === 'short') {
+  if (modeId === 'mixed' && (adaptiveMode === 'short' || adaptiveMode === 'short-en-ko' || adaptiveMode === 'short-ko-en')) {
     return (
       <ShortAnswerQuiz
         word={adaptiveTask.word}
@@ -90,6 +91,7 @@ export default function QuizModeContent({
         aiMode={aiMode}
         aiConfig={aiConfig}
         soundEnabled={soundEnabled}
+        direction={adaptiveMode === 'short-ko-en' ? 'ko-en' : 'en-ko'}
       />
     );
   }

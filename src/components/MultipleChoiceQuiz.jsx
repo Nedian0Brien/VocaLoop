@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from
 import { Volume2, Check, X, Sparkles, AlertCircle, FileText, Brain, ArrowRightLeft, Quote, ChevronRight } from './Icons';
 import { generateMultipleChoiceOptions } from '../services/quizService';
 import { playSound } from '../utils/soundEffects';
+import { speakEnglishWord } from '../utils/speechSynthesis';
 import { Badge } from '../design-system';
 
 const QuizSkeleton = () => (
@@ -61,11 +62,7 @@ export default function MultipleChoiceQuiz({ word, allWords, onAnswer, progress,
 
   const speakWord = useCallback(() => {
     if (!word?.word || !soundEnabled) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(word.word);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.8;
-    window.speechSynthesis.speak(utterance);
+    speakEnglishWord(word.word);
   }, [word?.word, soundEnabled]);
 
   useEffect(() => {
