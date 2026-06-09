@@ -7,6 +7,11 @@ const ENGLISH_VOICE_NAMES = [
   'Alex',
 ];
 
+const VOICES_READY_TIMEOUT_MS = 500;
+let speechRequestId = 0;
+
+const getSpeechSynthesis = () => window.speechSynthesis;
+
 export const getPreferredEnglishVoice = (voices = []) => {
   const englishVoices = voices.filter((voice) => voice?.lang?.toLowerCase().startsWith('en'));
   return (
@@ -33,20 +38,54 @@ export const createEnglishWordUtterance = (text, voices = window.speechSynthesis
   return utterance;
 };
 
-export const preloadSpeechSynthesisVoices = () => {
-  if (!window.speechSynthesis) return undefined;
+const waitForEnglishVoices = (speechSynthesis) => new Promise((resolve) => {
+  const voices = speechSynthesis.getVoices?.() || [];
+  if (getPreferredEnglishVoice(voices)) {
+    resolve(voices);
+    return;
+  }
 
-  window.speechSynthesis.getVoices();
-  const handleVoicesChanged = () => window.speechSynthesis.getVoices();
-  window.speechSynthesis.addEventListener?.('voiceschanged', handleVoicesChanged);
+  let timeoutId;
+  const cleanup = () => {
+    window.clearTimeout(timeoutId);
+    speechSynthesis.removeEventListener?.('voiceschanged', handleVoicesChanged);
+  };
+  const finish = (nextVoices) => {
+    cleanup();
+    resolve(nextVoices);
+  };
+  const handleVoicesChanged = () => {
+    const nextVoices = speechSynthesis.getVoices?.() || [];
+    if (getPreferredEnglishVoice(nextVoices)) {
+      finish(nextVoices);
+    }
+  };
+
+  speechSynthesis.addEventListener?.('voiceschanged', handleVoicesChanged);
+  timeoutId = window.setTimeout(() => finish(speechSynthesis.getVoices?.() || []), VOICES_READY_TIMEOUT_MS);
+});
+
+export const preloadSpeechSynthesisVoices = () => {
+  const speechSynthesis = getSpeechSynthesis();
+  if (!speechSynthesis) return undefined;
+
+  speechSynthesis.getVoices();
+  const handleVoicesChanged = () => speechSynthesis.getVoices();
+  speechSynthesis.addEventListener?.('voiceschanged', handleVoicesChanged);
 
   return () => {
-    window.speechSynthesis.removeEventListener?.('voiceschanged', handleVoicesChanged);
+    speechSynthesis.removeEventListener?.('voiceschanged', handleVoicesChanged);
   };
 };
 
-export const speakEnglishWord = (text) => {
-  if (!window.speechSynthesis || !text) return;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(createEnglishWordUtterance(text));
+export const speakEnglishWord = async (text) => {
+  const speechSynthesis = getSpeechSynthesis();
+  if (!speechSynthesis || !text) return;
+
+  const requestId = ++speechRequestId;
+  speechSynthesis.cancel();
+  const voices = await waitForEnglishVoices(speechSynthesis);
+  if (requestId !== speechRequestId) return;
+
+  speechSynthesis.speak(createEnglishWordUtterance(text, voices));
 };
