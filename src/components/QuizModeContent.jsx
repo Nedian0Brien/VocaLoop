@@ -2,6 +2,7 @@ import React from 'react';
 import MultipleChoiceQuiz from './MultipleChoiceQuiz';
 import ShortAnswerQuiz from './ShortAnswerQuiz';
 import CompleteWordQuiz from './CompleteWordQuiz';
+import FlashcardQuiz from './FlashcardQuiz';
 import ToeflCompleteTheWordQuiz from './ToeflCompleteTheWordQuiz';
 import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
 import ToeflReadingTaskQuiz from './ToeflReadingTaskQuiz';
@@ -62,6 +63,18 @@ export default function QuizModeContent({
         stats={stats}
         aiMode={aiMode}
         aiConfig={aiConfig}
+        soundEnabled={soundEnabled}
+      />
+    );
+  }
+
+  if (modeId === 'mixed' && adaptiveMode === 'flashcard') {
+    return (
+      <FlashcardQuiz
+        word={adaptiveTask.word}
+        onAnswer={onAnswer}
+        progress={adaptiveProgress}
+        stats={stats}
         soundEnabled={soundEnabled}
       />
     );

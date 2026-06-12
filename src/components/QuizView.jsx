@@ -9,6 +9,7 @@ import { calculateCorrectRate, calculateWrongRate, sortByLearningRate } from '..
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
 import { wordBelongsToFolder } from '../utils/appDataTransforms';
+import { normalizeToeflDifficulty } from '../services/toefl/difficulty';
 import { Badge, Button, Card } from '../design-system';
 import {
   createAdaptiveSession,
@@ -91,10 +92,44 @@ const StatusChip = ({ active, label, dot, icon: Icon }) => (
   </div>
 );
 
-const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
+const getWordSummaryKey = (word) => String(word?.id ?? word?.word ?? '');
+
+const formatRateDelta = (delta) => `${delta >= 0 ? '+' : ''}${delta}%p`;
+
+const replaceWordInAdaptiveSession = (session, updatedWord) => {
+  const wordKey = getWordSummaryKey(updatedWord);
+  if (!session || !wordKey) return session;
+  const replaceWord = (word) => (
+    getWordSummaryKey(word) === wordKey ? { ...word, ...updatedWord } : word
+  );
+
+  return {
+    ...session,
+    currentSetWords: session.currentSetWords?.map(replaceWord) || [],
+    studySets: session.studySets?.map((setWords) => setWords.map(replaceWord)) || [],
+    queue: session.queue?.map((task) => ({
+      ...task,
+      word: replaceWord(task.word),
+    })) || [],
+  };
+};
+
+const StudySetBreak = ({ session, setSummary, stats, onContinue, onFinish }) => {
   const setNumber = (session?.currentSetIndex || 0) + 1;
   const totalSets = session?.totalSets || 1;
   const setWordCount = session?.currentSetWords?.length || 0;
+  const summaryWords = Object.values(setSummary?.words || {});
+  const fallbackWords = (session?.currentSetWords || []).map((word) => ({
+    id: word?.id,
+    word: word?.word,
+    meaningKo: word?.meaning_ko || word?.meaningKo || '',
+    startRate: word?.learningRate || 0,
+    latestRate: word?.learningRate || 0,
+  }));
+  const displayedWords = summaryWords.length > 0 ? summaryWords : fallbackWords;
+  const totalRateDelta = displayedWords.reduce((sum, word) => (
+    sum + Math.round((word.latestRate || 0) - (word.startRate || 0))
+  ), 0);
 
   return (
     <Card variant="elevated" radius="hero" padding="xl" className="max-w-2xl mx-auto text-center shadow-[var(--shadow-elevated)]">
@@ -123,6 +158,39 @@ const StudySetBreak = ({ session, stats, onContinue, onFinish }) => {
         <div className="rounded-xl bg-danger-50 border border-danger-100 p-4">
           <p className="text-2xs font-black text-danger-400 uppercase tracking-widest mb-1">Wrong</p>
           <p className="text-xl font-black text-danger-600">{stats.wrong}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-surface-100 bg-surface-50 p-4 text-left mb-8">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">진행한 단어</p>
+            <p className="text-sm font-bold text-surface-600">{displayedWords.length}개 단어</p>
+          </div>
+          <div className="rounded-lg bg-white border border-surface-100 px-3 py-2 text-sm font-black text-success-700">
+            학습률 증가 {formatRateDelta(totalRateDelta)}
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-2">
+          {displayedWords.map((word) => {
+            const delta = Math.round((word.latestRate || 0) - (word.startRate || 0));
+            return (
+              <div
+                key={getWordSummaryKey(word)}
+                className="flex items-center justify-between gap-3 rounded-lg bg-white border border-surface-100 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-surface-900">{word.word}</p>
+                  {word.meaningKo && (
+                    <p className="truncate text-xs font-bold text-surface-500">{word.meaningKo}</p>
+                  )}
+                </div>
+                <span className={`shrink-0 text-xs font-black ${delta >= 0 ? 'text-success-700' : 'text-danger-600'}`}>
+                  {formatRateDelta(delta)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -170,11 +238,12 @@ export default function QuizView({
   const [queue, setQueue] = useState(restoredSession?.queue ?? []);
   const [currentIndex, setCurrentIndex] = useState(restoredSession?.currentIndex ?? 0);
   const [adaptiveSession, setAdaptiveSession] = useState(restoredSession?.adaptiveSession ?? null);
+  const [studySetSummaries, setStudySetSummaries] = useState(restoredSession?.studySetSummaries ?? {});
   const [stats, setStats] = useState(restoredSession?.stats ?? { correct: 0, wrong: 0, total: 0 });
 
   const [toeflConfig, setToeflConfig] = useState({
     questionCount: 5,
-    targetScore: 100,
+    targetScore: 'intermediate',
     vocabSource: { mode: 'off', folderIds: [], sampleSize: 0, pool: [] },
     topicSelection: { enabled: false, allTopics: [], selectedIds: [], pickCount: 0 },
   });
@@ -271,6 +340,7 @@ export default function QuizView({
     setQueue([]);
     setCurrentIndex(0);
     setAdaptiveSession(null);
+    setStudySetSummaries({});
     setStats({ correct: 0, wrong: 0, total: 0 });
     wordQuizTracker.current = {};
   }, []);
@@ -279,6 +349,7 @@ export default function QuizView({
     const {
       questionCount,
       selectedFolderIds,
+      wordScope,
       aiMode: sessionAiMode,
       targetScore,
       soundEnabled: sessionSoundEnabled,
@@ -298,7 +369,7 @@ export default function QuizView({
       setReviewAsset(null);
       setToeflConfig({
         questionCount,
-        targetScore,
+        targetScore: normalizeToeflDifficulty(targetScore),
         vocabSource: vocabSource || { mode: 'off', folderIds: [], sampleSize: 0, pool: [] },
         topicSelection: topicSelection || { enabled: false, allTopics: [], selectedIds: [], pickCount: 0 },
       });
@@ -307,9 +378,12 @@ export default function QuizView({
       return;
     }
 
-    const targetWords = selectedFolderIds.length > 0
-      ? words.filter(w => selectedFolderIds.some((folderId) => wordBelongsToFolder(w, folderId)))
-      : words;
+    const targetWords =
+      wordScope === 'flagged'
+        ? words.filter((word) => word?.isFlagged || word?.is_flagged)
+        : selectedFolderIds.length > 0
+          ? words.filter(w => selectedFolderIds.some((folderId) => wordBelongsToFolder(w, folderId)))
+          : words;
 
     if (targetWords.length === 0) {
       alert('선택한 범위에 단어가 없습니다. 범위를 다시 설정해주세요.');
@@ -330,6 +404,7 @@ export default function QuizView({
       setAdaptiveSession(null);
     }
     setCurrentIndex(0);
+    setStudySetSummaries({});
     setStats({ correct: 0, wrong: 0, total: 0 });
     setQuizState('quiz');
     setShowConfigModal(false);
@@ -361,7 +436,7 @@ export default function QuizView({
     setToeflConfig((current) => ({
       ...current,
       questionCount: targetAsset.metadata?.questionCount || current.questionCount,
-      targetScore: targetAsset.metadata?.targetScore || current.targetScore,
+      targetScore: normalizeToeflDifficulty(targetAsset.metadata?.targetScore || current.targetScore),
     }));
     setShowConfigModal(false);
     setQuizState('quiz');
@@ -403,6 +478,7 @@ export default function QuizView({
           queue,
           currentIndex,
           adaptiveSession,
+          studySetSummaries,
           stats,
           wordQuizTracker: wordQuizTracker.current,
           soundEnabled,
@@ -412,7 +488,7 @@ export default function QuizView({
     } catch (error) {
       console.warn('Failed to persist quiz session', error);
     }
-  }, [quizState, selectedMode, queue, currentIndex, adaptiveSession, stats, soundEnabled, aiMode]);
+  }, [quizState, selectedMode, queue, currentIndex, adaptiveSession, studySetSummaries, stats, soundEnabled, aiMode]);
 
   const handleAnswer = (isCorrect) => {
     const isAdaptive = selectedMode?.id === 'mixed';
@@ -432,37 +508,90 @@ export default function QuizView({
     };
     setStats(newStats);
 
-    if (wordId && onUpdateLearningRate) {
+    let workingAdaptiveSession = adaptiveSession;
+    let workingQueue = queue;
+    let workingCurrentWord = currentWord;
+
+    const recordStudySetProgress = (setIndex, word, newRate) => {
+      const key = getWordSummaryKey(word);
+      if (!key) return;
+      setStudySetSummaries((current) => {
+        const setKey = String(setIndex);
+        const currentSet = current[setKey] || { words: {} };
+        const currentWordSummary = currentSet.words?.[key];
+        const startRate = currentWordSummary?.startRate ?? (word?.learningRate || 0);
+        return {
+          ...current,
+          [setKey]: {
+            ...currentSet,
+            words: {
+              ...(currentSet.words || {}),
+              [key]: {
+                id: word?.id,
+                word: word?.word || key,
+                meaningKo: word?.meaning_ko || word?.meaningKo || '',
+                startRate,
+                latestRate: newRate,
+              },
+            },
+          },
+        };
+      });
+    };
+
+    if (wordId !== undefined && wordId !== null && onUpdateLearningRate) {
       const tracker = wordQuizTracker.current[wordId] || { wrongCount: 0, lastPenalty: 0, wasReasked: false };
       const currentRate = currentWord.learningRate || 0;
+      let newRate = currentRate;
+      let updatedStats = currentWord.stats || {};
 
       if (isCorrect) {
-        const newRate = calculateCorrectRate({
+        newRate = calculateCorrectRate({
           currentRate,
           quizType: activeQuizType,
           isReasked: tracker.wasReasked,
           isAiSimilar: aiMode && tracker.wasReasked,
           lastPenalty: tracker.lastPenalty,
         });
-        onUpdateLearningRate(wordId, newRate, {
+        updatedStats = {
+          ...(currentWord.stats || {}),
           review_count: (currentWord.stats?.review_count || 0) + 1,
-        });
+        };
+        onUpdateLearningRate(wordId, newRate, updatedStats);
       } else {
-        const { newRate, penalty } = calculateWrongRate({ currentRate, wrongCount: tracker.wrongCount });
+        const wrongResult = calculateWrongRate({ currentRate, wrongCount: tracker.wrongCount });
+        newRate = wrongResult.newRate;
         tracker.wrongCount += 1;
-        tracker.lastPenalty = penalty;
+        tracker.lastPenalty = wrongResult.penalty;
         tracker.wasReasked = true;
         wordQuizTracker.current[wordId] = tracker;
 
-        onUpdateLearningRate(wordId, newRate, {
+        updatedStats = {
+          ...(currentWord.stats || {}),
           wrong_count: (currentWord.stats?.wrong_count || 0) + 1,
           review_count: (currentWord.stats?.review_count || 0) + 1,
-        });
+        };
+        onUpdateLearningRate(wordId, newRate, updatedStats);
+      }
+
+      workingCurrentWord = {
+        ...currentWord,
+        learningRate: newRate,
+        stats: updatedStats,
+      };
+
+      if (isAdaptive) {
+        recordStudySetProgress(adaptiveSession?.currentSetIndex || 0, currentWord, newRate);
+        workingAdaptiveSession = replaceWordInAdaptiveSession(adaptiveSession, workingCurrentWord);
+      } else {
+        workingQueue = queue.map((word) => (
+          getWordSummaryKey(word) === getWordSummaryKey(workingCurrentWord) ? workingCurrentWord : word
+        ));
       }
     }
 
     if (isAdaptive) {
-      const nextSession = resolveAdaptiveAnswer(adaptiveSession, isCorrect);
+      const nextSession = resolveAdaptiveAnswer(workingAdaptiveSession, isCorrect);
       setAdaptiveSession(nextSession);
       if (nextSession.isComplete) {
         setQuizState('result');
@@ -473,15 +602,16 @@ export default function QuizView({
 
     if (isCorrect) {
       if (currentIndex < queue.length - 1) {
+        setQueue(workingQueue);
         setCurrentIndex(currentIndex + 1);
       } else {
         setQuizState('result');
         if (soundEnabled) playSound('COMPLETE');
       }
     } else {
-      const newQueue = [...queue];
+      const newQueue = [...workingQueue];
       newQueue.splice(currentIndex, 1);
-      newQueue.push(currentWord);
+      newQueue.push(workingCurrentWord);
       setQueue(newQueue);
       if (currentIndex >= newQueue.length) setCurrentIndex(0);
     }
@@ -526,6 +656,9 @@ export default function QuizView({
   const adaptiveMode = adaptiveTask ? adaptiveSession?.modes?.[adaptiveTask.stageIndex] : null;
   const adaptiveProgress = adaptiveSession ? getAdaptiveProgress(adaptiveSession) : null;
   const isStudySetBreak = selectedMode?.id === 'mixed' && adaptiveSession?.isSetComplete;
+  const setProgressLabel = selectedMode?.id === 'mixed' && adaptiveSession
+    ? `전체 세트 ${(adaptiveSession.currentSetIndex || 0) + 1}/${adaptiveSession.totalSets || 1}`
+    : null;
   const quizContentKey = selectedMode?.id === 'mixed' && adaptiveTask
     ? [
       'mixed',
@@ -574,6 +707,11 @@ export default function QuizView({
             </Button>
 
             <div className="flex items-center gap-4">
+              {setProgressLabel && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-xl border border-surface-100 text-2xs font-black text-surface-500 uppercase tracking-widest">
+                  {setProgressLabel}
+                </div>
+              )}
               <StatusChip active={soundEnabled} label="Sound" icon={Volume2} />
               <StatusChip active={aiMode} label="AI" />
             </div>
@@ -583,6 +721,7 @@ export default function QuizView({
           {isStudySetBreak ? (
             <StudySetBreak
               session={adaptiveSession}
+              setSummary={studySetSummaries[String(adaptiveSession?.currentSetIndex || 0)]}
               stats={stats}
               onContinue={handleNextStudySet}
               onFinish={handleFinishAtStudyBreak}

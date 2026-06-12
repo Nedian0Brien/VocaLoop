@@ -61,6 +61,7 @@ export const normalizeWord = (word) => {
         ...word,
         folderId,
         folderIds: normalizeFolderIds(word),
+        isFlagged: word.isFlagged ?? word.is_flagged ?? false,
         learningRate: word.learningRate ?? word.learning_rate ?? 0,
         pronunciationAudioUrl: word.pronunciationAudioUrl ?? word.pronunciation_audio_url ?? null,
         createdAt: word.createdAt ?? word.created_at ?? null,

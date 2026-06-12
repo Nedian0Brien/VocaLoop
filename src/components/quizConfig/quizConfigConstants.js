@@ -17,5 +17,5 @@ export const VOCAB_SAMPLE_MIN = 5;
 export const VOCAB_SAMPLE_MAX = 25;
 export const VOCAB_SAMPLE_DEFAULT = 12;
 export const DEFAULT_STUDY_SET_SIZE = 5;
-export const DEFAULT_MIXED_MODES = ['multiple', 'short-en-ko', 'short-ko-en', 'complete-word'];
+export const DEFAULT_MIXED_MODES = ['flashcard', 'multiple', 'short-en-ko', 'short-ko-en', 'complete-word'];
 export const MIXED_MODE_IDS = DEFAULT_MIXED_MODES;

@@ -4,6 +4,7 @@ import { evaluateWritingResponse, generateWritingTask } from '../services/toeflS
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 
 const TASK_COPY = {
   email: {
@@ -65,6 +66,7 @@ export default function ToeflWritingTaskQuiz({
   onAttemptRecorded,
 }) {
   const copy = TASK_COPY[taskType] || TASK_COPY.email;
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
   const TaskIcon = copy.icon;
   const [task, setTask] = useState(null);
   const [response, setResponse] = useState('');
@@ -232,7 +234,7 @@ export default function ToeflWritingTaskQuiz({
         </div>
         <div className="flex flex-wrap items-center gap-2 max-w-full">
           <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
-            TOEFL {targetScore}+
+            {difficultyLabel}
           </span>
           <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-surface-50 text-surface-600 font-black text-2xs uppercase tracking-widest">
             {task?.timeLimitMinutes || (isEmail ? 7 : 10)} min

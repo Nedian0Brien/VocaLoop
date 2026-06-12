@@ -111,6 +111,36 @@ describe('ShortAnswerQuiz', () => {
     expect(parentKeyDown).not.toHaveBeenCalled();
   });
 
+  test('keeps Korean answer Space key handling inside the input', () => {
+    const parentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={parentKeyDown}>
+        <ShortAnswerQuiz {...baseProps} />
+      </div>
+    );
+
+    const input = screen.getByLabelText('한국어 뜻 입력');
+    fireEvent.keyDown(input, { key: ' ', code: 'Space' });
+
+    expect(parentKeyDown).not.toHaveBeenCalled();
+    expect(screen.queryByText('Great Job! 🎉')).toBeNull();
+  });
+
+  test('does not submit while Korean IME composition is active', () => {
+    const onAnswer = vi.fn();
+    render(<ShortAnswerQuiz {...baseProps} onAnswer={onAnswer} />);
+
+    const input = screen.getByLabelText('한국어 뜻 입력');
+    fireEvent.change(input, {
+      target: { value: '헛' },
+    });
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.queryByText('Great Job! 🎉')).toBeNull();
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+
   test('supports Korean-to-English short answer direction', () => {
     const onAnswer = vi.fn();
     render(<ShortAnswerQuiz {...baseProps} direction="ko-en" onAnswer={onAnswer} />);

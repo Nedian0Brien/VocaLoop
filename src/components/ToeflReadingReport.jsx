@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AlertTriangle, BarChart3, Brain, CheckCircle, Target, XCircle } from './Icons';
 import { Badge, Button } from '../design-system';
 import { buildToeflReadingReport } from '../utils/toeflReadingReport';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 
 const MetricTile = ({ icon: Icon, label, value, caption, tone = 'brand' }) => {
   const toneClasses = {
@@ -91,6 +92,7 @@ export default function ToeflReadingReport({
   }), [items, results, correctCount, totalCount, targetScore, topicTags, score]);
 
   const primaryScoreValue = scoreLabel ? (score.value ?? score.band ?? '-') : `${report.metrics.accuracy}%`;
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
 
   return (
     <div className="bg-white rounded-xl border border-surface-200 shadow-[var(--shadow-soft)] p-5 md:p-8 space-y-6">
@@ -112,7 +114,7 @@ export default function ToeflReadingReport({
           <MetricTile icon={Target} label="정답률" value={`${report.metrics.accuracy}%`} caption={`${report.metrics.correctCount}/${report.metrics.totalCount} 정답`} tone="brand" />
           <MetricTile icon={CheckCircle} label="맞힌 문항" value={report.metrics.correctCount} caption="누적 통계 반영" tone="success" />
           <MetricTile icon={XCircle} label="틀린 문항" value={report.metrics.wrongCount} caption="오답 리뷰 대상" tone={report.metrics.wrongCount > 0 ? 'danger' : 'surface'} />
-          <MetricTile icon={Target} label={scoreLabel || '목표 점수'} value={scoreLabel ? primaryScoreValue : `TOEFL ${targetScore}+`} caption={scoreLabel ? scoreFootnote : '사용자 설정 목표'} tone="surface" />
+          <MetricTile icon={Target} label={scoreLabel || '난이도'} value={scoreLabel ? primaryScoreValue : difficultyLabel} caption={scoreLabel ? scoreFootnote : '사용자 설정 난이도'} tone="surface" />
         </div>
       </section>
 

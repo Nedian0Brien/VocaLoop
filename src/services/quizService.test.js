@@ -73,6 +73,17 @@ describe('gradeShortAnswer', () => {
       matchedAnswers: ['곳곳에 있는'],
     });
   });
+
+  test('requires exact English answers in Korean-to-English mode', () => {
+    expect(gradeShortAnswer('candid', 'candid', { mode: 'short-ko-en' })).toMatchObject({
+      isCorrect: true,
+      matchedAnswer: 'candid',
+    });
+
+    expect(gradeShortAnswer('candit', 'candid', { mode: 'short-ko-en' })).toMatchObject({
+      isCorrect: false,
+    });
+  });
 });
 
 describe('gradeWithAI', () => {

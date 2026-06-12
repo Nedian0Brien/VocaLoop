@@ -122,6 +122,7 @@ function App() {
         handleExplainVocabularyWord,
         handleAcceptQuizAnswer,
         handleMoveWord,
+        handleToggleWordFlag,
         handleRegenerateWord,
         handleSaveVocabularyWord,
         handleUpdateLearningRate,
@@ -391,6 +392,7 @@ function App() {
                         onReorderFolders={handleReorderFolders}
                         onDeleteWord={handleDeleteWord}
                         onMoveWord={handleMoveWord}
+                        onToggleWordFlag={handleToggleWordFlag}
                         onRegenerateWord={handleRegenerateWord}
                     />
                 )}

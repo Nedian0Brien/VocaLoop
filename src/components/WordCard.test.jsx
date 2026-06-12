@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('./LearningRateDonut', () => ({
@@ -56,5 +56,27 @@ describe('WordCard visual layers', () => {
         layers.forEach((layer) => {
             expect(layer.dataset.radiusContract).toBe('shell');
         });
+    });
+
+    test('toggles the word flag without flipping the card', () => {
+        const onToggleFlag = vi.fn();
+        render(
+            <WordCard
+                item={{ ...baseWord, isFlagged: false }}
+                handleDeleteWord={vi.fn()}
+                folders={[]}
+                onMoveWord={vi.fn()}
+                onRegenerateWord={vi.fn()}
+                onToggleFlag={onToggleFlag}
+            />
+        );
+
+        const flipShell = screen.getByTestId('word-card-shell').parentElement;
+        expect(flipShell.className).not.toContain('flipped');
+
+        fireEvent.click(screen.getByRole('button', { name: '단어 플래그 추가' }));
+
+        expect(onToggleFlag).toHaveBeenCalledWith(1, true);
+        expect(flipShell.className).not.toContain('flipped');
     });
 });

@@ -40,6 +40,7 @@ export default function VocabularyDashboard({
     onReorderFolders,
     onDeleteWord,
     onMoveWord,
+    onToggleWordFlag,
     onRegenerateWord,
 }) {
     const [isBulkWordModalOpen, setIsBulkWordModalOpen] = useState(false);
@@ -104,6 +105,7 @@ export default function VocabularyDashboard({
                     handleDeleteWord={onDeleteWord}
                     folders={folders}
                     onMoveWord={onMoveWord}
+                    onToggleFlag={onToggleWordFlag}
                     onRegenerateWord={onRegenerateWord}
                 />
             </div>

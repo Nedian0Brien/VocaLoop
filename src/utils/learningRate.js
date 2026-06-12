@@ -47,6 +47,7 @@ export const LEARNING_STATUS_CONFIG = {
 
 // --- 퀴즈 유형별 기본 보상/감소량 ---
 const QUIZ_TYPE_WEIGHT = {
+  flashcard: 0.5,     // 플래시카드: 가벼운 확인
   multiple: 1.0,      // 객관식: 기본
   short: 1.4,         // 주관식: 40% 더 높은 보상
   'short-en-ko': 1.4, // 주관식 영→한

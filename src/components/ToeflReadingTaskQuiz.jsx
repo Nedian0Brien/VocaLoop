@@ -12,6 +12,7 @@ import {
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
 import { buildToeflReadingReport } from '../utils/toeflReadingReport';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 
 const TASK_LABELS = {
   'daily-life': {
@@ -64,6 +65,7 @@ export default function ToeflReadingTaskQuiz({
   onAttemptRecorded,
 }) {
   const taskCopy = TASK_LABELS[taskType] || TASK_LABELS['daily-life'];
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
   const effectiveQuestionCount = resolveQuestionCount(taskType, questionCount);
   const [setData, setSetData] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -295,7 +297,7 @@ export default function ToeflReadingTaskQuiz({
         </div>
         <div className="flex flex-wrap items-center gap-2 max-w-full">
           <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
-            TOEFL {targetScore}+
+            {difficultyLabel}
           </span>
           {sessionContext.vocabSampleCount > 0 && (
             <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">

@@ -1,4 +1,4 @@
-export const ADAPTIVE_MODE_ORDER = ['multiple', 'short-en-ko', 'short-ko-en', 'complete-word'];
+export const ADAPTIVE_MODE_ORDER = ['flashcard', 'multiple', 'short-en-ko', 'short-ko-en', 'complete-word'];
 const DEFAULT_SET_SIZE = 5;
 
 const getWordKey = (word) => String(word?.id ?? word?.word ?? '');

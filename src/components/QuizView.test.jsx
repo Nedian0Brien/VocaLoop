@@ -102,6 +102,21 @@ vi.mock('./CompleteWordQuiz', () => ({
     },
 }));
 
+vi.mock('./FlashcardQuiz', () => ({
+    default: ({ word, onAnswer }) => (
+        <div>
+            flashcard-quiz
+            <span data-testid="current-flashcard-word">{word?.word}</span>
+            <button type="button" onClick={() => onAnswer(true)}>
+                answer-correct
+            </button>
+            <button type="button" onClick={() => onAnswer(false)}>
+                answer-wrong
+            </button>
+        </div>
+    ),
+}));
+
 vi.mock('./QuizResult', () => ({
     default: () => <div>quiz-result</div>,
 }));
@@ -263,11 +278,12 @@ describe('QuizView', () => {
         );
 
         fireEvent.click(screen.getByText('객관식 퀴즈'));
-        fireEvent.mouseUp(screen.getByRole('button', { name: /TOEFL Core/ }));
+        fireEvent.click(screen.getByRole('button', { name: /TOEFL Core/ }));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
         expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
         expect(screen.getByTestId('current-quiz-word').textContent).toBe('needs-practice');
+        expect(screen.queryByText('전체 세트 1/1')).toBeNull();
     });
 
     test('starts mixed folder quizzes with the lowest learning-rate word in that folder', () => {
@@ -318,11 +334,11 @@ describe('QuizView', () => {
         );
 
         fireEvent.click(screen.getByText('AI 복합 퀴즈'));
-        fireEvent.mouseUp(screen.getByRole('button', { name: /TOEFL Core/ }));
+        fireEvent.click(screen.getByRole('button', { name: /TOEFL Core/ }));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
-        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
-        expect(screen.getByTestId('current-quiz-word').textContent).toBe('needs-practice');
+        expect(screen.getByText('flashcard-quiz')).toBeTruthy();
+        expect(screen.getByTestId('current-flashcard-word').textContent).toBe('needs-practice');
     });
 
     test('advances mixed quiz through selected difficulty stages', () => {
@@ -353,6 +369,9 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByText('AI 복합 퀴즈'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
+        expect(screen.getByText('flashcard-quiz')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
@@ -393,12 +412,12 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByText('AI 복합 퀴즈'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
-        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.getByText('flashcard-quiz')).toBeTruthy();
         expect(screen.queryByText('multiple-choice-answered')).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: 'answer-wrong' }));
 
-        expect(screen.getByText('multiple-choice-quiz')).toBeTruthy();
+        expect(screen.getByText('flashcard-quiz')).toBeTruthy();
         expect(screen.queryByText('multiple-choice-answered')).toBeNull();
     });
 
@@ -430,15 +449,21 @@ describe('QuizView', () => {
         fireEvent.click(screen.getByText('AI 복합 퀴즈'));
         fireEvent.click(screen.getByRole('button', { name: '퀴즈 시작하기' }));
 
-        for (let i = 0; i < 20; i += 1) {
+        expect(screen.getByText('전체 세트 1/2')).toBeTruthy();
+
+        for (let i = 0; i < 25; i += 1) {
             fireEvent.click(screen.getByRole('button', { name: 'answer-correct' }));
         }
 
         expect(screen.getByRole('heading', { name: '학습 세트 1 완료' })).toBeTruthy();
+        expect(screen.getByText('진행한 단어')).toBeTruthy();
+        expect(screen.getByText('word-1')).toBeTruthy();
+        expect(screen.getByText(/학습률 증가/)).toBeTruthy();
         expect(screen.getByRole('button', { name: '다음 학습으로' })).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: '다음 학습으로' }));
         expect(screen.queryByRole('heading', { name: '학습 세트 1 완료' })).toBeNull();
+        expect(screen.getByText('전체 세트 2/2')).toBeTruthy();
         expect(screen.getByText(/-quiz$/)).toBeTruthy();
     });
 

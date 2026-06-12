@@ -15,6 +15,7 @@ import {
   VOCAB_SAMPLE_MIN,
 } from './quizConfigConstants';
 import { wordBelongsToFolder } from '../../utils/appDataTransforms';
+import { normalizeToeflDifficulty } from '../../services/toefl/difficulty';
 
 const readJsonArray = (key, fallback = []) => {
   try {
@@ -54,8 +55,9 @@ export function useQuizConfigState({
   onStart,
 }) {
   const [selectedFolderIds, setSelectedFolderIds] = useState([]);
+  const [wordScope, setWordScope] = useState('all');
   const [questionCount, setQuestionCount] = useState(10);
-  const [targetScore, setTargetScore] = useState(100);
+  const [targetScore, setTargetScore] = useState('intermediate');
   const [aiMode, setAiMode] = useState(initialAiMode);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [mixedModeIds, setMixedModeIds] = useState(DEFAULT_MIXED_MODES);
@@ -90,7 +92,7 @@ export function useQuizConfigState({
 
     if (savedQCount) setQuestionCount(Number(savedQCount));
     if (savedAiMode !== null) setAiMode(savedAiMode === 'true');
-    if (savedTarget) setTargetScore(Number(savedTarget));
+    if (savedTarget) setTargetScore(normalizeToeflDifficulty(savedTarget));
     if (savedSound !== null) setSoundEnabled(savedSound === 'true');
 
     setStudySetSize(clampNumber(savedStudySetSizeRaw, 1, Number.MAX_SAFE_INTEGER, DEFAULT_STUDY_SET_SIZE));
@@ -99,6 +101,7 @@ export function useQuizConfigState({
     setMixedModeIds(normalizedModes.length > 0 ? normalizedModes : DEFAULT_MIXED_MODES);
 
     setSelectedFolderIds([]);
+    setWordScope('all');
     setVocabMode(savedVocabMode === 'all' || savedVocabMode === 'folders' ? savedVocabMode : 'off');
     setVocabFolderIds(readJsonArray(STORAGE_KEYS.VOCAB_FOLDERS).map(Number).filter((n) => !Number.isNaN(n)));
     setVocabSampleSize(clampNumber(savedVocabSample, VOCAB_SAMPLE_MIN, VOCAB_SAMPLE_MAX, VOCAB_SAMPLE_DEFAULT));
@@ -112,9 +115,12 @@ export function useQuizConfigState({
     setEditingTopic(null);
   }, [isOpen]);
 
-  const filteredWords = selectedFolderIds.length > 0
-    ? words.filter((word) => selectedFolderIds.some((folderId) => wordBelongsToFolder(word, folderId)))
-    : words;
+  const filteredWords =
+    wordScope === 'flagged'
+      ? words.filter((word) => word?.isFlagged || word?.is_flagged)
+      : selectedFolderIds.length > 0
+        ? words.filter((word) => selectedFolderIds.some((folderId) => wordBelongsToFolder(word, folderId)))
+        : words;
 
   const maxQuestions = isToefl ? 10 : Math.max(1, filteredWords.length);
   const maxStudySetSize = Math.max(1, filteredWords.length);
@@ -216,6 +222,7 @@ export function useQuizConfigState({
     onStart({
       questionCount,
       selectedFolderIds,
+      wordScope,
       aiMode,
       targetScore,
       soundEnabled,
@@ -236,6 +243,7 @@ export function useQuizConfigState({
   };
 
   const toggleFolder = (folderId) => {
+    setWordScope('folders');
     setSelectedFolderIds((prev) =>
       prev.includes(folderId) ? prev.filter((id) => id !== folderId) : [...prev, folderId]
     );
@@ -286,6 +294,7 @@ export function useQuizConfigState({
     setNewTopicLabel,
     setQuestionCount,
     setSelectedFolderIds,
+    setWordScope,
     setSelectedTopicIds,
     setSoundEnabled,
     setStudySetSize,
@@ -313,5 +322,6 @@ export function useQuizConfigState({
     vocabMode,
     vocabPoolWarning,
     vocabSampleSize,
+    wordScope,
   };
 }

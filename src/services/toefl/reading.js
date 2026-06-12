@@ -4,6 +4,7 @@ import {
   formatVocabularyWordsBlock,
   requestAiJson,
 } from './promptUtils';
+import { formatToeflDifficultyLabel, getToeflDifficultyPrompt } from './difficulty';
 
 const READING_TASK_SPECS = {
   'daily-life': {
@@ -88,7 +89,8 @@ export const generateCompleteTheWordSet = async ({
   const nonce = buildRandomNonce();
 
   const prompt = `
-You are creating a TOEFL academic reading practice set for a learner targeting ${targetScore}+.
+You are creating a TOEFL academic reading practice set.
+${getToeflDifficultyPrompt(targetScore)}
 Create ${questionCount} questions. Each question must include:
 1) An academic paragraph (120-160 words) with ${blanksPerQuestion} COMPLETE WORDS replaced with placeholders.
 2) The paragraph should use TOEFL-like academic tone and topics.
@@ -148,7 +150,7 @@ export const generateCompleteTheWordSummary = async ({
   results,
 }) => {
   const prompt = `
-You are an English tutor. Provide a concise TOEFL study report in Korean for a learner targeting ${targetScore}+.
+You are an English tutor. Provide a concise TOEFL study report in Korean for a ${formatToeflDifficultyLabel(targetScore)} learner.
 Results summary: ${results}
 
 Return JSON only:
@@ -180,7 +182,7 @@ export const generateReadingTaskSet = async ({
 
   const prompt = `
 You are creating practice for the 2026 TOEFL iBT Reading task "${spec.label}".
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 
 Create one ${spec.stimulus} (${spec.length}) and ${generatedQuestionCount} multiple-choice questions.
 Question types to cover: ${spec.questionTypes}.
@@ -242,7 +244,7 @@ export const generateReadingMockModule = async ({
 You are creating a reduced 2026 TOEFL iBT Reading mock-test module.
 Stage: ${stage}
 Adaptive difficulty: ${difficulty}
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 
 Create ${questionCount} multiple-choice items across these task types:
 ${MOCK_TASK_MIX.map((task) => `- ${task.label}: ${task.instruction}`).join('\n')}

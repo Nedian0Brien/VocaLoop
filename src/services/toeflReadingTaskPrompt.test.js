@@ -55,4 +55,20 @@ describe('generateReadingTaskSet prompt contract', () => {
     expect(prompt).toContain('Do not use Daily Life-only skill tags such as scanning or practical-interpretation');
     expect(prompt).toContain('Every incorrect option must be plausible but contradicted, unsupported, too broad, too narrow, or based on a minor detail');
   });
+
+  test('describes the selected three-step difficulty instead of a TOEFL score target', async () => {
+    const { generateReadingTaskSet } = await import('./toeflService');
+
+    await generateReadingTaskSet({
+      aiConfig: { provider: 'gemini', apiKey: 'test-key' },
+      taskType: 'daily-life',
+      questionCount: 3,
+      targetScore: 'beginner',
+    });
+
+    const [prompt] = promptUtils.requestAiJson.mock.calls[0];
+    expect(prompt).toContain('Difficulty level: beginner');
+    expect(prompt).toContain('clear, short contexts');
+    expect(prompt).not.toContain('TOEFL beginner+');
+  });
 });

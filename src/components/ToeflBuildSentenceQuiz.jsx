@@ -8,6 +8,7 @@ import {
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 import {
   buildSentenceAttempt,
   canSubmitBuildSentence,
@@ -67,6 +68,7 @@ export default function ToeflBuildSentenceQuiz({
   onAssetCreated,
   onAttemptRecorded,
 }) {
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [bank, setBank] = useState([]);          // 사용 가능한 단어 인덱스
@@ -423,7 +425,7 @@ export default function ToeflBuildSentenceQuiz({
           <div>
             <h2 className="text-2xl font-black text-surface-900 tracking-tight">학습 완료 리포트</h2>
             <p className="text-sm font-bold text-surface-500">
-              정답 {correctCount} / {totalQuestions} · 목표 TOEFL {targetScore}+
+              정답 {correctCount} / {totalQuestions} · 난이도 {difficultyLabel}
             </p>
           </div>
           <Button variant="secondary" size="md" onClick={onExit}>모드 선택으로</Button>
@@ -473,7 +475,7 @@ export default function ToeflBuildSentenceQuiz({
         </div>
         <div className="flex flex-wrap items-center gap-2 max-w-full">
           <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
-            TOEFL {targetScore}+
+            {difficultyLabel}
           </span>
           {sessionContext.vocabSampleCount > 0 && (
             <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">

@@ -31,6 +31,7 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
     create_response = client.post("/api/words", json=create_payload)
     assert create_response.status_code == 201
     assert create_response.json()["word"] == "ubiquitous"
+    assert create_response.json()["is_flagged"] is False
     assert create_response.json()["definitions"] == ["present everywhere"]
     assert create_response.json()["definitions_ko"] == ["어디에나 존재하는"]
     assert create_response.json()["examples"] == [
@@ -45,12 +46,14 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
         json={
             "meaning_ko": "널리 퍼진",
             "definitions_ko": ["어디에나 존재하는", "흔한"],
+            "is_flagged": True,
             "stats": {"wrong_count": 2, "review_count": 5},
         },
     )
     assert patch_response.status_code == 200
     assert patch_response.json()["meaning_ko"] == "널리 퍼진"
     assert patch_response.json()["definitions_ko"] == ["어디에나 존재하는", "흔한"]
+    assert patch_response.json()["is_flagged"] is True
     assert patch_response.json()["stats"] == {"wrong_count": 2, "review_count": 5}
 
     accepted_response = client.patch(
@@ -79,6 +82,7 @@ def test_words_api_lists_creates_updates_and_deletes_words(client):
     list_after_acceptance = client.get("/api/words")
     saved_word = next(word for word in list_after_acceptance.json() if word["id"] == word_id)
     assert saved_word["accepted_answers"][0]["answer"] == "곳곳에 있는"
+    assert saved_word["is_flagged"] is True
 
     delete_response = client.delete(f"/api/words/{word_id}")
     assert delete_response.status_code == 204

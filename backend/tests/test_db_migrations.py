@@ -212,3 +212,70 @@ def test_bootstrap_db_adds_missing_word_accepted_answers_column(monkeypatch, tmp
 
     assert "accepted_answers" in columns
     assert accepted_answers == "[]"
+
+
+def test_bootstrap_db_adds_missing_word_flag_column(monkeypatch, tmp_path):
+    db_path = tmp_path / "legacy-word-flags.db"
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            display_name VARCHAR(255),
+            password_hash VARCHAR(255) NOT NULL,
+            session_version INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            photo_url VARCHAR(512)
+        );
+        CREATE TABLE words (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            folder_id INTEGER,
+            word VARCHAR(255) NOT NULL,
+            meaning_ko TEXT,
+            pronunciation VARCHAR(255),
+            pronunciation_audio_url VARCHAR(512),
+            pos VARCHAR(100),
+            definitions JSON NOT NULL DEFAULT '[]',
+            definitions_ko JSON NOT NULL DEFAULT '[]',
+            examples JSON NOT NULL DEFAULT '[]',
+            synonyms JSON NOT NULL DEFAULT '[]',
+            nuance TEXT,
+            accepted_answers JSON NOT NULL DEFAULT '[]',
+            learning_rate INTEGER NOT NULL DEFAULT 0,
+            status VARCHAR(50) NOT NULL DEFAULT 'new',
+            stats JSON NOT NULL DEFAULT '{}',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users (id, email, display_name, password_hash)
+        VALUES (1, 'legacy-flag@example.com', 'Legacy Flag User', 'hash');
+        INSERT INTO words (user_id, word, meaning_ko)
+        VALUES (1, 'candid', '솔직한');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("AUTH_SECRET_KEY", "test-auth-secret")
+    monkeypatch.setenv("UPLOADS_ROOT", str(tmp_path / "uploads"))
+
+    for module_name in [name for name in sys.modules if name == "app" or name.startswith("app.")]:
+        sys.modules.pop(module_name)
+
+    importlib.invalidate_caches()
+
+    from app.db import bootstrap_db
+
+    bootstrap_db()
+
+    conn = sqlite3.connect(db_path)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(words)").fetchall()}
+    is_flagged = conn.execute("SELECT is_flagged FROM words WHERE word = 'candid'").fetchone()[0]
+    conn.close()
+
+    assert "is_flagged" in columns
+    assert is_flagged == 0

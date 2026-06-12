@@ -5,6 +5,7 @@ import {
   formatVocabularyWordsBlock,
   requestAiJson,
 } from './promptUtils';
+import { formatToeflDifficultyLabel, getToeflDifficultyPrompt } from './difficulty';
 
 const WRITING_TASK_SPECS = {
   email: {
@@ -54,7 +55,8 @@ export const generateBuildSentenceSet = async ({
   const nonce = buildRandomNonce();
 
   const prompt = `
-You are creating an ETS-style Build a Sentence practice set for a learner targeting TOEFL ${targetScore}+.
+You are creating an ETS-style Build a Sentence practice set.
+${getToeflDifficultyPrompt(targetScore)}
 Generate exactly ${questionCount} sentence-reconstruction questions.
 
 For each question:
@@ -126,7 +128,7 @@ export const generateBuildSentenceSummary = async ({
   results,
 }) => {
   const prompt = `
-You are a TOEFL English tutor. Provide a concise study report in Korean for a Build-a-Sentence session aiming TOEFL ${targetScore}+.
+You are a TOEFL English tutor. Provide a concise study report in Korean for a ${formatToeflDifficultyLabel(targetScore)} Build-a-Sentence session.
 Results summary: ${results}
 
 Return JSON only:
@@ -156,7 +158,7 @@ export const generateWritingTask = async ({
 
   const prompt = `
 You are creating a 2026 TOEFL iBT Writing practice task: "${spec.label}".
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 
 Task purpose: ${spec.purpose}.
 Expected response: ${spec.responseTarget}.
@@ -210,7 +212,7 @@ export const evaluateWritingResponse = async ({
   const prompt = `
 You are a TOEFL Writing rater and Korean tutor.
 Task type: ${spec.label}
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 Task JSON:
 ${JSON.stringify(task)}
 
@@ -251,7 +253,7 @@ export const generateWritingMockSection = async ({
 
   const prompt = `
 You are creating a reduced 2026 TOEFL iBT Writing mock test.
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 
 Create:
 1) ${sentenceCount} Build a Sentence items.
@@ -325,7 +327,7 @@ export const evaluateWritingMockSection = async ({
 }) => {
   const prompt = `
 You are a TOEFL Writing rater and Korean tutor.
-Learner target: TOEFL ${targetScore}+.
+${getToeflDifficultyPrompt(targetScore)}
 Build a Sentence result: ${sentenceCorrect}/${sentenceTotal} correct.
 
 Email task:

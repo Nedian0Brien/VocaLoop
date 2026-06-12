@@ -180,6 +180,30 @@ function compareShortAnswer(userAnswer, correctAnswer) {
   };
 }
 
+function compareExactAnswer(userAnswer, answersToCheck = []) {
+  const userForms = getAnswerComparisonForms(userAnswer);
+  const match = answersToCheck.find((answer) => {
+    const answerForms = getAnswerComparisonForms(answer);
+    return userForms.some((userForm) => answerForms.includes(userForm));
+  });
+
+  return match
+    ? {
+      similarity: 1.0,
+      isCorrect: true,
+      matchedAnswer: String(match).trim(),
+      matchedAnswers: [String(match).trim()],
+      unmatchedAnswers: [],
+    }
+    : {
+      similarity: 0,
+      isCorrect: false,
+      matchedAnswer: '',
+      matchedAnswers: [],
+      unmatchedAnswers: [String(userAnswer || '').trim()].filter(Boolean),
+    };
+}
+
 /**
  * 주관식 답안 채점 (Levenshtein Distance)
  * @param {String} userAnswer - 사용자 답안
@@ -192,6 +216,10 @@ export function gradeShortAnswer(userAnswer, correctAnswer, options = {}) {
     ...getAcceptedAnswerCandidates(options.acceptedAnswers, options.mode),
   ];
   const answersToCheck = candidates.length > 0 ? candidates : [correctAnswer];
+  if (options.mode === 'short-ko-en') {
+    return compareExactAnswer(userAnswer, answersToCheck);
+  }
+
   const fullAnswerResult = compareShortAnswer(userAnswer, correctAnswer);
   if (fullAnswerResult.isCorrect) {
     return {

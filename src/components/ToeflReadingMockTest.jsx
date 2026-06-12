@@ -15,6 +15,7 @@ import {
   VocabularyCaptureText,
 } from './ToeflVocabularyCapture';
 import { buildToeflReadingReport } from '../utils/toeflReadingReport';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 
 const TASK_LABELS = {
   'complete-words': 'Complete the Words',
@@ -73,6 +74,7 @@ export default function ToeflReadingMockTest({
   onAssetCreated,
   onAttemptRecorded,
 }) {
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
   const stageOneCount = Math.max(2, Math.ceil((questionCount || 6) / 2));
   const stageTwoCount = Math.max(1, (questionCount || 6) - stageOneCount);
   const [status, setStatus] = useState('loading');
@@ -305,7 +307,7 @@ export default function ToeflReadingMockTest({
         </div>
         <div className="inline-flex items-center gap-2 rounded-pill bg-brand-50 px-3 py-1 text-2xs font-black uppercase tracking-widest text-brand-700">
           <Target className="w-4 h-4" aria-hidden="true" />
-          TOEFL {targetScore}+
+          {difficultyLabel}
         </div>
       </div>
 

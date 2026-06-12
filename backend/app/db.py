@@ -58,6 +58,10 @@ def bootstrap_db() -> None:
                 connection.exec_driver_sql(
                     "ALTER TABLE words ADD COLUMN pronunciation_audio_url VARCHAR(512)"
                 )
+            if "is_flagged" not in existing_word_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE words ADD COLUMN is_flagged BOOLEAN NOT NULL DEFAULT 0"
+                )
 
             existing_settings_columns = {
                 row[1]

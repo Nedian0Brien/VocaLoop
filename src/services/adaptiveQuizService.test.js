@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  ADAPTIVE_MODE_ORDER,
   buildAdaptiveQueue,
   createAdaptiveSession,
   getAdaptiveProgress,
@@ -13,6 +14,16 @@ const words = [
 ];
 
 describe('adaptiveQuizService', () => {
+  test('includes flashcard as the first default mixed quiz stage', () => {
+    expect(ADAPTIVE_MODE_ORDER).toEqual(['flashcard', 'multiple', 'short-en-ko', 'short-ko-en', 'complete-word']);
+
+    const session = createAdaptiveSession(words.slice(0, 1));
+
+    expect(session.modes).toEqual(ADAPTIVE_MODE_ORDER);
+    expect(session.queue[0]).toMatchObject({ mode: 'flashcard', stageIndex: 0 });
+    expect(session.totalStages).toBe(5);
+  });
+
   test('builds one first-stage task for each selected word', () => {
     const queue = buildAdaptiveQueue(words, ['multiple', 'short']);
 

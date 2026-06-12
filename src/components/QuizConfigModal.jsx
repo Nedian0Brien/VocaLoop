@@ -9,7 +9,14 @@ import {
 import { SectionHead, ToggleCard, TopicChip } from './quizConfig/QuizConfigControls';
 import { useQuizConfigState } from './quizConfig/useQuizConfigState';
 import { wordBelongsToFolder } from '../utils/appDataTransforms';
+import { TOEFL_DIFFICULTY_LEVELS } from '../services/toefl/difficulty';
 const MIXED_MODE_OPTIONS = [
+  {
+    id: 'flashcard',
+    title: '플래시카드',
+    desc: '단어와 뜻을 먼저 확인',
+    icon: BookOpen,
+  },
   {
     id: 'multiple',
     title: '객관식',
@@ -76,6 +83,7 @@ export default function QuizConfigModal({
     setSoundEnabled,
     setStudySetSize,
     setTargetScore,
+    setWordScope,
     setTopicEnabled,
     setTopicError,
     setTopicPickCount,
@@ -99,6 +107,7 @@ export default function QuizConfigModal({
     vocabMode,
     vocabPoolWarning,
     vocabSampleSize,
+    wordScope,
   } = useQuizConfigState({
     isOpen,
     mode,
@@ -112,6 +121,11 @@ export default function QuizConfigModal({
   const headerGradient = mode.color === 'blue'
     ? 'bg-gradient-to-br from-brand-600 to-indigo-pair-700'
     : 'bg-gradient-to-br from-accent-600 to-indigo-pair-700';
+  const flaggedWordCount = words.filter((word) => word?.isFlagged || word?.is_flagged).length;
+  const wordCountByFolder = folders.reduce((acc, f) => {
+    acc[f.id] = words.filter(w => wordBelongsToFolder(w, f.id)).length;
+    return acc;
+  }, {});
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-hidden p-2 sm:items-center sm:p-6" role="dialog" aria-modal="true">
@@ -159,38 +173,102 @@ export default function QuizConfigModal({
                 <SectionHead
                   icon={Layers}
                   title="출제 범위 설정"
-                  subtitle="학습할 폴더를 가로로 스크롤하며 선택하세요"
+                  subtitle="전체, 플래그, 폴더 중 학습할 단어 묶음을 고르세요"
                 />
                 <div data-testid="quiz-config-scope-actions" className="flex self-start items-center gap-2 rounded-pill bg-surface-50 p-1 sm:gap-4 sm:bg-transparent sm:p-0">
                   <button
-                    onClick={() => setSelectedFolderIds([])}
+                    onClick={() => {
+                      setWordScope('all');
+                      setSelectedFolderIds([]);
+                    }}
                     className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-surface-400 transition-colors hover:text-brand-600 sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
                   >
-                    Clear All
+                    전체
                   </button>
                   <button
-                    onClick={() => setSelectedFolderIds(folders.map(f => f.id))}
+                    onClick={() => {
+                      setWordScope('folders');
+                      setSelectedFolderIds(folders.map(f => f.id));
+                    }}
                     className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-brand-600 hover:underline sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
                   >
-                    Select All
+                    폴더 전체
                   </button>
                 </div>
               </div>
 
               <div className="rounded-card border border-surface-100 bg-surface-50/50 p-4 sm:p-6">
-                <CompactFolderPicker
-                  folders={folders}
-                  words={words}
-                  selectedFolderId={null}
-                  selectedFolderIds={selectedFolderIds}
-                  onSelectFolder={toggleFolder}
-                  wordCountByFolder={folders.reduce((acc, f) => {
-                    acc[f.id] = words.filter(w => wordBelongsToFolder(w, f.id)).length;
-                    return acc;
-                  }, {})}
-                  totalWordCount={words.length}
-                  isMultiSelect={true}
-                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWordScope('all');
+                      setSelectedFolderIds([]);
+                    }}
+                    aria-pressed={wordScope === 'all' && selectedFolderIds.length === 0}
+                    className={[
+                      'flex min-h-[72px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+                      wordScope === 'all' && selectedFolderIds.length === 0
+                        ? 'border-brand-300 bg-brand-50 text-brand-800 shadow-sm'
+                        : 'border-surface-100 bg-white text-surface-700 hover:border-brand-200',
+                    ].join(' ')}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black">전체 단어</span>
+                      <span className="block text-xs font-bold text-surface-400">{words.length}개</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWordScope('flagged');
+                      setSelectedFolderIds([]);
+                    }}
+                    aria-pressed={wordScope === 'flagged'}
+                    className={[
+                      'flex min-h-[72px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+                      wordScope === 'flagged'
+                        ? 'border-warning-300 bg-warning-50 text-warning-900 shadow-sm'
+                        : 'border-surface-100 bg-white text-surface-700 hover:border-warning-200',
+                    ].join(' ')}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black">플래그한 단어만</span>
+                      <span className="block text-xs font-bold text-surface-400">{flaggedWordCount}개</span>
+                    </span>
+                  </button>
+                </div>
+
+                {folders.length > 0 && (
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {folders.map((folder) => {
+                      const selected = wordScope === 'folders' && selectedFolderIds.includes(folder.id);
+                      return (
+                        <button
+                          key={folder.id}
+                          type="button"
+                          onClick={() => toggleFolder(folder.id)}
+                          aria-pressed={selected}
+                          className={[
+                            'flex min-h-[64px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+                            selected
+                              ? 'border-brand-300 bg-white text-brand-800 shadow-sm ring-2 ring-brand-100'
+                              : 'border-surface-100 bg-white text-surface-700 hover:border-brand-200',
+                          ].join(' ')}
+                        >
+                          <span className="min-w-0 whitespace-normal break-words text-sm font-black leading-snug">
+                            {folder.name}
+                          </span>
+                          <span className={`shrink-0 rounded-pill px-2 py-1 text-2xs font-black ${
+                            selected ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-400'
+                          }`}>
+                            {wordCountByFolder[folder.id] || 0}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="flex w-full items-center gap-3 rounded-xl border border-brand-100/50 bg-brand-50/50 px-4 py-3 sm:w-fit sm:px-5">
@@ -350,40 +428,37 @@ export default function QuizConfigModal({
               />
             </section>
 
-            {/* Target score (TOEFL) */}
+            {/* Difficulty (TOEFL) */}
             {isToefl && (
               <section className="space-y-6">
                 <SectionHead
                   icon={Target}
-                  title="목표 점수"
-                  subtitle="학습의 난이도를 결정합니다"
+                  title="난이도"
+                  subtitle="문제의 지문 길이와 추론 밀도를 고릅니다"
                   tone="accent"
                 />
 
-                <div className="space-y-6 px-1 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="relative">
-                      <span className="text-5xl font-black text-accent-600 tracking-tighter">{targetScore}</span>
-                      <Badge tone="accent" size="xs" className="absolute -top-4 -right-14">Score</Badge>
-                    </div>
-                  </div>
-
-                  <div className="relative py-2">
-                    <input
-                      type="range"
-                      min={60}
-                      max={120}
-                      step={5}
-                      value={targetScore}
-                      onChange={(e) => setTargetScore(Number(e.target.value))}
-                      aria-label="목표 점수"
-                      className="w-full h-3 bg-surface-100 rounded-pill appearance-none cursor-pointer accent-accent-600"
-                    />
-                    <div className="flex justify-between mt-4 text-2xs font-black text-surface-300 uppercase tracking-widest">
-                      <span>Min 60</span>
-                      <span>Max 120</span>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {TOEFL_DIFFICULTY_LEVELS.map((level) => {
+                    const selected = targetScore === level.id;
+                    return (
+                      <button
+                        key={level.id}
+                        type="button"
+                        onClick={() => setTargetScore(level.id)}
+                        aria-pressed={selected}
+                        className={[
+                          'min-h-[104px] rounded-card border p-4 text-left transition-all',
+                          selected
+                            ? 'border-accent-300 bg-accent-50 text-accent-900 shadow-sm ring-2 ring-accent-100'
+                            : 'border-surface-100 bg-white text-surface-700 hover:border-accent-200',
+                        ].join(' ')}
+                      >
+                        <span className="block text-sm font-black">{level.label}</span>
+                        <span className="mt-2 block text-xs font-bold leading-relaxed text-surface-500">{level.caption}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             )}

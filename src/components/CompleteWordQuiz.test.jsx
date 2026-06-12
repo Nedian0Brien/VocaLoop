@@ -75,4 +75,18 @@ describe('CompleteWordQuiz', () => {
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(onAnswer).toHaveBeenCalledWith(true);
   });
+
+  test('shows Korean meaning and example translation after checking the answer', () => {
+    render(<CompleteWordQuiz {...baseProps} />);
+
+    ['m', 'i', 't', 'i', 'g', 'a', 't', 'e'].forEach((letter, index) => {
+      fireEvent.change(screen.getByLabelText(`빈칸 1의 ${index + 1}번째 철자`), {
+        target: { value: letter },
+      });
+    });
+    fireEvent.click(screen.getByRole('button', { name: '정답 확인' }));
+
+    expect(screen.getByText('완화하다')).toBeTruthy();
+    expect(screen.getByText('신중한 계획은 위험을 완화할 수 있다.')).toBeTruthy();
+  });
 });

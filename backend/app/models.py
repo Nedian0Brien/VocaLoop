@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Table, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Table, Text, UniqueConstraint, func
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -107,6 +107,7 @@ class Word(Base):
     synonyms: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
     nuance: Mapped[str | None] = mapped_column(Text, nullable=True)
     accepted_answers: Mapped[list[dict[str, str]]] = mapped_column(MutableList.as_mutable(JSON), nullable=False, default=list)
+    is_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     learning_rate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="new")
     stats: Mapped[dict[str, int]] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)

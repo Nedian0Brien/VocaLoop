@@ -8,6 +8,7 @@ import {
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 import {
   buildSentenceAttempt,
   getBuildSentenceRequiredTokenCount,
@@ -85,6 +86,7 @@ export default function ToeflWritingMockTest({
   onAssetCreated,
   onAttemptRecorded,
 }) {
+  const difficultyLabel = formatToeflDifficultyLabel(targetScore);
   const [section, setSection] = useState(null);
   const [step, setStep] = useState(0);
   const [banks, setBanks] = useState([]);
@@ -366,7 +368,7 @@ export default function ToeflWritingMockTest({
         </div>
         <div className="flex flex-wrap items-center gap-2 max-w-full">
           <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">
-            TOEFL {targetScore}+
+            {difficultyLabel}
           </span>
           {sessionContext.vocabSampleCount > 0 && (
             <span className="inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1 rounded-pill bg-brand-50 text-brand-700 font-black text-2xs uppercase tracking-widest">

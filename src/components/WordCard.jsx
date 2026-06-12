@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw, Loader2 } from './Icons';
+import { Volume2, Trash2, FileText, Brain, ArrowRightLeft, Quote, Folder, MoreVertical, RotateCw, Loader2, Star } from './Icons';
 import LearningRateDonut, { LearningStatusBadge } from './LearningRateDonut';
 import { preloadSpeechSynthesisVoices, speakEnglishWord } from '../utils/speechSynthesis';
 
@@ -17,7 +17,7 @@ const FOLDER_COLOR_MAP = {
     teal:   { bg: 'bg-teal-100',   text: 'text-teal-600',   dot: 'bg-teal-500' },
 };
 
-const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenerateWord }) => {
+const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenerateWord, onToggleFlag }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
     const cardRef = useRef(null);
@@ -91,6 +91,11 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
         }
     };
 
+    const handleFlagClick = (e) => {
+        e.stopPropagation();
+        onToggleFlag?.(item.id, !item.isFlagged);
+    };
+
     const frontClass = isFlipped ? 'absolute inset-0' : 'relative';
     const backClass = isFlipped ? 'relative' : 'absolute inset-0';
 
@@ -141,6 +146,18 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                 {currentFolder.name}
                             </span>
                         )}
+                        <button
+                            type="button"
+                            onClick={handleFlagClick}
+                            aria-label={item.isFlagged ? '단어 플래그 해제' : '단어 플래그 추가'}
+                            className={`absolute top-3 right-3 z-30 flex h-8 w-8 items-center justify-center rounded-md border transition-all ${
+                                item.isFlagged
+                                    ? 'border-warning-300 bg-warning-50 text-warning-500 shadow-sm'
+                                    : 'border-surface-200 bg-white/80 text-surface-300 hover:border-warning-200 hover:text-warning-500'
+                            }`}
+                        >
+                            <Star className="w-4 h-4" fill={item.isFlagged ? 'currentColor' : 'none'} aria-hidden="true" />
+                        </button>
                         <span className="text-xs font-black text-brand-600 uppercase tracking-wider mb-2">{item.pos}</span>
                         <h3 className="text-3xl font-bold text-surface-900 font-serif mb-2">{item.word}</h3>
                         <button
@@ -209,6 +226,9 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                         <Volume2 className="w-4 h-4" aria-hidden="true" />
                                     </button>
                                     <LearningStatusBadge rate={item.learningRate || 0} />
+                                    {item.isFlagged && (
+                                        <Star className="w-3.5 h-3.5 text-warning-500" fill="currentColor" aria-label="플래그한 단어" />
+                                    )}
                                 </div>
                                 <h4 className="text-lg font-bold text-brand-700 leading-tight">{item.meaning_ko}</h4>
                             </div>

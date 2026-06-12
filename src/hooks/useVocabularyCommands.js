@@ -403,6 +403,16 @@ export function useVocabularyCommands({
     }
   };
 
+  const handleToggleWordFlag = async (wordId, nextFlagged) => {
+    if (!user) return;
+    try {
+      const updatedWord = await updateWord(wordId, { is_flagged: Boolean(nextFlagged) });
+      upsertWordInState(updatedWord);
+    } catch (error) {
+      showNotification('단어 플래그 변경 실패: ' + error.message, 'error');
+    }
+  };
+
   const handleRegenerateWord = async (wordId) => {
     if (!user) return;
     if (activeAiProviderNeedsKey) {
@@ -509,6 +519,7 @@ export function useVocabularyCommands({
     handleDeleteWord,
     handleExplainVocabularyWord,
     handleMoveWord,
+    handleToggleWordFlag,
     handleRegenerateWord,
     handleAcceptQuizAnswer,
     handleSaveVocabularyWord,

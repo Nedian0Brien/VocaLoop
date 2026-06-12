@@ -287,6 +287,26 @@ export default function CompleteWordQuiz({
             </div>
           </div>
 
+          {isAnswered && (
+            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-surface-100 bg-surface-50/70 p-5">
+                <p className="mb-2 text-2xs font-black uppercase tracking-widest text-surface-400">Meaning</p>
+                <p className="text-lg font-black text-surface-900">{word?.meaning_ko || '-'}</p>
+                {word?.definitions_ko?.[0] && (
+                  <p className="mt-2 text-xs font-bold leading-relaxed text-surface-500">{word.definitions_ko[0]}</p>
+                )}
+              </div>
+
+              {word?.examples?.[0] && (
+                <div className="rounded-xl border border-indigo-pair-500/10 bg-white p-5 shadow-sm">
+                  <p className="mb-2 text-2xs font-black uppercase tracking-widest text-surface-400">Example</p>
+                  <p className="text-sm font-black leading-snug text-surface-900">"{word.examples[0].en}"</p>
+                  <p className="mt-1 text-xs font-bold text-surface-500">{word.examples[0].ko}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {isAnswered ? (
             <Button variant={isCorrect ? 'primary' : 'dark'} size="lg" fullWidth onClick={next} rightIcon={isCorrect ? Check : X}>
               다음 문제

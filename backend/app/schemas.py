@@ -332,6 +332,7 @@ class WordCreate(BaseModel):
     synonyms: list[str] = Field(default_factory=list)
     nuance: str | None = None
     accepted_answers: list[AcceptedAnswer] = Field(default_factory=list)
+    is_flagged: bool = False
     folder_id: int | None = None
     folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int = 0
@@ -381,6 +382,7 @@ class WordUpdate(BaseModel):
     synonyms: list[str] | None = None
     nuance: str | None = None
     accepted_answers: list[AcceptedAnswer] | None = None
+    is_flagged: bool | None = None
     folder_id: int | None = None
     folder_ids: list[int] | None = None
     learning_rate: int | None = None
@@ -441,6 +443,7 @@ class WordRead(BaseModel):
     synonyms: list[str]
     nuance: str | None = None
     accepted_answers: list[AcceptedAnswer] = Field(default_factory=list)
+    is_flagged: bool = False
     folder_id: int | None = None
     folder_ids: list[int] = Field(default_factory=list)
     learning_rate: int

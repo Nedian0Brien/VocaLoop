@@ -25,6 +25,7 @@ export default function ShortAnswerQuiz({
   const [aiReviewError, setAiReviewError] = useState('');
   const [showHint, setShowHint] = useState(false);
   const scrollPositionRef = useRef(0);
+  const isComposingRef = useRef(false);
   const isKoreanToEnglish = direction === 'ko-en';
   const correctAnswer = isKoreanToEnglish ? word?.word : word?.meaning_ko;
   const promptValue = isKoreanToEnglish ? word?.meaning_ko : word?.word;
@@ -148,7 +149,15 @@ export default function ShortAnswerQuiz({
   };
 
   const handleKeyPress = (e) => {
+    if (e.key === ' ') {
+      e.stopPropagation();
+      return;
+    }
     if (e.key === 'Enter' && !isAnswered) {
+      if (isComposingRef.current || e.isComposing || e.nativeEvent?.isComposing) {
+        e.stopPropagation();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       handleSubmit();
@@ -291,6 +300,12 @@ export default function ShortAnswerQuiz({
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onCompositionStart={() => {
+                  isComposingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  isComposingRef.current = false;
+                }}
                 disabled={isAnswered || loading}
                 placeholder={showHint ? getHint() : isKoreanToEnglish ? '영어 단어 입력...' : '뜻을 입력하세요...'}
                 aria-label={inputLabel}
