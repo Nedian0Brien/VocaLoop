@@ -8,8 +8,6 @@ export const listToeflReviewItems = (params = {}) => {
     return apiRequest(`/api/toefl/review-items${suffix}`);
 };
 
-export const getToeflReviewItem = (itemId) => apiRequest(`/api/toefl/review-items/${itemId}`);
-
 export const updateToeflReviewItem = (itemId, payload) =>
     apiRequest(`/api/toefl/review-items/${itemId}`, {
         method: 'PATCH',

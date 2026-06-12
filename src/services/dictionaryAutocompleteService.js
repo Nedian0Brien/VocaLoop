@@ -40,7 +40,7 @@ const loadDictionary = async () => {
     return dictionaryPromise;
 };
 
-export const findDictionaryAutocompleteSuggestions = (entries, query, limit = DEFAULT_DICTIONARY_SUGGESTION_LIMIT) => {
+const findDictionaryAutocompleteSuggestions = (entries, query, limit = DEFAULT_DICTIONARY_SUGGESTION_LIMIT) => {
     const normalizedQuery = normalizeQuery(query);
     if (normalizedQuery.length < MIN_DICTIONARY_QUERY_LENGTH) return [];
 

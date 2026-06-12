@@ -23,7 +23,7 @@ export const buildGenerationContext = (vocabSource, topicSelection) => {
   };
 };
 
-export const getReviewContext = (reviewAsset) => ({
+const getReviewContext = (reviewAsset) => ({
   pickedTopics: reviewAsset?.metadata?.pickedTopics || [],
   vocabSampleCount: reviewAsset?.metadata?.vocabSampleCount || 0,
 });

@@ -27,7 +27,7 @@ const providerDisplay = {
   claude: { label: 'Claude', caption: 'Anthropic' },
 };
 
-export const ActionCard = ({ tone = 'neutral', icon: Icon, title, desc, children }) => {
+const ActionCard = ({ tone = 'neutral', icon: Icon, title, desc, children }) => {
   const tones = {
     neutral: { card: 'border-surface-200 hover:border-surface-300', iconWrap: 'bg-surface-100 text-surface-600', title: 'text-surface-900', desc: 'text-surface-600' },
     brand: { card: 'border-surface-200 hover:border-brand-300', iconWrap: 'bg-brand-100 text-brand-600', title: 'text-surface-900', desc: 'text-surface-600' },

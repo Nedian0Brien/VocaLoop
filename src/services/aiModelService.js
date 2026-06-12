@@ -1,7 +1,7 @@
 import aiProviderContract from '../../shared/aiProviders.json';
 import { apiRequest } from './apiClient';
 
-export const AI_PROVIDER_CONTRACT = aiProviderContract;
+const AI_PROVIDER_CONTRACT = aiProviderContract;
 
 export const AI_PROVIDERS = Object.fromEntries(
   Object.entries(AI_PROVIDER_CONTRACT.providers).map(([providerId, provider]) => [

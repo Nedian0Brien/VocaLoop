@@ -10,22 +10,40 @@ class Base(DeclarativeBase):
 
 
 settings = load_settings()
-
-engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
-)
+database_url = settings.database_url
 
 
-@event.listens_for(engine, "connect")
-def _set_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
-    if settings.database_url.startswith("sqlite"):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def _is_sqlite(url: str) -> bool:
+    return url.startswith("sqlite")
 
 
+def _create_engine(url: str):
+    next_engine = create_engine(
+        url,
+        connect_args={"check_same_thread": False} if _is_sqlite(url) else {},
+    )
+
+    @event.listens_for(next_engine, "connect")
+    def _set_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+        if _is_sqlite(url):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return next_engine
+
+
+engine = _create_engine(database_url)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+
+
+def configure_database(url: str) -> None:
+    global database_url, engine
+
+    engine.dispose()
+    database_url = url
+    engine = _create_engine(database_url)
+    SessionLocal.configure(bind=engine)
 
 
 def bootstrap_db() -> None:
@@ -33,7 +51,7 @@ def bootstrap_db() -> None:
     from .seed import seed_database
 
     Base.metadata.create_all(bind=engine)
-    if settings.database_url.startswith("sqlite"):
+    if _is_sqlite(database_url):
         with engine.begin() as connection:
             existing_columns = {
                 row[1]

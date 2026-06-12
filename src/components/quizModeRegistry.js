@@ -90,8 +90,8 @@ export const TOEFL_WRITING_MODES = [
   },
 ];
 
-export const TOEFL_MODES = [...TOEFL_READING_MODES, ...TOEFL_WRITING_MODES];
-export const QUIZ_MODES = [...VOCABULARY_MODES, ...TOEFL_MODES];
+const TOEFL_MODES = [...TOEFL_READING_MODES, ...TOEFL_WRITING_MODES];
+const QUIZ_MODES = [...VOCABULARY_MODES, ...TOEFL_MODES];
 
 export const QUIZ_MODE_BY_ID = Object.fromEntries(QUIZ_MODES.map((mode) => [mode.id, mode]));
 export const TOEFL_MODE_TITLES = Object.fromEntries(TOEFL_MODES.map((mode) => [mode.id, mode.title]));

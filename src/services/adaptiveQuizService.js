@@ -7,7 +7,7 @@ const expandAdaptiveMode = (mode) => (
   mode === 'short' ? ['short-en-ko', 'short-ko-en'] : [mode]
 );
 
-export function normalizeAdaptiveModes(modes = ADAPTIVE_MODE_ORDER) {
+function normalizeAdaptiveModes(modes = ADAPTIVE_MODE_ORDER) {
   const selected = Array.isArray(modes) && modes.length > 0 ? modes : ADAPTIVE_MODE_ORDER;
   const valid = [];
   selected.flatMap(expandAdaptiveMode).forEach((mode) => {

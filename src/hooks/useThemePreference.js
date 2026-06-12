@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const THEME_MODE_STORAGE_KEY = 'vocaloop.themeMode';
-export const THEME_MODES = ['system', 'light', 'dark'];
+const THEME_MODES = ['system', 'light', 'dark'];
 
 const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
 

@@ -30,3 +30,17 @@ def client(monkeypatch):
 
         with TestClient(app) as test_client:
             yield test_client
+
+
+@pytest.fixture()
+def authenticated_client(client):
+    response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "user@example.com",
+            "password": "Password123!",
+            "display_name": "Test User",
+        },
+    )
+    assert response.status_code == 201
+    return client
