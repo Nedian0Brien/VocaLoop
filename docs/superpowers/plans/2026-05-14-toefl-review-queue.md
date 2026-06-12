@@ -87,4 +87,4 @@
 - [ ] Commit changes.
 - [ ] Push `main`.
 - [ ] Watch GitHub Actions deploy.
-- [ ] Verify `https://voca-loop.lawdigest.cloud/` and `/api/health`.
+- [ ] Verify `https://vocaloop.lawdigest.kr/` and `/api/health`.
