@@ -5,7 +5,7 @@ import QuizConfigModal from './QuizConfigModal';
 import QuizResult from './QuizResult';
 import QuizModeContent from './QuizModeContent';
 import { TOEFL_MODE_TITLES, QUIZ_MODE_BY_ID } from './quizModeRegistry';
-import { calculateCorrectRate, calculateWrongRate, sortByLearningRate } from '../utils/learningRate';
+import { sortByLearningRate } from '../utils/learningRate';
 import { playSound } from '../utils/soundEffects';
 import { recordMasterySnapshot, getMasteryTrend } from '../utils/masteryHistory';
 import { wordBelongsToFolder } from '../utils/appDataTransforms';
@@ -18,58 +18,16 @@ import {
   resolveAdaptiveAnswer,
 } from '../services/adaptiveQuizService';
 import { createToeflAsset, createToeflAttempt, getToeflAsset } from '../services/toeflAssetApi';
-
-const QUIZ_HISTORY_STORAGE_KEY = 'vocaloop_quiz_history';
-const QUIZ_SESSION_STORAGE_KEY = 'vocaloop_quiz_session';
-
-// 새로고침 후 복원 가능한 단어 기반 모드. TOEFL 모드는 자식 컴포넌트가 문제를
-// 내부에서(AI로) 생성/보관하므로 여기서 복원하지 않는다.
-const RESTORABLE_MODE_IDS = new Set(['multiple', 'short', 'mixed']);
-
-/**
- * localStorage에 저장된 진행 중 퀴즈 세션을 읽어 복원 가능한 경우에만 반환한다.
- */
-const loadPersistedQuizSession = () => {
-  try {
-    const raw = localStorage.getItem(QUIZ_SESSION_STORAGE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data || data.quizState !== 'quiz') return null;
-    if (!RESTORABLE_MODE_IDS.has(data.modeId) || !QUIZ_MODE_BY_ID[data.modeId]) return null;
-
-    const valid = data.modeId === 'mixed'
-      ? Boolean(data.adaptiveSession) && !data.adaptiveSession.isComplete
-      : Array.isArray(data.queue) && data.queue.length > 0;
-    if (!valid) return null;
-
-    return data;
-  } catch (error) {
-    console.warn('Failed to read saved quiz session', error);
-    return null;
-  }
-};
-
-const recordToeflAssetActivity = (asset) => {
-  if (!asset?.id) return;
-  try {
-    const history = JSON.parse(localStorage.getItem(QUIZ_HISTORY_STORAGE_KEY) || '[]');
-    const entry = {
-      type: 'toefl-asset',
-      date: asset.createdAt || asset.created_at || new Date().toISOString(),
-      assetId: asset.id,
-      mode: TOEFL_MODE_TITLES[asset.mode] || asset.title || 'TOEFL Practice',
-      modeId: asset.mode,
-      taskType: asset.taskType || asset.task_type,
-      title: asset.title || TOEFL_MODE_TITLES[asset.mode] || 'TOEFL Practice',
-    };
-    const withoutDuplicate = Array.isArray(history)
-      ? history.filter((item) => !(item?.type === 'toefl-asset' && item?.assetId === asset.id))
-      : [];
-    localStorage.setItem(QUIZ_HISTORY_STORAGE_KEY, JSON.stringify([entry, ...withoutDuplicate].slice(0, 20)));
-  } catch (error) {
-    console.warn('Failed to save TOEFL asset activity', error);
-  }
-};
+import {
+  loadPersistedQuizSession,
+  persistQuizSession,
+  recordToeflAssetActivity,
+} from '../services/quizSessionStorage';
+import {
+  buildLearningRateUpdate,
+  getWordSummaryKey,
+  replaceWordInAdaptiveSession,
+} from '../services/quizAnswerFlow';
 
 /**
  * 상단 상태 칩 — Sound / AI 토글 표시.
@@ -92,27 +50,7 @@ const StatusChip = ({ active, label, dot, icon: Icon }) => (
   </div>
 );
 
-const getWordSummaryKey = (word) => String(word?.id ?? word?.word ?? '');
-
 const formatRateDelta = (delta) => `${delta >= 0 ? '+' : ''}${delta}%p`;
-
-const replaceWordInAdaptiveSession = (session, updatedWord) => {
-  const wordKey = getWordSummaryKey(updatedWord);
-  if (!session || !wordKey) return session;
-  const replaceWord = (word) => (
-    getWordSummaryKey(word) === wordKey ? { ...word, ...updatedWord } : word
-  );
-
-  return {
-    ...session,
-    currentSetWords: session.currentSetWords?.map(replaceWord) || [],
-    studySets: session.studySets?.map((setWords) => setWords.map(replaceWord)) || [],
-    queue: session.queue?.map((task) => ({
-      ...task,
-      word: replaceWord(task.word),
-    })) || [],
-  };
-};
 
 const StudySetBreak = ({ session, setSummary, stats, onContinue, onFinish }) => {
   const setNumber = (session?.currentSetIndex || 0) + 1;
@@ -224,7 +162,7 @@ export default function QuizView({
   // 새로고침 시 진행 중이던 퀴즈를 복원한다. 마운트 시 1회만 읽는다.
   const restoredSessionRef = useRef(undefined);
   if (restoredSessionRef.current === undefined) {
-    restoredSessionRef.current = loadPersistedQuizSession();
+    restoredSessionRef.current = loadPersistedQuizSession({ quizModeById: QUIZ_MODE_BY_ID });
   }
   const restoredSession = restoredSessionRef.current;
 
@@ -314,7 +252,7 @@ export default function QuizView({
     if (!user) return null;
     try {
       const asset = await createToeflAsset(payload);
-      recordToeflAssetActivity(asset);
+      recordToeflAssetActivity(asset, { modeTitles: TOEFL_MODE_TITLES });
       return asset;
     } catch (error) {
       console.warn('Failed to save TOEFL asset', error);
@@ -460,34 +398,19 @@ export default function QuizView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 진행 중인 단어 퀴즈 세션을 저장하여 새로고침 후에도 풀던 문제가 유지되게 한다.
-  // 퀴즈가 아니거나 복원 불가능한(TOEFL) 모드면 저장본을 제거한다.
   useEffect(() => {
-    const modeId = selectedMode?.id;
-    if (quizState !== 'quiz' || !RESTORABLE_MODE_IDS.has(modeId)) {
-      localStorage.removeItem(QUIZ_SESSION_STORAGE_KEY);
-      return;
-    }
-    try {
-      localStorage.setItem(
-        QUIZ_SESSION_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          quizState,
-          modeId,
-          queue,
-          currentIndex,
-          adaptiveSession,
-          studySetSummaries,
-          stats,
-          wordQuizTracker: wordQuizTracker.current,
-          soundEnabled,
-          aiMode,
-        })
-      );
-    } catch (error) {
-      console.warn('Failed to persist quiz session', error);
-    }
+    persistQuizSession({
+      adaptiveSession,
+      aiMode,
+      currentIndex,
+      modeId: selectedMode?.id,
+      queue,
+      quizState,
+      soundEnabled,
+      stats,
+      studySetSummaries,
+      wordQuizTracker: wordQuizTracker.current,
+    });
   }, [quizState, selectedMode, queue, currentIndex, adaptiveSession, studySetSummaries, stats, soundEnabled, aiMode]);
 
   const handleAnswer = (isCorrect) => {
@@ -541,47 +464,19 @@ export default function QuizView({
 
     if (wordId !== undefined && wordId !== null && onUpdateLearningRate) {
       const tracker = wordQuizTracker.current[wordId] || { wrongCount: 0, lastPenalty: 0, wasReasked: false };
-      const currentRate = currentWord.learningRate || 0;
-      let newRate = currentRate;
-      let updatedStats = currentWord.stats || {};
-
-      if (isCorrect) {
-        newRate = calculateCorrectRate({
-          currentRate,
-          quizType: activeQuizType,
-          isReasked: tracker.wasReasked,
-          isAiSimilar: aiMode && tracker.wasReasked,
-          lastPenalty: tracker.lastPenalty,
-        });
-        updatedStats = {
-          ...(currentWord.stats || {}),
-          review_count: (currentWord.stats?.review_count || 0) + 1,
-        };
-        onUpdateLearningRate(wordId, newRate, updatedStats);
-      } else {
-        const wrongResult = calculateWrongRate({ currentRate, wrongCount: tracker.wrongCount });
-        newRate = wrongResult.newRate;
-        tracker.wrongCount += 1;
-        tracker.lastPenalty = wrongResult.penalty;
-        tracker.wasReasked = true;
-        wordQuizTracker.current[wordId] = tracker;
-
-        updatedStats = {
-          ...(currentWord.stats || {}),
-          wrong_count: (currentWord.stats?.wrong_count || 0) + 1,
-          review_count: (currentWord.stats?.review_count || 0) + 1,
-        };
-        onUpdateLearningRate(wordId, newRate, updatedStats);
-      }
-
-      workingCurrentWord = {
-        ...currentWord,
-        learningRate: newRate,
-        stats: updatedStats,
-      };
+      const learningUpdate = buildLearningRateUpdate({
+        activeQuizType,
+        aiMode,
+        currentWord,
+        isCorrect,
+        tracker,
+      });
+      wordQuizTracker.current[wordId] = learningUpdate.tracker;
+      onUpdateLearningRate(wordId, learningUpdate.newRate, learningUpdate.updatedStats);
+      workingCurrentWord = learningUpdate.updatedWord;
 
       if (isAdaptive) {
-        recordStudySetProgress(adaptiveSession?.currentSetIndex || 0, currentWord, newRate);
+        recordStudySetProgress(adaptiveSession?.currentSetIndex || 0, currentWord, learningUpdate.newRate);
         workingAdaptiveSession = replaceWordInAdaptiveSession(adaptiveSession, workingCurrentWord);
       } else {
         workingQueue = queue.map((word) => (

@@ -13,7 +13,7 @@ import useWindowSize from './hooks/useWindowSize';
 import { useAppNotifications } from './hooks/useAppNotifications';
 import { useAppSessionData } from './hooks/useAppSessionData';
 import { useFolderCommands } from './hooks/useFolderCommands';
-import useThemePreference from './hooks/useThemePreference';
+import { useThemePreference } from './hooks/useThemePreference';
 import { useVocabularyCommands } from './hooks/useVocabularyCommands';
 import { AI_PROVIDERS, DEFAULT_AI_SETTINGS, getActiveAiConfig } from './services/aiModelService';
 import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutocompleteService';

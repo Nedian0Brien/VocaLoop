@@ -1,3 +1,21 @@
+def _create_toefl_asset(client, payload):
+    response = client.post("/api/toefl/assets", json=payload)
+    assert response.status_code == 201
+    return response.json()
+
+
+def _create_toefl_attempt(client, asset_id, payload):
+    response = client.post(f"/api/toefl/assets/{asset_id}/attempts", json=payload)
+    assert response.status_code == 201
+    return response.json()
+
+
+def _list_review_items(client):
+    response = client.get("/api/toefl/review-items?scope=all&limit=200")
+    assert response.status_code == 200
+    return response.json()
+
+
 def _signup(client, email):
     return client.post(
         "/api/auth/signup",
@@ -189,3 +207,130 @@ def test_toefl_attempts_create_review_items_and_track_mastery(client):
     isolated_response = client.get("/api/toefl/review-items?scope=all")
     assert isolated_response.status_code == 200
     assert isolated_response.json() == []
+
+
+def test_complete_word_attempt_creates_review_item(client):
+    _signup(client, "complete-review@example.com")
+
+    asset = _create_toefl_asset(client, {
+        "mode": "toefl-complete",
+        "taskType": "complete-word",
+        "title": "Complete Words",
+        "payload": {
+            "questions": [
+                {
+                    "paragraph": "The campus event was post____.",
+                    "blanks": [{"answer": "poned"}],
+                }
+            ],
+        },
+    })
+
+    _create_toefl_attempt(client, asset["id"], {
+        "answers": {"blanks": [[["p", "o", "s", "t"]]]},
+        "results": {"questions": [{"questionIndex": 0, "correctCount": 0, "total": 1}]},
+        "correctCount": 0,
+        "totalCount": 1,
+        "score": {"accuracy": 0},
+    })
+
+    items = _list_review_items(client)
+    assert len(items) == 1
+    assert items[0]["mode"] == "toefl-complete"
+    assert items[0]["skillTag"] == "complete-words"
+    assert items[0]["correctAnswer"] == "poned"
+
+
+def test_build_sentence_attempt_creates_review_item(client):
+    _signup(client, "build-review@example.com")
+
+    asset = _create_toefl_asset(client, {
+        "mode": "toefl-build",
+        "taskType": "build-sentence",
+        "title": "Build Sentence",
+        "payload": {"questions": []},
+    })
+
+    _create_toefl_attempt(client, asset["id"], {
+        "answers": {"attempts": ["because was it postponed"]},
+        "results": {
+            "questions": [
+                {
+                    "questionIndex": 0,
+                    "correct": False,
+                    "attempt": "because was it postponed",
+                    "target": "because it was postponed",
+                }
+            ]
+        },
+        "correctCount": 0,
+        "totalCount": 1,
+        "score": {"accuracy": 0},
+    })
+
+    items = _list_review_items(client)
+    assert len(items) == 1
+    assert items[0]["mode"] == "toefl-build"
+    assert items[0]["skillTag"] == "build-sentence"
+    assert items[0]["userAnswer"] == "because was it postponed"
+
+
+def test_writing_attempts_create_review_items(client):
+    _signup(client, "writing-review@example.com")
+
+    email_asset = _create_toefl_asset(client, {
+        "mode": "toefl-writing-email",
+        "taskType": "email",
+        "title": "Email Writing",
+        "payload": {
+            "task": {
+                "taskType": "email",
+                "situation": "Ask a professor about an extension.",
+                "requirements": ["explain reason", "request one extra day"],
+            }
+        },
+    })
+    _create_toefl_attempt(client, email_asset["id"], {
+        "answers": {"response": "I need more time."},
+        "results": {"feedback": {"score": 2, "feedbackKo": "요구사항을 더 구체적으로 답하세요."}},
+        "correctCount": 0,
+        "totalCount": 1,
+        "score": {"practiceScore": 2},
+    })
+
+    mock_asset = _create_toefl_asset(client, {
+        "mode": "toefl-writing-mock",
+        "taskType": "writing-mock",
+        "title": "Writing Mock",
+        "payload": {
+            "section": {
+                "emailTask": {
+                    "taskType": "email",
+                    "situation": "Ask about a club meeting.",
+                    "requirements": ["ask time"],
+                },
+                "discussionTask": {
+                    "taskType": "discussion",
+                    "course": "Business",
+                    "professorQuestion": "Should companies sponsor campus events?",
+                    "studentPosts": ["Yes, it helps.", "No, it distracts."],
+                },
+            }
+        },
+    })
+    _create_toefl_attempt(client, mock_asset["id"], {
+        "answers": {
+            "emailResponse": "When meeting?",
+            "discussionResponse": "I agree because useful.",
+        },
+        "results": {"feedback": {"feedbackKo": "근거와 전개가 부족합니다."}},
+        "correctCount": 0,
+        "totalCount": 2,
+        "score": {"emailScore": 2, "discussionScore": 2},
+    })
+
+    items = _list_review_items(client)
+    skill_tags = {item["skillTag"] for item in items}
+    assert {"email", "discussion"}.issubset(skill_tags)
+    assert any(item["mode"] == "toefl-writing-email" and item["skillTag"] == "email" for item in items)
+    assert any(item["mode"] == "toefl-writing-mock" and item["skillTag"] == "discussion" for item in items)

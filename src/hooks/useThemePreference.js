@@ -111,5 +111,3 @@ export const useThemePreference = () => {
         cycleThemeMode,
     };
 };
-
-export default useThemePreference;

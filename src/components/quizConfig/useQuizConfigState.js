@@ -6,7 +6,6 @@ import {
   updateTopic as updateTopicInStore,
 } from '../../utils/topicSets';
 import {
-  DEFAULT_MIXED_MODES,
   DEFAULT_STUDY_SET_SIZE,
   MIXED_MODE_IDS,
   STORAGE_KEYS,
@@ -60,7 +59,7 @@ export function useQuizConfigState({
   const [targetScore, setTargetScore] = useState('intermediate');
   const [aiMode, setAiMode] = useState(initialAiMode);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [mixedModeIds, setMixedModeIds] = useState(DEFAULT_MIXED_MODES);
+  const [mixedModeIds, setMixedModeIds] = useState([...MIXED_MODE_IDS]);
   const [studySetSize, setStudySetSize] = useState(DEFAULT_STUDY_SET_SIZE);
   const [vocabMode, setVocabMode] = useState('off');
   const [vocabFolderIds, setVocabFolderIds] = useState([]);
@@ -98,7 +97,7 @@ export function useQuizConfigState({
     setStudySetSize(clampNumber(savedStudySetSizeRaw, 1, Number.MAX_SAFE_INTEGER, DEFAULT_STUDY_SET_SIZE));
     const savedMixedModes = readJsonArray(STORAGE_KEYS.MIXED_MODES);
     const normalizedModes = normalizeMixedModeIds(savedMixedModes);
-    setMixedModeIds(normalizedModes.length > 0 ? normalizedModes : DEFAULT_MIXED_MODES);
+    setMixedModeIds(normalizedModes.length > 0 ? normalizedModes : [...MIXED_MODE_IDS]);
 
     setSelectedFolderIds([]);
     setWordScope('all');

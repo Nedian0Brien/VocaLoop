@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -312,18 +312,26 @@ def _extract_writing_mock_events(asset: ToeflQuizAsset, attempt: ToeflQuizAttemp
     return events
 
 
+ReviewEventExtractor = Callable[[ToeflQuizAsset, ToeflQuizAttempt], list[dict[str, Any]]]
+
+
+REVIEW_EVENT_EXTRACTORS: dict[str, ReviewEventExtractor] = {
+    "toefl-daily-life": _extract_choice_events,
+    "toefl-academic-passage": _extract_choice_events,
+    "toefl-reading-mock": _extract_choice_events,
+    "toefl-complete": _extract_complete_word_events,
+    "toefl-build": _extract_build_sentence_events,
+    "toefl-writing-email": _extract_writing_events,
+    "toefl-writing-discussion": _extract_writing_events,
+    "toefl-writing-mock": _extract_writing_mock_events,
+}
+
+
 def _extract_review_events(asset: ToeflQuizAsset, attempt: ToeflQuizAttempt) -> list[dict[str, Any]]:
-    if asset.mode in {"toefl-daily-life", "toefl-academic-passage", "toefl-reading-mock"}:
-        return _extract_choice_events(asset, attempt)
-    if asset.mode == "toefl-complete":
-        return _extract_complete_word_events(asset, attempt)
-    if asset.mode == "toefl-build":
-        return _extract_build_sentence_events(asset, attempt)
-    if asset.mode in {"toefl-writing-email", "toefl-writing-discussion"}:
-        return _extract_writing_events(asset, attempt)
-    if asset.mode == "toefl-writing-mock":
-        return _extract_writing_mock_events(asset, attempt)
-    return []
+    extractor = REVIEW_EVENT_EXTRACTORS.get(asset.mode)
+    if extractor is None:
+        return []
+    return extractor(asset, attempt)
 
 
 def apply_review_result(item: ToeflReviewItem, result: str, now: datetime) -> None:

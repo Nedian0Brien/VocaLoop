@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "index.html",
+    "src/main.jsx",
+    "vite.config.js",
+    "postcss.config.js",
+    "tailwind.config.js",
+    "ecosystem.config.cjs",
+    "scripts/build-en-ko-autocomplete.mjs"
+  ],
+  "project": ["src/**/*.{js,jsx}", "scripts/**/*.mjs", "*.{js,cjs,mjs}"],
+  "ignore": [
+    "src/design-system/index.js",
+    "src/design-system/tokens.js",
+    "src/services/apiClient.js",
+    "src/services/toefl/buildSentenceUtils.js",
+    "src/services/toefl/completeWordEngine.js",
+    "src/services/toefl/difficulty.js",
+    "src/utils/speechSynthesis.js",
+    "src/utils/topicSets.js"
+  ],
+  "ignoreDependencies": ["tailwindcss"],
+  "ignoreBinaries": ["python3"]
+}
