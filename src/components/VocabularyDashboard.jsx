@@ -4,7 +4,8 @@ import EmptyState from './EmptyState';
 import FolderSidebar from './FolderSidebar';
 import CompactFolderPicker from './CompactFolderPicker';
 import BulkWordAddModal from './BulkWordAddModal';
-import { Folder, Loader2, Plus, Search, Sparkles } from './Icons';
+import ScreenshotWordImportModal from './ScreenshotWordImportModal';
+import { Camera, Folder, Loader2, Plus, Search, Sparkles } from './Icons';
 import {
     getLearningStatus,
     LEARNING_STATUS,
@@ -44,6 +45,7 @@ export default function VocabularyDashboard({
     onRegenerateWord,
 }) {
     const [isBulkWordModalOpen, setIsBulkWordModalOpen] = useState(false);
+    const [isScreenshotImportModalOpen, setIsScreenshotImportModalOpen] = useState(false);
     const wordCountByFolder = useMemo(() => {
         const counts = {};
         words.forEach((word) => {
@@ -230,15 +232,26 @@ export default function VocabularyDashboard({
                             <Plus className="w-5 h-5 text-brand-600" aria-hidden="true" />
                             Add New Word
                         </h2>
-                        <button
-                            type="button"
-                            onClick={() => setIsBulkWordModalOpen(true)}
-                            disabled={isAnalyzing || Boolean(bulkAddProgress)}
-                            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            여러 단어 추가
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsScreenshotImportModalOpen(true)}
+                                disabled={isAnalyzing || Boolean(bulkAddProgress)}
+                                className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <Camera className="h-4 w-4" aria-hidden="true" />
+                                이미지에서 추가
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsBulkWordModalOpen(true)}
+                                disabled={isAnalyzing || Boolean(bulkAddProgress)}
+                                className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                여러 단어 추가
+                            </button>
+                        </div>
                     </div>
                     <form onSubmit={onAddWord} className="relative">
                         <div className="flex gap-3">
@@ -329,6 +342,14 @@ export default function VocabularyDashboard({
                     folders={folders}
                     defaultFolderId={addToFolderId}
                     onClose={() => setIsBulkWordModalOpen(false)}
+                    onSubmit={onBulkAddWords}
+                    progress={bulkAddProgress}
+                />
+                <ScreenshotWordImportModal
+                    isOpen={isScreenshotImportModalOpen}
+                    folders={folders}
+                    defaultFolderId={addToFolderId}
+                    onClose={() => setIsScreenshotImportModalOpen(false)}
                     onSubmit={onBulkAddWords}
                     progress={bulkAddProgress}
                 />

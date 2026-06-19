@@ -5,6 +5,7 @@ from .folders import router as folders_router
 from .settings import router as settings_router
 from .toefl import router as toefl_router
 from .uploads import router as uploads_router
+from .vocabulary_imports import router as vocabulary_imports_router
 from .words import router as words_router
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "settings_router",
     "toefl_router",
     "uploads_router",
+    "vocabulary_imports_router",
     "words_router",
 ]

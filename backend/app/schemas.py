@@ -220,6 +220,11 @@ class AiGenerateResponse(BaseModel):
     text: str
 
 
+class ScreenshotVocabularyImportResponse(BaseModel):
+    words: list[str]
+    suggested_folder_name: str | None = None
+
+
 class FolderCreate(BaseModel):
     name: str
     color: str | None = None
