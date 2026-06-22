@@ -56,7 +56,7 @@ def generate_with_codex(
 
     if payload.model not in get_valid_models(CODEX_PROVIDER):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid Codex model",
         )
 
