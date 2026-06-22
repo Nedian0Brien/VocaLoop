@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Sparkles, X, Check } from './Icons';
 import {
   generateBuildSentenceSet,
@@ -7,6 +7,7 @@ import {
 } from '../services/toeflService';
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
+import { useBuildSentenceDrag } from '../hooks/useBuildSentenceDrag';
 import { useToeflQuizSession } from '../hooks/useToeflQuizSession';
 import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 import {
@@ -78,15 +79,6 @@ export default function ToeflBuildSentenceQuiz({
   const [results, setResults] = useState([]);     // 각 문항 채점 결과 boolean
   const [attempts, setAttempts] = useState([]);
 
-  // 드래그 상태 (pointer events 기반).
-  // - dragInfoRef: pointerdown 시점 정보. threshold 통과 전에는 null이 아닌 ref.
-  // - drag (state): 실제 드래그 중일 때 ghost 위치 렌더링용.
-  // - dropAtIdx: arrangement 내 인서션 위치 (placeholder 활성화).
-  const dragInfoRef = useRef(null);
-  const arrContainerRef = useRef(null);
-  const [drag, setDrag] = useState(null);
-  const [dropAtIdx, setDropAtIdx] = useState(null);
-
   const currentQuestion = questions[currentIndex];
 
   const initialize = (qs) => {
@@ -145,6 +137,17 @@ export default function ToeflBuildSentenceQuiz({
     errorMessage: reviewAsset ? '저장된 TOEFL 문제를 불러오지 못했습니다.' : '문제 생성 중 오류가 발생했습니다.',
     dependencies: [questionCount, targetScore, reviewAsset?.id],
   });
+  const {
+    arrContainerRef,
+    drag,
+    dropAtIdx,
+    handlePointerDown,
+  } = useBuildSentenceDrag({
+    currentQuestion,
+    setArrangement,
+    setBank,
+    status,
+  });
 
   const moveToArrangement = (idx) => {
     if (status !== 'ready') return;
@@ -164,129 +167,6 @@ export default function ToeflBuildSentenceQuiz({
     setBank(indices);
     setArrangement([]);
   };
-
-  // -------------------- 드래그 & 드롭 (pointer events) --------------------
-  // pointerdown은 클릭 후보로 시작 — threshold 6px 넘어야 실제 드래그로 승격.
-  const handlePointerDown = (area, sourceIdx, wordIdx) => (e) => {
-    if (status !== 'ready') return;
-    if (e.button !== undefined && e.button !== 0) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragInfoRef.current = {
-      area, sourceIdx, wordIdx,
-      startX: e.clientX, startY: e.clientY,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top,
-      width: rect.width, height: rect.height,
-      text: currentQuestion?.words?.[wordIdx] ?? '',
-      hasMoved: false,
-    };
-  };
-
-  // 글로벌 pointer 리스너 — 마운트 시 1회 등록, dragInfoRef로 fast-path 접근.
-  useEffect(() => {
-    const THRESHOLD = 6;
-
-    const hitTest = (clientX, clientY) => {
-      const arrEl = arrContainerRef.current;
-      if (!arrEl) return null;
-      const cr = arrEl.getBoundingClientRect();
-      // 컨테이너 바깥(여유 16px) → null
-      if (clientX < cr.left - 16 || clientX > cr.right + 16
-          || clientY < cr.top - 16 || clientY > cr.bottom + 16) {
-        return null;
-      }
-      const wordEls = arrEl.querySelectorAll('[data-arr-word]');
-      if (wordEls.length === 0) return 0;
-
-      // 가장 가까운 단어 중심점 + 좌/우 절반으로 인서션 인덱스 결정.
-      let closestIdx = 0;
-      let closestDist = Infinity;
-      let isLeft = false;
-      for (let i = 0; i < wordEls.length; i++) {
-        const r = wordEls[i].getBoundingClientRect();
-        const cx = (r.left + r.right) / 2;
-        const cy = (r.top + r.bottom) / 2;
-        const dist = Math.hypot(clientX - cx, clientY - cy);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestIdx = i;
-          isLeft = clientX < cx;
-        }
-      }
-      return isLeft ? closestIdx : closestIdx + 1;
-    };
-
-    const onMove = (e) => {
-      const info = dragInfoRef.current;
-      if (!info) return;
-
-      if (!info.hasMoved) {
-        const dx = e.clientX - info.startX;
-        const dy = e.clientY - info.startY;
-        if (Math.hypot(dx, dy) < THRESHOLD) return;
-        info.hasMoved = true;
-      }
-
-      // 텍스트 선택 등 기본 동작 차단
-      if (e.cancelable) e.preventDefault();
-
-      setDrag({
-        area: info.area,
-        sourceIdx: info.sourceIdx,
-        wordIdx: info.wordIdx,
-        text: info.text,
-        width: info.width,
-        height: info.height,
-        ghostX: e.clientX - info.offsetX,
-        ghostY: e.clientY - info.offsetY,
-      });
-      setDropAtIdx(hitTest(e.clientX, e.clientY));
-    };
-
-    const onUp = () => {
-      const info = dragInfoRef.current;
-      dragInfoRef.current = null;
-
-      if (!info || !info.hasMoved) {
-        // 클릭 — 네이티브 onClick이 처리.
-        return;
-      }
-
-      // 드래그 종료 — drop 위치에 따라 commit.
-      setDropAtIdx((currentDrop) => {
-        if (currentDrop !== null) {
-          if (info.area === 'bank') {
-            setBank((prev) => prev.filter((_, i) => i !== info.sourceIdx));
-            setArrangement((prev) => [
-              ...prev.slice(0, currentDrop),
-              info.wordIdx,
-              ...prev.slice(currentDrop),
-            ]);
-          } else if (info.area === 'arr') {
-            setArrangement((prev) => {
-              const next = [...prev];
-              const [moved] = next.splice(info.sourceIdx, 1);
-              const finalIdx = currentDrop > info.sourceIdx ? currentDrop - 1 : currentDrop;
-              next.splice(finalIdx, 0, moved);
-              return next;
-            });
-          }
-        }
-        return null;
-      });
-      setDrag(null);
-    };
-
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-    };
-  }, []);
 
   const handleCheck = async () => {
     if (!currentQuestion || arrangement.length === 0 || status === 'checking') return;

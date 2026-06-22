@@ -1,0 +1,15 @@
+export const buildCompleteWordVocabularyPayload = (wordData, fallbackWord) => ({
+  word: wordData?.word ?? fallbackWord,
+  meaning_ko: wordData?.meaning_ko ?? null,
+  pronunciation: wordData?.pronunciation ?? null,
+  pos: wordData?.pos ?? null,
+  definitions: Array.isArray(wordData?.definitions) ? wordData.definitions : [],
+  definitions_ko: Array.isArray(wordData?.definitions_ko) ? wordData.definitions_ko : [],
+  examples: Array.isArray(wordData?.examples) ? wordData.examples : [],
+  synonyms: Array.isArray(wordData?.synonyms) ? wordData.synonyms : [],
+  nuance: wordData?.nuance ?? null,
+  folder_id: null,
+  learning_rate: 0,
+  status: 'new',
+  stats: { wrong_count: 0, review_count: 0 },
+});

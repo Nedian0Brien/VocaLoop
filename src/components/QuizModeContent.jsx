@@ -11,6 +11,174 @@ import ToeflWritingTaskQuiz from './ToeflWritingTaskQuiz';
 import ToeflWritingMockTest from './ToeflWritingMockTest';
 import { getReadingTaskType, getWritingTaskType } from './quizModeRegistry';
 
+const regularProgress = ({ currentIndex, queue }) => ({
+  current: currentIndex + 1,
+  total: queue.length,
+});
+
+const toeflPracticeProps = ({
+  aiConfig,
+  onAssetCreated,
+  onAttemptRecorded,
+  onExit,
+  reviewAsset,
+  toeflConfig,
+}) => ({
+  aiConfig,
+  questionCount: toeflConfig.questionCount,
+  targetScore: toeflConfig.targetScore,
+  vocabSource: toeflConfig.vocabSource,
+  topicSelection: toeflConfig.topicSelection,
+  onExit,
+  reviewAsset,
+  onAssetCreated,
+  onAttemptRecorded,
+});
+
+const QUIZ_RENDERERS = [
+  {
+    matches: ({ modeId }) => modeId === 'multiple',
+    render: (props) => (
+      <MultipleChoiceQuiz
+        word={props.queue[props.currentIndex]}
+        allWords={props.words}
+        onAnswer={props.onAnswer}
+        progress={regularProgress(props)}
+        stats={props.stats}
+        aiMode={props.aiMode}
+        aiConfig={props.aiConfig}
+        soundEnabled={props.soundEnabled}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId, adaptiveMode }) => modeId === 'mixed' && adaptiveMode === 'multiple',
+    render: (props) => (
+      <MultipleChoiceQuiz
+        word={props.adaptiveTask.word}
+        allWords={props.words}
+        onAnswer={props.onAnswer}
+        progress={props.adaptiveProgress}
+        stats={props.stats}
+        aiMode={props.aiMode}
+        aiConfig={props.aiConfig}
+        soundEnabled={props.soundEnabled}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId, adaptiveMode }) => modeId === 'mixed' && adaptiveMode === 'flashcard',
+    render: (props) => (
+      <FlashcardQuiz
+        word={props.adaptiveTask.word}
+        onAnswer={props.onAnswer}
+        progress={props.adaptiveProgress}
+        stats={props.stats}
+        soundEnabled={props.soundEnabled}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId }) => modeId === 'short',
+    render: (props) => (
+      <ShortAnswerQuiz
+        word={props.queue[props.currentIndex]}
+        onAnswer={props.onAnswer}
+        progress={regularProgress(props)}
+        stats={props.stats}
+        aiMode={props.aiMode}
+        aiConfig={props.aiConfig}
+        soundEnabled={props.soundEnabled}
+        direction="en-ko"
+        onAcceptedAnswer={props.onAcceptedAnswer}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId, adaptiveMode }) =>
+      modeId === 'mixed' && ['short', 'short-en-ko', 'short-ko-en'].includes(adaptiveMode),
+    render: (props) => (
+      <ShortAnswerQuiz
+        word={props.adaptiveTask.word}
+        onAnswer={props.onAnswer}
+        progress={props.adaptiveProgress}
+        stats={props.stats}
+        aiMode={props.aiMode}
+        aiConfig={props.aiConfig}
+        soundEnabled={props.soundEnabled}
+        direction={props.adaptiveMode === 'short-ko-en' ? 'ko-en' : 'en-ko'}
+        onAcceptedAnswer={props.onAcceptedAnswer}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId, adaptiveMode }) => modeId === 'mixed' && adaptiveMode === 'complete-word',
+    render: (props) => (
+      <CompleteWordQuiz
+        word={props.adaptiveTask.word}
+        onAnswer={props.onAnswer}
+        progress={props.adaptiveProgress}
+        stats={props.stats}
+        aiMode={props.aiMode}
+        soundEnabled={props.soundEnabled}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId }) => modeId === 'toefl-complete',
+    render: (props) => (
+      <ToeflCompleteTheWordQuiz
+        {...toeflPracticeProps(props)}
+        user={props.user}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId }) => modeId === 'toefl-build',
+    render: (props) => (
+      <ToeflBuildSentenceQuiz {...toeflPracticeProps(props)} />
+    ),
+  },
+  {
+    matches: ({ readingTaskType }) => Boolean(readingTaskType),
+    render: (props) => (
+      <ToeflReadingTaskQuiz
+        {...toeflPracticeProps(props)}
+        taskType={props.readingTaskType}
+        existingWords={props.words}
+        onSaveVocabularyWord={props.onSaveVocabularyWord}
+        onExplainVocabularyWord={props.onExplainVocabularyWord}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId }) => modeId === 'toefl-reading-mock',
+    render: (props) => (
+      <ToeflReadingMockTest
+        {...toeflPracticeProps(props)}
+        existingWords={props.words}
+        onSaveVocabularyWord={props.onSaveVocabularyWord}
+        onExplainVocabularyWord={props.onExplainVocabularyWord}
+      />
+    ),
+  },
+  {
+    matches: ({ writingTaskType }) => Boolean(writingTaskType),
+    render: (props) => (
+      <ToeflWritingTaskQuiz
+        {...toeflPracticeProps(props)}
+        taskType={props.writingTaskType}
+      />
+    ),
+  },
+  {
+    matches: ({ modeId }) => modeId === 'toefl-writing-mock',
+    render: (props) => (
+      <ToeflWritingMockTest {...toeflPracticeProps(props)} />
+    ),
+  },
+];
+
 export default function QuizModeContent({
   selectedMode,
   adaptiveMode,
@@ -37,196 +205,38 @@ export default function QuizModeContent({
   const modeId = selectedMode?.id;
   const readingTaskType = getReadingTaskType(modeId);
   const writingTaskType = getWritingTaskType(modeId);
+  const rendererContext = {
+    adaptiveMode,
+    modeId,
+    readingTaskType,
+    writingTaskType,
+  };
+  const renderer = QUIZ_RENDERERS.find((candidate) => candidate.matches(rendererContext));
 
-  if (modeId === 'multiple') {
-    return (
-      <MultipleChoiceQuiz
-        word={queue[currentIndex]}
-        allWords={words}
-        onAnswer={onAnswer}
-        progress={{ current: currentIndex + 1, total: queue.length }}
-        stats={stats}
-        aiMode={aiMode}
-        aiConfig={aiConfig}
-        soundEnabled={soundEnabled}
-      />
-    );
-  }
-
-  if (modeId === 'mixed' && adaptiveMode === 'multiple') {
-    return (
-      <MultipleChoiceQuiz
-        word={adaptiveTask.word}
-        allWords={words}
-        onAnswer={onAnswer}
-        progress={adaptiveProgress}
-        stats={stats}
-        aiMode={aiMode}
-        aiConfig={aiConfig}
-        soundEnabled={soundEnabled}
-      />
-    );
-  }
-
-  if (modeId === 'mixed' && adaptiveMode === 'flashcard') {
-    return (
-      <FlashcardQuiz
-        word={adaptiveTask.word}
-        onAnswer={onAnswer}
-        progress={adaptiveProgress}
-        stats={stats}
-        soundEnabled={soundEnabled}
-      />
-    );
-  }
-
-  if (modeId === 'short') {
-    return (
-      <ShortAnswerQuiz
-        word={queue[currentIndex]}
-        onAnswer={onAnswer}
-        progress={{ current: currentIndex + 1, total: queue.length }}
-        stats={stats}
-        aiMode={aiMode}
-        aiConfig={aiConfig}
-        soundEnabled={soundEnabled}
-        direction="en-ko"
-        onAcceptedAnswer={onAcceptedAnswer}
-      />
-    );
-  }
-
-  if (modeId === 'mixed' && (adaptiveMode === 'short' || adaptiveMode === 'short-en-ko' || adaptiveMode === 'short-ko-en')) {
-    return (
-      <ShortAnswerQuiz
-        word={adaptiveTask.word}
-        onAnswer={onAnswer}
-        progress={adaptiveProgress}
-        stats={stats}
-        aiMode={aiMode}
-        aiConfig={aiConfig}
-        soundEnabled={soundEnabled}
-        direction={adaptiveMode === 'short-ko-en' ? 'ko-en' : 'en-ko'}
-        onAcceptedAnswer={onAcceptedAnswer}
-      />
-    );
-  }
-
-  if (modeId === 'mixed' && adaptiveMode === 'complete-word') {
-    return (
-      <CompleteWordQuiz
-        word={adaptiveTask.word}
-        onAnswer={onAnswer}
-        progress={adaptiveProgress}
-        stats={stats}
-        aiMode={aiMode}
-        soundEnabled={soundEnabled}
-      />
-    );
-  }
-
-  if (modeId === 'toefl-complete') {
-    return (
-      <ToeflCompleteTheWordQuiz
-        aiConfig={aiConfig}
-        questionCount={toeflConfig.questionCount}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        user={user}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  if (modeId === 'toefl-build') {
-    return (
-      <ToeflBuildSentenceQuiz
-        aiConfig={aiConfig}
-        questionCount={toeflConfig.questionCount}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  if (readingTaskType) {
-    return (
-      <ToeflReadingTaskQuiz
-        aiConfig={aiConfig}
-        taskType={readingTaskType}
-        questionCount={toeflConfig.questionCount}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        existingWords={words}
-        onSaveVocabularyWord={onSaveVocabularyWord}
-        onExplainVocabularyWord={onExplainVocabularyWord}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  if (modeId === 'toefl-reading-mock') {
-    return (
-      <ToeflReadingMockTest
-        aiConfig={aiConfig}
-        questionCount={toeflConfig.questionCount}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        existingWords={words}
-        onSaveVocabularyWord={onSaveVocabularyWord}
-        onExplainVocabularyWord={onExplainVocabularyWord}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  if (writingTaskType) {
-    return (
-      <ToeflWritingTaskQuiz
-        aiConfig={aiConfig}
-        taskType={writingTaskType}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  if (modeId === 'toefl-writing-mock') {
-    return (
-      <ToeflWritingMockTest
-        aiConfig={aiConfig}
-        targetScore={toeflConfig.targetScore}
-        vocabSource={toeflConfig.vocabSource}
-        topicSelection={toeflConfig.topicSelection}
-        onExit={onExit}
-        reviewAsset={reviewAsset}
-        onAssetCreated={onAssetCreated}
-        onAttemptRecorded={onAttemptRecorded}
-      />
-    );
-  }
-
-  return null;
+  return renderer
+    ? renderer.render({
+      adaptiveMode,
+      adaptiveProgress,
+      adaptiveTask,
+      aiConfig,
+      aiMode,
+      currentIndex,
+      onAcceptedAnswer,
+      onAnswer,
+      onAssetCreated,
+      onAttemptRecorded,
+      onExit,
+      onExplainVocabularyWord,
+      onSaveVocabularyWord,
+      queue,
+      readingTaskType,
+      reviewAsset,
+      soundEnabled,
+      stats,
+      toeflConfig,
+      user,
+      words,
+      writingTaskType,
+    })
+    : null;
 }

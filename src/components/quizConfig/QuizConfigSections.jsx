@@ -1,0 +1,704 @@
+import React from 'react';
+import { BookOpen, CheckCircle, Edit3, Hash, Layers, Plus, Sparkles, Target, Volume2 } from '../Icons';
+import CompactFolderPicker from '../CompactFolderPicker';
+import { Badge, Button } from '../../design-system';
+import {
+  VOCAB_SAMPLE_MAX,
+  VOCAB_SAMPLE_MIN,
+} from './quizConfigConstants';
+import { SectionHead, ToggleCard, TopicChip } from './QuizConfigControls';
+import { wordBelongsToFolder } from '../../utils/appDataTransforms';
+import { TOEFL_DIFFICULTY_LEVELS } from '../../services/toefl/difficulty';
+
+const MIXED_MODE_OPTIONS = [
+  {
+    id: 'flashcard',
+    title: '플래시카드',
+    desc: '단어와 뜻을 먼저 확인',
+    icon: BookOpen,
+  },
+  {
+    id: 'multiple',
+    title: '객관식',
+    desc: '뜻 선택으로 빠르게 확인',
+    icon: CheckCircle,
+  },
+  {
+    id: 'short-en-ko',
+    title: '주관식 영→한',
+    desc: '영어 단어를 보고 한국어 뜻 입력',
+    icon: Edit3,
+  },
+  {
+    id: 'short-ko-en',
+    title: '주관식 한→영',
+    desc: '한국어 뜻을 보고 영어 단어 입력',
+    icon: Edit3,
+  },
+  {
+    id: 'complete-word',
+    title: 'Complete word',
+    desc: '힌트로 영어 철자 완성',
+    icon: Sparkles,
+  },
+];
+
+export function VocabScopeSection({
+  filteredWords,
+  flaggedWordCount,
+  folders,
+  selectedFolderIds,
+  setSelectedFolderIds,
+  setWordScope,
+  toggleFolder,
+  wordCountByFolder,
+  wordScope,
+  words,
+}) {
+  return (
+    <section className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <SectionHead
+          icon={Layers}
+          title="출제 범위 설정"
+          subtitle="전체, 플래그, 폴더 중 학습할 단어 묶음을 고르세요"
+        />
+        <div data-testid="quiz-config-scope-actions" className="flex self-start items-center gap-2 rounded-pill bg-surface-50 p-1 sm:gap-4 sm:bg-transparent sm:p-0">
+          <button
+            onClick={() => {
+              setWordScope('all');
+              setSelectedFolderIds([]);
+            }}
+            className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-surface-400 transition-colors hover:text-brand-600 sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
+          >
+            전체
+          </button>
+          <button
+            onClick={() => {
+              setWordScope('folders');
+              setSelectedFolderIds(folders.map(f => f.id));
+            }}
+            className="rounded-pill px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-brand-600 hover:underline sm:px-0 sm:py-0 sm:text-2xs sm:tracking-widest"
+          >
+            폴더 전체
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-card border border-surface-100 bg-surface-50/50 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              setWordScope('all');
+              setSelectedFolderIds([]);
+            }}
+            aria-pressed={wordScope === 'all' && selectedFolderIds.length === 0}
+            className={[
+              'flex min-h-[72px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+              wordScope === 'all' && selectedFolderIds.length === 0
+                ? 'border-brand-300 bg-brand-50 text-brand-800 shadow-sm'
+                : 'border-surface-100 bg-white text-surface-700 hover:border-brand-200',
+            ].join(' ')}
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-black">전체 단어</span>
+              <span className="block text-xs font-bold text-surface-400">{words.length}개</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setWordScope('flagged');
+              setSelectedFolderIds([]);
+            }}
+            aria-pressed={wordScope === 'flagged'}
+            className={[
+              'flex min-h-[72px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+              wordScope === 'flagged'
+                ? 'border-warning-300 bg-warning-50 text-warning-900 shadow-sm'
+                : 'border-surface-100 bg-white text-surface-700 hover:border-warning-200',
+            ].join(' ')}
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-black">플래그한 단어만</span>
+              <span className="block text-xs font-bold text-surface-400">{flaggedWordCount}개</span>
+            </span>
+          </button>
+        </div>
+
+        {folders.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {folders.map((folder) => {
+              const selected = wordScope === 'folders' && selectedFolderIds.includes(folder.id);
+              return (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => toggleFolder(folder.id)}
+                  aria-pressed={selected}
+                  className={[
+                    'flex min-h-[64px] items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all',
+                    selected
+                      ? 'border-brand-300 bg-white text-brand-800 shadow-sm ring-2 ring-brand-100'
+                      : 'border-surface-100 bg-white text-surface-700 hover:border-brand-200',
+                  ].join(' ')}
+                >
+                  <span className="min-w-0 whitespace-normal break-words text-sm font-black leading-snug">
+                    {folder.name}
+                  </span>
+                  <span className={`shrink-0 rounded-pill px-2 py-1 text-2xs font-black ${
+                    selected ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-400'
+                  }`}>
+                    {wordCountByFolder[folder.id] || 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="flex w-full items-center gap-3 rounded-xl border border-brand-100/50 bg-brand-50/50 px-4 py-3 sm:w-fit sm:px-5">
+        <span className={`w-2 h-2 rounded-pill ${filteredWords.length > 0 ? 'bg-brand-500 animate-pulse' : 'bg-surface-300'}`} aria-hidden="true" />
+        <p className="text-xs font-bold text-surface-600">
+          선택된 범위: <span className="text-brand-600 font-black text-sm">{filteredWords.length}</span>개의 단어
+        </p>
+      </div>
+    </section>
+  );
+}
+
+export function MixedModeSection({ mixedModeIds, toggleMixedMode }) {
+  return (
+    <section className="space-y-5 border-t border-surface-50 pt-2 sm:space-y-6 sm:pt-4">
+      <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
+        <SectionHead
+          icon={Sparkles}
+          title="복합 단계 구성"
+          subtitle="선택한 단계 순서대로 정답 시 난이도가 올라갑니다"
+          tone="warning"
+        />
+        <Badge tone="warning" size="xs" className="shrink-0">{mixedModeIds.length} Steps</Badge>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {MIXED_MODE_OPTIONS.map((option, index) => {
+          const selected = mixedModeIds.includes(option.id);
+          const Icon = option.icon;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => toggleMixedMode(option.id)}
+              aria-pressed={selected}
+              className={[
+                'relative min-h-[104px] rounded-card border-2 p-4 text-left transition-all sm:min-h-[132px] sm:p-5',
+                selected
+                  ? 'bg-warning-50/60 border-warning-300 shadow-xl shadow-warning-500/10'
+                  : 'bg-white border-surface-100 hover:border-warning-200',
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  selected ? 'bg-warning-500 text-white' : 'bg-surface-100 text-surface-500'
+                }`}>
+                  <Icon className="w-5 h-5" aria-hidden="true" />
+                </div>
+                <Badge tone={selected ? 'warning' : 'neutral'} size="xs">
+                  {index + 1}
+                </Badge>
+              </div>
+              <p className={`text-sm font-black tracking-tight ${selected ? 'text-warning-900' : 'text-surface-700'}`}>
+                {option.title}
+              </p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-surface-400">
+                {option.desc}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="bg-surface-50/70 border border-surface-100 rounded-card p-5">
+        <p className="text-xs font-bold text-surface-500 leading-relaxed">
+          정답이면 다음 단계로 이동하고, 오답이면 같은 문제가 뒤로 재출제됩니다. 같은 단계에서 연속 오답이면 한 단계 쉬운 문제로 되돌아갑니다.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+export function CountAndSoundSections({
+  countBadge,
+  countSubtitle,
+  countTitle,
+  countValue,
+  isMixed,
+  isToefl,
+  maxQuestions,
+  maxStudySetSize,
+  setQuestionCount,
+  setSoundEnabled,
+  setStudySetSize,
+  soundEnabled,
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <section className="space-y-6">
+        <SectionHead
+          icon={Hash}
+          title={countTitle}
+          subtitle={countSubtitle}
+        />
+
+        <div className="space-y-6 px-1 pt-4">
+          <div className="flex items-center justify-between">
+            <div className="relative">
+              <span className="text-5xl font-black text-surface-900 tracking-tighter">{countValue}</span>
+              <Badge tone="brand" size="xs" className="absolute -top-4 -right-12">{countBadge}</Badge>
+            </div>
+            <div className="text-right">
+              <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-1">
+                {isMixed ? 'Total Words' : 'Max Questions'}
+              </p>
+              <p className="text-sm font-black text-surface-600">{isMixed ? maxStudySetSize : maxQuestions}</p>
+            </div>
+          </div>
+
+          <div className="relative py-2">
+            <input
+              type="range"
+              min={1}
+              max={isMixed ? maxStudySetSize : maxQuestions}
+              value={countValue}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (isMixed) setStudySetSize(next);
+                else setQuestionCount(next);
+              }}
+              aria-label={countTitle}
+              className="w-full h-3 bg-surface-100 rounded-pill appearance-none cursor-pointer accent-brand-600"
+            />
+            <div className="flex justify-between mt-4 text-2xs font-black text-surface-300 uppercase tracking-widest">
+              <span>{isMixed ? '1 Word' : '1 Unit'}</span>
+              <span>{isMixed ? 'Set Size' : isToefl ? 'Limit 10' : 'Adaptive Max'}</span>
+            </div>
+          </div>
+          {isMixed && (
+            <p className="text-xs font-bold text-surface-500 leading-relaxed">
+              전체 단어를 {countValue}개씩 묶어 세트별로 진행합니다. 각 세트가 끝나면 잠깐 멈추고 다음 학습으로 넘어갈 수 있습니다.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <SectionHead
+          icon={Volume2}
+          title="사운드 설정"
+          subtitle="효과음 및 자동 발음 제어"
+          tone="brand"
+        />
+
+        <ToggleCard
+          on={soundEnabled}
+          onChange={() => setSoundEnabled(v => !v)}
+          title={`사운드 ${soundEnabled ? '활성화' : '비활성화'}`}
+          desc={`발음 자동 재생 및 정답 효과음이 ${soundEnabled ? '들립니다.' : '나오지 않습니다.'}`}
+          tone="brand"
+          activeIcon={Volume2}
+        />
+      </section>
+    </div>
+  );
+}
+
+export function AiDifficultySections({ aiMode, isToefl, setAiMode, setTargetScore, targetScore }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4 border-t border-surface-50">
+      <section className="space-y-6">
+        <SectionHead
+          icon={Sparkles}
+          title="AI 학습 모드"
+          subtitle="지능형 채점 및 문맥 기반 생성"
+          tone="warning"
+        />
+
+        <ToggleCard
+          on={aiMode}
+          onChange={() => setAiMode(v => !v)}
+          title={`AI Assistant ${aiMode ? 'ON' : 'OFF'}`}
+          desc="단어의 미세한 뉘앙스를 파악하고 지능형 문제를 생성합니다."
+          tone="warning"
+          activeIcon={Sparkles}
+        />
+      </section>
+
+      {isToefl && (
+        <section className="space-y-6">
+          <SectionHead
+            icon={Target}
+            title="난이도"
+            subtitle="문제의 지문 길이와 추론 밀도를 고릅니다"
+            tone="accent"
+          />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {TOEFL_DIFFICULTY_LEVELS.map((level) => {
+              const selected = targetScore === level.id;
+              return (
+                <button
+                  key={level.id}
+                  type="button"
+                  onClick={() => setTargetScore(level.id)}
+                  aria-pressed={selected}
+                  className={[
+                    'min-h-[104px] rounded-card border p-4 text-left transition-all',
+                    selected
+                      ? 'border-accent-300 bg-accent-50 text-accent-900 shadow-sm ring-2 ring-accent-100'
+                      : 'border-surface-100 bg-white text-surface-700 hover:border-accent-200',
+                  ].join(' ')}
+                >
+                  <span className="block text-sm font-black">{level.label}</span>
+                  <span className="mt-2 block text-xs font-bold leading-relaxed text-surface-500">{level.caption}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export function ToeflVocabSourceSection({
+  folders,
+  setVocabFolderIds,
+  setVocabMode,
+  setVocabSampleSize,
+  toeflVocabPool,
+  toggleVocabFolder,
+  vocabFolderIds,
+  vocabMode,
+  vocabPoolWarning,
+  vocabSampleSize,
+  words,
+}) {
+  const wordCountByFolder = folders.reduce((acc, f) => {
+    acc[f.id] = words.filter((w) => wordBelongsToFolder(w, f.id)).length;
+    return acc;
+  }, {});
+
+  return (
+    <section className="space-y-6 pt-4 border-t border-surface-50">
+      <SectionHead
+        icon={BookOpen}
+        title="내 단어장 활용"
+        subtitle="수집한 단어들을 문제에 우선 노출시켜 학습 연계성 강화"
+        tone="brand"
+      />
+
+      <ToggleCard
+        on={vocabMode !== 'off'}
+        onChange={() => setVocabMode((prev) => (prev === 'off' ? 'all' : 'off'))}
+        title={`단어장 기반 출제 ${vocabMode === 'off' ? 'OFF' : 'ON'}`}
+        desc="내 단어장에서 추출한 단어를 활용해 매번 다른 문장과 문단을 생성합니다."
+        tone="brand"
+        activeIcon={BookOpen}
+      />
+
+      {vocabMode !== 'off' && (
+        <div className="space-y-5 bg-brand-50/40 border border-brand-100 rounded-card p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-2xs font-black text-brand-700 uppercase tracking-widest shrink-0">단어 출처</p>
+            <div className="inline-flex shrink-0 whitespace-nowrap rounded-pill bg-white border border-brand-100 p-1 shadow-[var(--shadow-soft)]">
+              {[
+                { id: 'all', label: '전체 단어' },
+                { id: 'folders', label: '폴더 선택' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setVocabMode(opt.id)}
+                  aria-pressed={vocabMode === opt.id}
+                  className={[
+                    'px-4 py-1.5 rounded-pill text-2xs font-black uppercase tracking-widest transition-all whitespace-nowrap',
+                    vocabMode === opt.id
+                      ? 'bg-brand-600 text-white shadow-[var(--shadow-card)]'
+                      : 'text-brand-600 hover:bg-brand-50',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {vocabMode === 'folders' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-2xs font-black text-brand-700 uppercase tracking-widest">대상 폴더</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setVocabFolderIds([])}
+                    className="text-2xs font-black text-surface-400 uppercase tracking-widest hover:text-brand-600 transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVocabFolderIds(folders.map((f) => f.id))}
+                    className="text-2xs font-black text-brand-600 uppercase tracking-widest hover:underline"
+                  >
+                    Select All
+                  </button>
+                </div>
+              </div>
+
+              {folders.length === 0 ? (
+                <div className="bg-white border border-dashed border-surface-200 rounded-card p-5 text-center">
+                  <p className="text-xs font-bold text-surface-500">등록된 폴더가 없습니다. 단어장에서 폴더를 먼저 생성해주세요.</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-card border border-surface-100 p-3">
+                  <CompactFolderPicker
+                    folders={folders}
+                    words={words}
+                    selectedFolderId={null}
+                    selectedFolderIds={vocabFolderIds}
+                    onSelectFolder={toggleVocabFolder}
+                    wordCountByFolder={wordCountByFolder}
+                    totalWordCount={words.length}
+                    isMultiSelect={true}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-2xs font-black text-brand-700 uppercase tracking-widest">샘플 단어 개수</p>
+              <span className="text-2xs font-black text-surface-500">최대 {VOCAB_SAMPLE_MAX}개</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={VOCAB_SAMPLE_MIN}
+                max={VOCAB_SAMPLE_MAX}
+                step={1}
+                value={vocabSampleSize}
+                onChange={(e) => setVocabSampleSize(Number(e.target.value))}
+                aria-label="샘플 단어 개수"
+                className="flex-1 h-2 bg-surface-100 rounded-pill appearance-none cursor-pointer accent-brand-600"
+              />
+              <span className="text-3xl font-black text-brand-700 tracking-tighter w-12 text-right">{vocabSampleSize}</span>
+            </div>
+            <p className="text-xs font-bold text-surface-500 leading-relaxed">
+              선택한 풀에서 매 세션마다 무작위로 {vocabSampleSize}개 단어를 뽑아 AI 프롬프트에 포함시킵니다.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-white rounded-pill border border-brand-100">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-pill ${toeflVocabPool.length > 0 ? 'bg-brand-500 animate-pulse' : 'bg-surface-300'}`} aria-hidden="true" />
+              <p className="text-2xs font-black text-surface-600 uppercase tracking-widest">현재 풀</p>
+            </div>
+            <p className="text-sm font-black text-brand-700">{toeflVocabPool.length}개 단어</p>
+          </div>
+
+          {vocabPoolWarning && (
+            <p className="text-2xs font-black text-warning-700 bg-warning-50 border border-warning-200 rounded-pill px-4 py-1.5 w-fit">
+              {vocabPoolWarning}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function TopicSelectionSection({
+  commitEditTopic,
+  editingTopic,
+  handleAddTopic,
+  handleRemoveTopic,
+  newTopicDesc,
+  newTopicLabel,
+  selectedTopicIds,
+  setEditingTopic,
+  setNewTopicDesc,
+  setNewTopicLabel,
+  setSelectedTopicIds,
+  setTopicEnabled,
+  setTopicError,
+  setTopicPickCount,
+  startEditTopic,
+  toggleTopic,
+  topicEnabled,
+  topicError,
+  topicPickCount,
+  topics,
+}) {
+  return (
+    <section className="space-y-6 pt-4 border-t border-surface-50">
+      <SectionHead
+        icon={Sparkles}
+        title="주제 분야"
+        subtitle="사전 정의된 분야 set 에서 무작위 픽 — 같은 모드에서도 다양성 확보"
+        tone="accent"
+      />
+
+      <ToggleCard
+        on={topicEnabled}
+        onChange={() => setTopicEnabled((v) => !v)}
+        title={`분야 강조 ${topicEnabled ? 'ON' : 'OFF'}`}
+        desc="선택한 분야 중 일부를 무작위로 뽑아 AI 프롬프트에 전달합니다."
+        tone="accent"
+        activeIcon={Sparkles}
+      />
+
+      {topicEnabled && (
+        <div className="space-y-5 bg-accent-50/30 border border-accent-100 rounded-card p-6">
+          <div className="flex items-center justify-between">
+            <p className="text-2xs font-black text-accent-700 uppercase tracking-widest">분야 선택 (multi-select)</p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedTopicIds([])}
+                className="text-2xs font-black text-surface-400 uppercase tracking-widest hover:text-accent-600 transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTopicIds(topics.map((t) => t.id))}
+                className="text-2xs font-black text-accent-600 uppercase tracking-widest hover:underline"
+              >
+                Select All
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-card border border-surface-100 p-4">
+            <div className="flex flex-wrap gap-2">
+              {topics.map((topic) => (
+                <TopicChip
+                  key={topic.id}
+                  topic={topic}
+                  selected={selectedTopicIds.includes(topic.id)}
+                  onToggle={toggleTopic}
+                  onRemove={handleRemoveTopic}
+                  onEdit={startEditTopic}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-2xs font-black text-accent-700 uppercase tracking-widest shrink-0">픽 개수</p>
+              <span className="text-2xs font-black text-surface-500 shrink-0">매 세션마다 무작위 N개</span>
+            </div>
+            <div className="inline-flex shrink-0 whitespace-nowrap rounded-pill bg-white border border-accent-100 p-1 shadow-[var(--shadow-soft)]">
+              {[1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setTopicPickCount(n)}
+                  aria-pressed={topicPickCount === n}
+                  className={[
+                    'w-10 h-8 rounded-pill text-xs font-black transition-all',
+                    topicPickCount === n
+                      ? 'bg-accent-600 text-white shadow-[var(--shadow-card)]'
+                      : 'text-accent-600 hover:bg-accent-50',
+                  ].join(' ')}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {editingTopic ? (
+            <div className="space-y-3 bg-white rounded-card border border-accent-200 p-5">
+              <p className="text-2xs font-black text-accent-700 uppercase tracking-widest">분야 편집</p>
+              <input
+                type="text"
+                value={editingTopic.label}
+                onChange={(e) => setEditingTopic((prev) => ({ ...prev, label: e.target.value }))}
+                placeholder="분야 이름"
+                aria-label="분야 이름"
+                className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
+              />
+              <input
+                type="text"
+                value={editingTopic.description}
+                onChange={(e) => setEditingTopic((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="설명 (선택) — 예: Cosmology, Planetary Science"
+                aria-label="분야 설명"
+                className="w-full text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
+              />
+              {topicError && <p className="text-2xs font-black text-danger-500">{topicError}</p>}
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => { setEditingTopic(null); setTopicError(''); }}>
+                  취소
+                </Button>
+                <Button variant="primary" size="sm" onClick={commitEditTopic} disabled={!editingTopic.label.trim()}>
+                  수정 완료
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 bg-white rounded-card border border-surface-100 p-5">
+              <p className="text-2xs font-black text-accent-700 uppercase tracking-widest">새 분야 추가</p>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto] gap-2">
+                <input
+                  type="text"
+                  value={newTopicLabel}
+                  onChange={(e) => setNewTopicLabel(e.target.value)}
+                  placeholder="예: 인류학"
+                  aria-label="새 분야 이름"
+                  className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
+                />
+                <input
+                  type="text"
+                  value={newTopicDesc}
+                  onChange={(e) => setNewTopicDesc(e.target.value)}
+                  placeholder="설명 (선택)"
+                  aria-label="새 분야 설명"
+                  className="min-w-0 text-sm px-3 py-2.5 border border-surface-200 rounded-md bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-surface-0"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={Plus}
+                  onClick={handleAddTopic}
+                  disabled={!newTopicLabel.trim()}
+                >
+                  추가
+                </Button>
+              </div>
+              {topicError && <p className="text-2xs font-black text-danger-500">{topicError}</p>}
+              <p className="text-2xs font-bold text-surface-400 leading-relaxed">
+                기본 분야는 삭제되지 않습니다. 사용자 정의 분야만 편집/삭제 가능합니다.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-white rounded-pill border border-accent-100">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-pill ${selectedTopicIds.length > 0 ? 'bg-accent-600 animate-pulse' : 'bg-surface-300'}`} aria-hidden="true" />
+              <p className="text-2xs font-black text-surface-600 uppercase tracking-widest">선택된 분야</p>
+            </div>
+            <p className="text-sm font-black text-accent-700">
+              {selectedTopicIds.length}개 · 픽 {Math.min(topicPickCount, Math.max(selectedTopicIds.length, 1))}/세션
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
