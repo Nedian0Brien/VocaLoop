@@ -4,38 +4,21 @@ import { hasAiProviderAccess } from '../services/aiModelService';
 import { createWord, deleteWord, updateWord } from '../services/wordApi';
 import { runBulkWordAdd } from '../services/bulkWordAddService';
 import {
+  buildAcceptedAnswerPatch,
+  buildFolderIds,
+  buildLearningRatePatch,
+  buildMeaningWithAcceptedAnswer,
+  buildRegeneratedWordPatch,
+  getNullableFolderId,
+} from '../services/vocabularyCommandHelpers';
+import {
   buildVocabularyPayload,
   getVocabularyWordKey,
   normalizeCapturedWord,
 } from '../utils/vocabularyCapture';
 import { normalizeWord, sortWordsByNewest } from '../utils/appDataTransforms';
 
-const normalizeTextValue = (value) => {
-  if (value === null || value === undefined) return null;
-  const normalized = String(value).trim();
-  return normalized || null;
-};
-
-const splitMeaningItems = (value = '') =>
-  String(value)
-    .split(/[,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-export const buildMeaningWithAcceptedAnswer = (currentMeaning, acceptedAnswer) => {
-  const normalizedAnswer = normalizeTextValue(acceptedAnswer?.answer);
-  if (!normalizedAnswer || acceptedAnswer?.mode !== 'short-en-ko') {
-    return currentMeaning || '';
-  }
-
-  const meaningItems = splitMeaningItems(currentMeaning);
-  const alreadyIncluded = meaningItems.some(
-    (item) => item.toLowerCase() === normalizedAnswer.toLowerCase(),
-  );
-  if (alreadyIncluded) return currentMeaning || normalizedAnswer;
-
-  return [...meaningItems, normalizedAnswer].join(', ');
-};
+export { buildMeaningWithAcceptedAnswer } from '../services/vocabularyCommandHelpers';
 
 export function useVocabularyCommands({
   activeAiConfig,
@@ -85,18 +68,16 @@ export function useVocabularyCommands({
     setIsAnalyzing(true);
     try {
       const analysisResult = await generateWordData(inputWord, activeAiConfig);
-      const folderId = addToFolderId === null || addToFolderId === undefined || addToFolderId === ''
-        ? null
-        : Number(addToFolderId);
+      const folderId = getNullableFolderId(addToFolderId);
       const createdWord = await createWord({
         ...analysisResult,
-        folder_id: Number.isNaN(folderId) ? null : folderId,
-        folder_ids: Number.isNaN(folderId) || folderId === null ? [] : [folderId],
+        folder_id: folderId,
+        folder_ids: buildFolderIds(folderId),
       });
       upsertWordInState(createdWord);
 
       setInputWord('');
-      const folderName = Number.isNaN(folderId) || folderId === null
+      const folderName = folderId === null
         ? null
         : folders.find((folder) => folder.id === folderId)?.name;
       showNotification(`'${analysisResult.word}' ${folderName ? `→ ${folderName}` : ''} 추가 완료!`);
@@ -245,16 +226,7 @@ export function useVocabularyCommands({
 
     try {
       const newWordData = await generateWordData(existingWord.word, activeAiConfig);
-      const updatedWord = await updateWord(wordId, {
-        meaning_ko: newWordData.meaning_ko,
-        pronunciation: newWordData.pronunciation,
-        pos: newWordData.pos,
-        definitions: newWordData.definitions,
-        definitions_ko: newWordData.definitions_ko,
-        examples: newWordData.examples,
-        synonyms: newWordData.synonyms,
-        nuance: newWordData.nuance,
-      });
+      const updatedWord = await updateWord(wordId, buildRegeneratedWordPatch(newWordData));
       upsertWordInState(updatedWord);
     } catch (error) {
       console.error('Regenerate Word Error:', error);
@@ -269,13 +241,7 @@ export function useVocabularyCommands({
     if (!user) return;
     try {
       const currentWord = words.find((word) => word.id === wordId);
-      const updatedWord = await updateWord(wordId, {
-        learning_rate: Math.max(0, Math.min(100, Math.round(newRate))),
-        stats: {
-          wrong_count: statsUpdate.wrong_count ?? currentWord?.stats?.wrong_count ?? 0,
-          review_count: statsUpdate.review_count ?? currentWord?.stats?.review_count ?? 0,
-        },
-      });
+      const updatedWord = await updateWord(wordId, buildLearningRatePatch(newRate, statsUpdate, currentWord));
       upsertWordInState(updatedWord);
     } catch (error) {
       console.error('Learning rate update failed:', error);
@@ -287,36 +253,11 @@ export function useVocabularyCommands({
     const currentWord = words.find((word) => word.id === wordId);
     if (!currentWord) return null;
 
-    const normalizedAnswer = acceptedAnswer.answer.trim();
-    const currentAcceptedAnswers = Array.isArray(currentWord.accepted_answers)
-      ? currentWord.accepted_answers
-      : [];
-    const alreadySaved = currentAcceptedAnswers.some((item) => (
-      item?.mode === acceptedAnswer.mode &&
-      String(item?.answer || '').trim().toLowerCase() === normalizedAnswer.toLowerCase()
-    ));
-    const nextMeaningKo = buildMeaningWithAcceptedAnswer(currentWord.meaning_ko, {
-      ...acceptedAnswer,
-      answer: normalizedAnswer,
-    });
-    const shouldUpdateMeaning = nextMeaningKo !== (currentWord.meaning_ko || '');
-    if (alreadySaved && !shouldUpdateMeaning) return currentWord;
+    const patch = buildAcceptedAnswerPatch(currentWord, acceptedAnswer);
+    if (!patch) return currentWord;
 
     try {
-      const updatedWord = await updateWord(wordId, {
-        ...(shouldUpdateMeaning ? { meaning_ko: nextMeaningKo } : {}),
-        ...(alreadySaved ? {} : {
-          accepted_answers: [
-            ...currentAcceptedAnswers,
-            {
-              mode: acceptedAnswer.mode,
-              answer: normalizedAnswer,
-              source: acceptedAnswer.source || 'ai-review',
-              feedback: acceptedAnswer.feedback || null,
-            },
-          ],
-        }),
-      });
+      const updatedWord = await updateWord(wordId, patch);
       const normalizedWord = upsertWordInState(updatedWord);
       showNotification('AI가 인정한 답안을 앞으로 정답으로 반영합니다.');
       return normalizedWord;

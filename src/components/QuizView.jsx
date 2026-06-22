@@ -17,10 +17,9 @@ import {
   startNextAdaptiveSet,
 } from '../services/adaptiveQuizService';
 import { useQuizAnswerController } from '../hooks/useQuizAnswerController';
+import { useQuizPersistedSession } from '../hooks/useQuizPersistedSession';
 import { createToeflAsset, createToeflAttempt, getToeflAsset } from '../services/toeflAssetApi';
 import {
-  loadPersistedQuizSession,
-  persistQuizSession,
   recordToeflAssetActivity,
 } from '../services/quizSessionStorage';
 import {
@@ -157,12 +156,7 @@ export default function QuizView({
   initialReviewAsset = null,
   onInitialReviewAssetConsumed,
 }) {
-  // 새로고침 시 진행 중이던 퀴즈를 복원한다. 마운트 시 1회만 읽는다.
-  const restoredSessionRef = useRef(undefined);
-  if (restoredSessionRef.current === undefined) {
-    restoredSessionRef.current = loadPersistedQuizSession({ quizModeById: QUIZ_MODE_BY_ID });
-  }
-  const restoredSession = restoredSessionRef.current;
+  const restoredSession = useQuizPersistedSession.load({ quizModeById: QUIZ_MODE_BY_ID });
 
   const [quizState, setQuizState] = useState(restoredSession ? 'quiz' : 'select');
   const [selectedMode, setSelectedMode] = useState(
@@ -386,30 +380,19 @@ export default function QuizView({
     onInitialReviewAssetConsumed?.();
   }, [handleToeflAssetSelect, initialReviewAsset, onInitialReviewAssetConsumed]);
 
-  // 복원된 세션의 AI 채점 모드를 부모 상태에 반영한다.
-  // (App의 aiMode는 새로고침 시 false로 초기화되므로 직접 되살린다.)
-  useEffect(() => {
-    if (restoredSession && typeof restoredSession.aiMode === 'boolean' && restoredSession.aiMode !== aiMode) {
-      setAiMode(restoredSession.aiMode);
-    }
-    // 마운트 시 1회만 실행한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    persistQuizSession({
-      adaptiveSession,
-      aiMode,
-      currentIndex,
-      modeId: selectedMode?.id,
-      queue,
-      quizState,
-      soundEnabled,
-      stats,
-      studySetSummaries,
-      wordQuizTracker: wordQuizTracker.current,
-    });
-  }, [quizState, selectedMode, queue, currentIndex, adaptiveSession, studySetSummaries, stats, soundEnabled, aiMode]);
+  useQuizPersistedSession.syncAiMode({ aiMode, restoredSession, setAiMode });
+  useQuizPersistedSession.persist({
+    adaptiveSession,
+    aiMode,
+    currentIndex,
+    queue,
+    quizState,
+    selectedMode,
+    soundEnabled,
+    stats,
+    studySetSummaries,
+    wordQuizTracker,
+  });
 
   const { handleAcceptedAnswer, handleAnswer } = useQuizAnswerController({
     adaptiveSession,

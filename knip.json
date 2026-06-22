@@ -11,6 +11,9 @@
   ],
   "project": ["src/**/*.{js,jsx}", "scripts/**/*.mjs", "*.{js,cjs,mjs}"],
   "ignore": [
+    ".claude/**",
+    ".codegraph/**",
+    ".worktrees/**",
     "src/design-system/index.js",
     "src/design-system/tokens.js",
     "src/services/apiClient.js",

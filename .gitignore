@@ -10,6 +10,8 @@ lerna-debug.log*
 # Node modules
 node_modules
 .worktrees/
+.claude/
+.codegraph/
 .npm
 .yarn
 
