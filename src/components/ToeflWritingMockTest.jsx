@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Edit3, Mail, Quote, Sparkles } from './Icons';
+import BuildSentenceFrame from './BuildSentenceFrame';
 import {
   estimateWritingBand,
   evaluateWritingMockSection,
@@ -8,9 +9,11 @@ import {
 import { playSound } from '../utils/soundEffects';
 import { Button } from '../design-system';
 import { serializePickedTopics, useToeflQuizSession } from '../hooks/useToeflQuizSession';
+import { useBuildSentenceDrag } from '../hooks/useBuildSentenceDrag';
 import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 import {
   buildSentenceAttempt,
+  countSentenceFrameBlanks,
   getBuildSentenceRequiredTokenCount,
   hasBuildSentenceFrame,
 } from '../services/toefl/buildSentenceUtils';
@@ -103,6 +106,7 @@ export default function ToeflWritingMockTest({
   const activeArrangement = arrangements[step] || [];
   const activeRequiredTokenCount = getBuildSentenceRequiredTokenCount(activeSentence);
   const activeIsFramedQuestion = hasBuildSentenceFrame(activeSentence);
+  const activeHasVisibleFrame = countSentenceFrameBlanks(activeSentence?.sentenceFrame) > 0;
   const activeSentenceIncomplete = activeSentence && (
     activeIsFramedQuestion
       ? activeArrangement.length !== activeRequiredTokenCount
@@ -111,7 +115,16 @@ export default function ToeflWritingMockTest({
 
   const emailWordCount = useMemo(() => countWords(emailResponse), [emailResponse]);
   const discussionWordCount = useMemo(() => countWords(discussionResponse), [discussionResponse]);
-
+  const setActiveBank = useCallback((updater) => {
+    setBanks((prev) => prev.map((bank, index) => (
+      index === step ? (typeof updater === 'function' ? updater(bank) : updater) : bank
+    )));
+  }, [step]);
+  const setActiveArrangement = useCallback((updater) => {
+    setArrangements((prev) => prev.map((arrangement, index) => (
+      index === step ? (typeof updater === 'function' ? updater(arrangement) : updater) : arrangement
+    )));
+  }, [step]);
   const { activeAsset, error, reload: loadSection, sessionContext, setError, setStatus, status } = useToeflQuizSession({
     reviewAsset,
     vocabSource,
@@ -167,6 +180,17 @@ export default function ToeflWritingMockTest({
     },
     errorMessage: 'Writing 모의고사 생성 중 오류가 발생했습니다.',
     dependencies: [targetScore, reviewAsset?.id],
+  });
+  const {
+    arrContainerRef,
+    drag,
+    dropAtIdx,
+    handlePointerDown,
+  } = useBuildSentenceDrag({
+    currentQuestion: activeSentence,
+    setArrangement: setActiveArrangement,
+    setBank: setActiveBank,
+    status,
   });
 
   const resetAndReload = () => {
@@ -388,7 +412,7 @@ export default function ToeflWritingMockTest({
             <p className="text-base md:text-lg font-bold text-surface-800 leading-relaxed">
               {activeSentence.context || activeSentence.hint || 'Arrange the words into a complete sentence.'}
             </p>
-            {activeSentence.sentenceFrame && (
+            {activeSentence.sentenceFrame && !activeHasVisibleFrame && (
               <p className="mt-4 text-base md:text-lg font-black text-surface-900 leading-relaxed">
                 {activeSentence.sentenceFrame}
               </p>
@@ -396,6 +420,21 @@ export default function ToeflWritingMockTest({
           </section>
 
           <section className="space-y-4">
+            {activeHasVisibleFrame ? (
+              <div>
+                <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Sentence Frame</p>
+                <BuildSentenceFrame
+                  arrangement={activeArrangement}
+                  containerRef={arrContainerRef}
+                  disabled={status !== 'ready'}
+                  drag={drag}
+                  dropAtIdx={dropAtIdx}
+                  onTokenClick={moveToBank}
+                  onTokenPointerDown={handlePointerDown}
+                  question={activeSentence}
+                />
+              </div>
+            ) : (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-2xs font-black text-surface-400 uppercase tracking-widest">Your Sentence</p>
@@ -431,6 +470,7 @@ export default function ToeflWritingMockTest({
                 </p>
               )}
             </div>
+            )}
 
             <div>
               <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Word Bank</p>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Check } from './Icons';
+import BuildSentenceFrame from './BuildSentenceFrame';
 import {
   generateBuildSentenceSet,
   generateBuildSentenceFeedback,
@@ -13,6 +14,7 @@ import { formatToeflDifficultyLabel } from '../services/toefl/difficulty';
 import {
   buildSentenceAttempt,
   canSubmitBuildSentence,
+  countSentenceFrameBlanks,
   getBuildSentenceRequiredTokenCount,
   hasBuildSentenceFrame,
 } from '../services/toefl/buildSentenceUtils';
@@ -274,6 +276,7 @@ export default function ToeflBuildSentenceQuiz({
   const correctCount = results.filter(Boolean).length;
   const requiredTokenCount = getBuildSentenceRequiredTokenCount(currentQuestion);
   const isFramedQuestion = hasBuildSentenceFrame(currentQuestion);
+  const hasVisibleSentenceFrame = countSentenceFrameBlanks(currentQuestion?.sentenceFrame) > 0;
 
   if (status === 'loading') {
     return (
@@ -350,7 +353,7 @@ export default function ToeflBuildSentenceQuiz({
         <div>
           <h2 className="text-2xl font-black text-surface-900 tracking-tight">Build a Sentence</h2>
           <p className="text-sm font-bold text-surface-500">
-            단어를 클릭해 올바른 순서로 문장을 완성하세요. (문항 {currentIndex + 1}/{totalQuestions})
+            단어를 클릭하거나 드래그해 빈칸을 채우세요. (문항 {currentIndex + 1}/{totalQuestions})
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 max-w-full">
@@ -373,7 +376,7 @@ export default function ToeflBuildSentenceQuiz({
         </div>
       </div>
 
-      {currentQuestion.context || currentQuestion.sentenceFrame ? (
+      {hasVisibleSentenceFrame ? (
         <div className="bg-surface-50 rounded-md p-4 md:p-6 border border-surface-100 space-y-4">
           {currentQuestion.context && (
             <div>
@@ -386,9 +389,17 @@ export default function ToeflBuildSentenceQuiz({
           {currentQuestion.sentenceFrame && (
             <div>
               <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Sentence Frame</p>
-              <p className="text-base md:text-lg font-black text-surface-900 leading-relaxed">
-                {currentQuestion.sentenceFrame}
-              </p>
+              <BuildSentenceFrame
+                arrangement={arrangement}
+                containerRef={arrContainerRef}
+                disabled={isChecking || isFeedback}
+                drag={drag}
+                dropAtIdx={dropAtIdx}
+                feedback={isFeedback ? feedback : null}
+                onTokenClick={moveToBank}
+                onTokenPointerDown={handlePointerDown}
+                question={currentQuestion}
+              />
             </div>
           )}
         </div>
@@ -402,6 +413,7 @@ export default function ToeflBuildSentenceQuiz({
       )}
 
       {/* 답안 영역 */}
+      {!hasVisibleSentenceFrame && (
       <div>
         <p className="text-2xs font-black text-surface-400 uppercase tracking-widest mb-2">Your Sentence</p>
         <div
@@ -457,6 +469,7 @@ export default function ToeflBuildSentenceQuiz({
           )}
         </div>
       </div>
+      )}
 
       {/* 단어 은행 */}
       <div>

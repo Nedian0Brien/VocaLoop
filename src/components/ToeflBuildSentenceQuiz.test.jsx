@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import ToeflBuildSentenceQuiz from './ToeflBuildSentenceQuiz';
@@ -63,12 +63,15 @@ describe('ToeflBuildSentenceQuiz ETS-style schema', () => {
     );
 
     await screen.findByText("I'm planning a trip to Europe this summer.");
-    expect(screen.getByText('_____ _____ book your _____ _____ ?')).toBeTruthy();
+    const frame = screen.getByTestId('build-sentence-frame');
+    expect(screen.queryByText('Your Sentence')).toBeNull();
+    expect(frame.querySelectorAll('[data-drop-slot]')).toHaveLength(4);
 
     const checkButton = screen.getByRole('button', { name: '정답 확인' });
     expect(checkButton.disabled).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: /Did/ }));
+    expect(within(frame).getByRole('button', { name: /Did/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /you/ }));
     fireEvent.click(screen.getByRole('button', { name: /flight/ }));
 

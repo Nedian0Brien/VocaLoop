@@ -47,6 +47,19 @@ export function useBuildSentenceDrag({
         return null;
       }
 
+      const slotEls = arrEl.querySelectorAll('[data-drop-slot]');
+      for (let i = 0; i < slotEls.length; i += 1) {
+        const rect = slotEls[i].getBoundingClientRect();
+        if (
+          clientX >= rect.left - 6 &&
+          clientX <= rect.right + 6 &&
+          clientY >= rect.top - 6 &&
+          clientY <= rect.bottom + 6
+        ) {
+          return Number(slotEls[i].dataset.dropSlot);
+        }
+      }
+
       const wordEls = arrEl.querySelectorAll('[data-arr-word]');
       if (wordEls.length === 0) return 0;
 

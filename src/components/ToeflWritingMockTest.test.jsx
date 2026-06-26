@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import ToeflWritingMockTest from './ToeflWritingMockTest';
@@ -66,7 +66,11 @@ describe('ToeflWritingMockTest', () => {
       />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'I' }));
+    const frame = await screen.findByTestId('build-sentence-frame');
+    expect(screen.queryByText('Your Sentence')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'I' }));
+    expect(within(frame).getByRole('button', { name: /I/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '다음 문항' }));
 
     const responseBox = await screen.findByPlaceholderText('Write your email here.');

@@ -11,6 +11,29 @@ export const countSentenceFrameBlanks = (sentenceFrame) => {
   return matches ? matches.length : 0;
 };
 
+export const splitSentenceFrame = (sentenceFrame) => {
+  const source = String(sentenceFrame || '');
+  const parts = [];
+  let blankIndex = 0;
+  let lastIndex = 0;
+
+  source.replace(BLANK_PATTERN, (match, offset) => {
+    if (offset > lastIndex) {
+      parts.push({ type: 'text', text: source.slice(lastIndex, offset) });
+    }
+    parts.push({ type: 'blank', index: blankIndex });
+    blankIndex += 1;
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < source.length) {
+    parts.push({ type: 'text', text: source.slice(lastIndex) });
+  }
+
+  return parts;
+};
+
 export const getBuildSentenceRequiredTokenCount = (question) => {
   if (Array.isArray(question?.answer) && question.answer.length > 0) {
     return question.answer.length;
