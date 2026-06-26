@@ -316,7 +316,7 @@ export default function VocabularyDashboard({
                         </div>
                         <div className="flex items-center justify-between mt-2 ml-1">
                             <p className="text-xs text-surface-500 flex items-center gap-1 font-semibold">
-                                <span className="text-brand-600 font-black">AI Powered:</span> Definitions, examples, and nuances will be generated automatically.
+                                <span className="text-brand-600 font-black">AI Powered</span>
                             </p>
                             {folders.length > 0 && (
                                 <div className="flex items-center gap-1.5">
