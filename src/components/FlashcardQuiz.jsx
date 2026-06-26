@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BookOpen, Check, Quote, Volume2, X } from './Icons';
 import { Badge, Button, Card } from '../design-system';
 import { speakEnglishWord } from '../utils/speechSynthesis';
@@ -10,10 +10,16 @@ export default function FlashcardQuiz({
   stats,
   soundEnabled = true,
 }) {
+  const [isRevealed, setIsRevealed] = useState(false);
+
   const speakWord = useCallback(() => {
     if (!word?.word || !soundEnabled) return;
     speakEnglishWord(word.word, word.pronunciationAudioUrl);
   }, [soundEnabled, word?.pronunciationAudioUrl, word?.word]);
+
+  useEffect(() => {
+    setIsRevealed(false);
+  }, [word?.id, word?.word]);
 
   useEffect(() => {
     speakWord();
@@ -67,54 +73,72 @@ export default function FlashcardQuiz({
               <Volume2 className="w-5 h-5 mx-auto" aria-hidden="true" />
             </button>
           </div>
-          <h2 className="font-serif text-4xl sm:text-5xl font-black tracking-tight">{word?.word}</h2>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            {word?.pronunciation && (
-              <p className="text-lg font-serif italic text-brand-200/60">{word.pronunciation}</p>
-            )}
-            {word?.pos && (
-              <span className="rounded-xs border border-brand-400/10 bg-brand-500/10 px-2.5 py-0.5 text-2xs font-black uppercase tracking-wider text-brand-300">
-                {word.pos}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="p-8 sm:p-10 space-y-6">
-          <div>
-            <p className="mb-2 text-2xs font-black uppercase tracking-widest text-surface-400">Meaning</p>
-            <p className="text-2xl font-black tracking-tight text-surface-900">{word?.meaning_ko || '-'}</p>
-          </div>
-
-          {word?.definitions?.[0] && (
-            <div className="rounded-xl border border-surface-100 bg-surface-50 p-5">
-              <p className="text-sm font-bold leading-relaxed text-surface-700">{word.definitions[0]}</p>
-              {word?.definitions_ko?.[0] && (
-                <p className="mt-2 text-xs font-bold text-surface-500">{word.definitions_ko[0]}</p>
-              )}
-            </div>
-          )}
-
-          {word?.examples?.[0] && (
-            <div className="rounded-xl border border-indigo-pair-500/10 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center gap-2">
-                <Quote className="w-4 h-4 text-indigo-pair-500" aria-hidden="true" />
-                <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Example</p>
+          <button
+            type="button"
+            onClick={() => setIsRevealed(true)}
+            aria-pressed={isRevealed}
+            className="block w-full rounded-xl py-8 text-left transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-300 sm:py-10"
+          >
+            <h2 className="font-serif text-4xl sm:text-5xl font-black tracking-tight">{word?.word}</h2>
+            {isRevealed && (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {word?.pronunciation && (
+                  <p className="text-lg font-serif italic text-brand-200/60">{word.pronunciation}</p>
+                )}
+                {word?.pos && (
+                  <span className="rounded-xs border border-brand-400/10 bg-brand-500/10 px-2.5 py-0.5 text-2xs font-black uppercase tracking-wider text-brand-300">
+                    {word.pos}
+                  </span>
+                )}
               </div>
-              <p className="text-sm font-black text-surface-900">"{word.examples[0].en}"</p>
-              <p className="mt-1 text-xs font-bold text-surface-500">{word.examples[0].ko}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Button variant="secondary" size="lg" onClick={() => onAnswer(false)} leftIcon={X} fullWidth>
-              다시 볼래요
-            </Button>
-            <Button variant="primary" size="lg" onClick={() => onAnswer(true)} rightIcon={Check} fullWidth>
-              알고 있어요
-            </Button>
-          </div>
+            )}
+          </button>
         </div>
+
+        {isRevealed && (
+          <div className="p-8 sm:p-10 space-y-6">
+            <div>
+              <p className="mb-2 text-2xs font-black uppercase tracking-widest text-surface-400">Meaning</p>
+              <p className="text-2xl font-black tracking-tight text-surface-900">{word?.meaning_ko || '-'}</p>
+            </div>
+
+            {word?.definitions?.[0] && (
+              <div className="rounded-xl border border-surface-100 bg-surface-50 p-5">
+                <p className="text-sm font-bold leading-relaxed text-surface-700">{word.definitions[0]}</p>
+                {word?.definitions_ko?.[0] && (
+                  <p className="mt-2 text-xs font-bold text-surface-500">{word.definitions_ko[0]}</p>
+                )}
+              </div>
+            )}
+
+            {word?.nuance && (
+              <div className="rounded-xl border border-brand-500/10 bg-brand-50/60 p-5">
+                <p className="mb-2 text-2xs font-black uppercase tracking-widest text-brand-500">Nuance</p>
+                <p className="text-sm font-bold leading-relaxed text-surface-700">{word.nuance}</p>
+              </div>
+            )}
+
+            {word?.examples?.[0] && (
+              <div className="rounded-xl border border-indigo-pair-500/10 bg-white p-5 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <Quote className="w-4 h-4 text-indigo-pair-500" aria-hidden="true" />
+                  <p className="text-2xs font-black uppercase tracking-widest text-surface-400">Example</p>
+                </div>
+                <p className="text-sm font-black text-surface-900">"{word.examples[0].en}"</p>
+                <p className="mt-1 text-xs font-bold text-surface-500">{word.examples[0].ko}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="secondary" size="lg" onClick={() => onAnswer(false)} leftIcon={X} fullWidth>
+                다시 볼래요
+              </Button>
+              <Button variant="primary" size="lg" onClick={() => onAnswer(true)} rightIcon={Check} fullWidth>
+                알고 있어요
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
