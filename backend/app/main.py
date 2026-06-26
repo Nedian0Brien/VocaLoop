@@ -25,6 +25,8 @@ settings.uploads_root.mkdir(parents=True, exist_ok=True)
 frontend_root = Path(__file__).resolve().parents[2] / "dist"
 frontend_root_resolved = frontend_root.resolve()
 frontend_index = frontend_root / "index.html"
+FRONTEND_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+FRONTEND_HTML_CACHE_CONTROL = "no-cache"
 
 
 @asynccontextmanager
@@ -73,6 +75,10 @@ def _is_static_looking_path(path: str) -> bool:
     return first_segment == "assets" or Path(path).suffix != ""
 
 
+def _frontend_file_response(file_path: Path, *, cache_control: str) -> FileResponse:
+    return FileResponse(file_path, headers={"Cache-Control": cache_control})
+
+
 @app.api_route("/", methods=["GET", "HEAD"])
 @app.api_route("/{path:path}", methods=["GET", "HEAD"])
 def serve_frontend(path: str = ""):
@@ -85,7 +91,12 @@ def serve_frontend(path: str = ""):
             raise HTTPException(status_code=404, detail="Not Found")
 
         if file_path.is_file():
-            return FileResponse(file_path)
+            cache_control = (
+                FRONTEND_ASSET_CACHE_CONTROL
+                if path.split("/", 1)[0] == "assets"
+                else FRONTEND_HTML_CACHE_CONTROL
+            )
+            return _frontend_file_response(file_path, cache_control=cache_control)
 
         if _is_static_looking_path(path):
             raise HTTPException(status_code=404, detail="Not Found")
@@ -96,6 +107,6 @@ def serve_frontend(path: str = ""):
             resolved_index.relative_to(frontend_root_resolved)
         except ValueError:
             raise HTTPException(status_code=404, detail="Not Found")
-        return FileResponse(resolved_index)
+        return _frontend_file_response(resolved_index, cache_control=FRONTEND_HTML_CACHE_CONTROL)
 
     raise HTTPException(status_code=404, detail="Not Found")

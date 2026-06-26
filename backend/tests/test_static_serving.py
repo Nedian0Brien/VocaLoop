@@ -15,6 +15,7 @@ def test_vite_asset_from_dist_is_served(client):
 
     assert response.status_code == 200
     assert response.headers["content-type"]
+    assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
 
 
 def test_root_serves_spa_html(client):
@@ -22,6 +23,7 @@ def test_root_serves_spa_html(client):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["cache-control"] == "no-cache"
     assert "<!doctype html>" in response.text.lower()
 
 
@@ -49,6 +51,7 @@ def test_frontend_route_serves_spa_html(client):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["cache-control"] == "no-cache"
     assert "<!doctype html>" in response.text.lower()
 
 
