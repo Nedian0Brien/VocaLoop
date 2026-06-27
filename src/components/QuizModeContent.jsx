@@ -74,6 +74,11 @@ const QUIZ_RENDERERS = [
         onAnswer={props.onAnswer}
         progress={props.adaptiveProgress}
         stats={props.stats}
+        folders={props.folders}
+        onDeleteWord={props.onDeleteWord}
+        onMoveWord={props.onMoveWord}
+        onToggleWordFlag={props.onToggleWordFlag}
+        onRegenerateWord={props.onRegenerateWord}
         soundEnabled={props.soundEnabled}
       />
     ),

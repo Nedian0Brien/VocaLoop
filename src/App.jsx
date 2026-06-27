@@ -407,6 +407,10 @@ function App() {
                             aiConfig={activeAiConfig}
                             folders={folders}
                             onUpdateLearningRate={handleUpdateLearningRate}
+                            onDeleteWord={handleDeleteWord}
+                            onMoveWord={handleMoveWord}
+                            onToggleWordFlag={handleToggleWordFlag}
+                            onRegenerateWord={handleRegenerateWord}
                             onSaveVocabularyWord={handleSaveVocabularyWord}
                             onExplainVocabularyWord={handleExplainVocabularyWord}
                             onAcceptedAnswer={handleAcceptQuizAnswer}

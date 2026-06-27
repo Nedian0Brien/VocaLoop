@@ -7,6 +7,7 @@ import FlashcardQuiz from './FlashcardQuiz';
 
 vi.mock('../utils/speechSynthesis', () => ({
   speakEnglishWord: vi.fn(),
+  preloadSpeechSynthesisVoices: vi.fn(() => undefined),
 }));
 
 const baseWord = {
@@ -32,56 +33,58 @@ const renderFlashcard = (props = {}) => render(
   />
 );
 
+const flipCard = (word = 'serendipity') => {
+  fireEvent.click(screen.getAllByText(word)[0]);
+};
+
 afterEach(() => {
   cleanup();
 });
 
 describe('FlashcardQuiz', () => {
-  test('shows only the English word until the card is flipped', () => {
+  test('renders the dashboard word card until it is flipped', () => {
     renderFlashcard();
 
-    expect(screen.getByText('serendipity')).toBeTruthy();
+    expect(screen.getByTestId('flashcard-word-card')).toBeTruthy();
+    expect(screen.getByTestId('word-card-shell')).toBeTruthy();
+    expect(screen.getAllByText('serendipity').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('noun')).toBeTruthy();
+    expect(screen.getByText('/ser-en-DIP-i-tee/')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '다시 볼래요' })).toBeNull();
     expect(screen.queryByRole('button', { name: '알고 있어요' })).toBeNull();
-    expect(screen.queryByText('뜻밖의 발견')).toBeNull();
-    expect(screen.queryByText('The occurrence of happy discoveries by chance.')).toBeNull();
-    expect(screen.queryByText('우연히 가치 있는 것을 발견했을 때 쓰는 긍정적인 표현입니다.')).toBeNull();
-    expect(screen.queryByText('"The discovery was pure serendipity."')).toBeNull();
+    expect(screen.getByTestId('word-card-shell').parentElement.className).not.toContain('flipped');
 
-    fireEvent.click(screen.getByRole('button', { name: /serendipity/ }));
+    flipCard();
 
+    expect(screen.getByTestId('word-card-shell').parentElement.className).toContain('flipped');
     expect(screen.getByText('뜻밖의 발견')).toBeTruthy();
     expect(screen.getByText('The occurrence of happy discoveries by chance.')).toBeTruthy();
     expect(screen.getByText('우연히 가치 있는 것을 발견했을 때 쓰는 긍정적인 표현입니다.')).toBeTruthy();
     expect(screen.getByText('"The discovery was pure serendipity."')).toBeTruthy();
   });
 
-  test('uses a front and back flip surface instead of expanding a detail panel', () => {
+  test('uses the WordCard flip surface instead of a flashcard-specific card', () => {
     renderFlashcard();
 
-    const flipSurface = screen.getByTestId('flashcard-flip-surface');
-    const flipShell = screen.getByTestId('flashcard-shell');
-    const frontFace = screen.getByTestId('flashcard-front-face');
+    const flipShell = screen.getByTestId('word-card-shell');
+    const flipSurface = flipShell.parentElement;
 
     expect(flipSurface.className).toContain('card-flip');
     expect(flipSurface.className).not.toContain('flipped');
     expect(flipShell.className).toContain('card-inner');
-    expect(frontFace.className).toContain('card-front');
-    expect(screen.queryByTestId('flashcard-back-face')).toBeNull();
+    expect(screen.queryByTestId('flashcard-shell')).toBeNull();
+    expect(screen.queryByTestId('flashcard-front-face')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /serendipity/ }));
-
-    const backFace = screen.getByTestId('flashcard-back-face');
+    flipCard();
 
     expect(flipSurface.className).toContain('flipped');
-    expect(backFace.className).toContain('card-back');
-    expect(backFace.contains(screen.getByRole('button', { name: '다시 볼래요' }))).toBe(true);
-    expect(backFace.contains(screen.getByRole('button', { name: '알고 있어요' }))).toBe(true);
+    expect(screen.getByRole('button', { name: '다시 볼래요' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '알고 있어요' })).toBeTruthy();
   });
 
   test('keeps review actions side by side on compact screens', () => {
     renderFlashcard();
-    fireEvent.click(screen.getByRole('button', { name: /serendipity/ }));
+    flipCard();
 
     const reviewButton = screen.getByRole('button', { name: '다시 볼래요' });
     const actionRow = reviewButton.parentElement;
@@ -90,10 +93,10 @@ describe('FlashcardQuiz', () => {
     expect(actionRow.className).not.toContain('grid-cols-1');
   });
 
-  test('returns to the word-only side when the next word appears', () => {
+  test('returns to the unflipped dashboard card when the next word appears', () => {
     const { rerender } = renderFlashcard();
-    fireEvent.click(screen.getByRole('button', { name: /serendipity/ }));
-    expect(screen.getByText('뜻밖의 발견')).toBeTruthy();
+    flipCard();
+    expect(screen.getByTestId('word-card-shell').parentElement.className).toContain('flipped');
 
     rerender(
       <FlashcardQuiz
@@ -105,7 +108,9 @@ describe('FlashcardQuiz', () => {
       />
     );
 
-    expect(screen.getByText('ephemeral')).toBeTruthy();
-    expect(screen.queryByText('덧없는')).toBeNull();
+    expect(screen.getAllByText('ephemeral').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId('word-card-shell').parentElement.className).not.toContain('flipped');
+    expect(screen.queryByRole('button', { name: '다시 볼래요' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '알고 있어요' })).toBeNull();
   });
 });

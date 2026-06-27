@@ -17,7 +17,16 @@ const FOLDER_COLOR_MAP = {
     teal:   { bg: 'bg-teal-100',   text: 'text-teal-600',   dot: 'bg-teal-500' },
 };
 
-const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenerateWord, onToggleFlag }) => {
+const WordCard = ({
+    item,
+    handleDeleteWord,
+    folders = [],
+    onMoveWord,
+    onRegenerateWord,
+    onToggleFlag,
+    onFlipChange,
+    soundEnabled = true,
+}) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const contentRef = useRef(null);
     const cardRef = useRef(null);
@@ -74,6 +83,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
     const currentHeight = isFlipped ? backHeight : '12rem';
 
     const playTTS = (text) => {
+        if (!soundEnabled) return;
         speakEnglishWord(text, item.pronunciationAudioUrl);
     };
 
@@ -96,6 +106,15 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
         onToggleFlag?.(item.id, !item.isFlagged);
     };
 
+    const handleCardClick = () => {
+        if (isRegenerating) return;
+        setIsFlipped((current) => {
+            const next = !current;
+            onFlipChange?.(next);
+            return next;
+        });
+    };
+
     const frontClass = isFlipped ? 'absolute inset-0' : 'relative';
     const backClass = isFlipped ? 'relative' : 'absolute inset-0';
 
@@ -104,7 +123,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
             ref={cardRef}
             className="overflow-visible cursor-pointer w-full"
             style={{ height: currentHeight, transition: 'height 0.7s var(--ease-spring)' }}
-            onClick={() => { if (isRegenerating) return; setIsFlipped(!isFlipped); }}
+            onClick={handleCardClick}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -163,6 +182,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                         <button
                             className="text-surface-500 font-serif italic hover:text-brand-600 transition-colors cursor-pointer mb-3 z-30"
                             onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
+                            disabled={!soundEnabled}
                         >
                             {item.pronunciation}
                         </button>
@@ -221,6 +241,7 @@ const WordCard = ({ item, handleDeleteWord, folders = [], onMoveWord, onRegenera
                                     <button
                                         className="text-surface-400 hover:text-brand-600 p-0.5"
                                         onClick={(e) => { e.stopPropagation(); playTTS(item.word); }}
+                                        disabled={!soundEnabled}
                                         aria-label="발음 듣기"
                                     >
                                         <Volume2 className="w-4 h-4" aria-hidden="true" />

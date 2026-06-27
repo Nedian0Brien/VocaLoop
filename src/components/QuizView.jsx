@@ -150,6 +150,10 @@ export default function QuizView({
   aiConfig,
   folders = [],
   onUpdateLearningRate,
+  onDeleteWord = () => {},
+  onMoveWord = () => {},
+  onToggleWordFlag = () => {},
+  onRegenerateWord,
   onSaveVocabularyWord,
   onExplainVocabularyWord,
   onAcceptedAnswer,
@@ -521,10 +525,15 @@ export default function QuizView({
                 currentIndex={currentIndex}
                 stats={stats}
                 words={words}
+                folders={folders}
                 aiMode={aiMode}
                 aiConfig={aiConfig}
                 soundEnabled={soundEnabled}
                 onAnswer={handleAnswer}
+                onDeleteWord={onDeleteWord}
+                onMoveWord={onMoveWord}
+                onToggleWordFlag={onToggleWordFlag}
+                onRegenerateWord={onRegenerateWord}
                 toeflConfig={toeflConfig}
                 onExit={handleBackToModeSelect}
                 user={user}

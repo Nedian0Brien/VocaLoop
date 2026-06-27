@@ -79,4 +79,23 @@ describe('WordCard visual layers', () => {
         expect(onToggleFlag).toHaveBeenCalledWith(1, true);
         expect(flipShell.className).not.toContain('flipped');
     });
+
+    test('reports card flip changes without changing the dashboard default surface', () => {
+        const onFlipChange = vi.fn();
+        render(
+            <WordCard
+                item={baseWord}
+                handleDeleteWord={vi.fn()}
+                folders={[]}
+                onMoveWord={vi.fn()}
+                onRegenerateWord={vi.fn()}
+                onFlipChange={onFlipChange}
+            />
+        );
+
+        fireEvent.click(screen.getAllByText('detrimental')[0]);
+
+        expect(onFlipChange).toHaveBeenCalledWith(true);
+        expect(screen.getByTestId('word-card-shell').parentElement.className).toContain('flipped');
+    });
 });
