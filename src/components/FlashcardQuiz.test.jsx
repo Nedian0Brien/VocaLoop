@@ -45,6 +45,10 @@ describe('FlashcardQuiz', () => {
   test('renders the dashboard word card until it is flipped', () => {
     renderFlashcard();
 
+    const quizCard = screen.getByTestId('flashcard-quiz-card');
+    const wordCard = screen.getByTestId('flashcard-word-card');
+
+    expect(quizCard.contains(wordCard)).toBe(true);
     expect(screen.getByTestId('flashcard-word-card')).toBeTruthy();
     expect(screen.getByTestId('word-card-shell')).toBeTruthy();
     expect(screen.getAllByText('serendipity').length).toBeGreaterThanOrEqual(1);
@@ -78,8 +82,8 @@ describe('FlashcardQuiz', () => {
     flipCard();
 
     expect(flipSurface.className).toContain('flipped');
-    expect(screen.getByRole('button', { name: '다시 볼래요' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '알고 있어요' })).toBeTruthy();
+    expect(screen.getByTestId('flashcard-quiz-card').contains(screen.getByRole('button', { name: '다시 볼래요' }))).toBe(true);
+    expect(screen.getByTestId('flashcard-quiz-card').contains(screen.getByRole('button', { name: '알고 있어요' }))).toBe(true);
   });
 
   test('keeps review actions side by side on compact screens', () => {
@@ -87,8 +91,9 @@ describe('FlashcardQuiz', () => {
     flipCard();
 
     const reviewButton = screen.getByRole('button', { name: '다시 볼래요' });
-    const actionRow = reviewButton.parentElement;
+    const actionRow = screen.getByTestId('flashcard-review-actions');
 
+    expect(actionRow.contains(reviewButton)).toBe(true);
     expect(actionRow.className).toContain('grid-cols-2');
     expect(actionRow.className).not.toContain('grid-cols-1');
   });
