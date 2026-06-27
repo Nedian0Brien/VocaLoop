@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import WordCard from './WordCard';
 import { Check, X } from './Icons';
-import { Button, Card } from '../design-system';
+import { Button } from '../design-system';
 
 const noop = () => {};
 
@@ -54,49 +54,30 @@ export default function FlashcardQuiz({
         </div>
       </div>
 
-      <Card
-        variant="elevated"
-        radius="card"
-        padding="none"
-        data-testid="flashcard-quiz-card"
-        className="overflow-visible ring-1 ring-black/[0.03] shadow-[var(--shadow-elevated)]"
-      >
-        <div className="rounded-t-card bg-gradient-to-br from-surface-800 to-surface-900 px-6 py-5 text-white sm:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-2xs font-black uppercase tracking-widest text-brand-200/70">Flashcard</p>
-            <p className="text-2xs font-black uppercase tracking-widest text-white/40">
-              {progress.current}/{progress.total}
-            </p>
-          </div>
-        </div>
+      <div className="mx-auto max-w-md" data-testid="flashcard-word-card">
+        <WordCard
+          key={word?.id ?? word?.word}
+          item={word}
+          handleDeleteWord={onDeleteWord}
+          folders={folders}
+          onMoveWord={onMoveWord}
+          onToggleFlag={onToggleWordFlag}
+          onRegenerateWord={onRegenerateWord}
+          onFlipChange={setIsRevealed}
+          soundEnabled={soundEnabled}
+        />
+      </div>
 
-        <div className="rounded-b-card bg-white p-5 sm:p-8">
-          <div className="mx-auto max-w-md" data-testid="flashcard-word-card">
-            <WordCard
-              key={word?.id ?? word?.word}
-              item={word}
-              handleDeleteWord={onDeleteWord}
-              folders={folders}
-              onMoveWord={onMoveWord}
-              onToggleFlag={onToggleWordFlag}
-              onRegenerateWord={onRegenerateWord}
-              onFlipChange={setIsRevealed}
-              soundEnabled={soundEnabled}
-            />
-          </div>
-
-          {isRevealed && (
-            <div className="mx-auto mt-5 grid max-w-md grid-cols-2 gap-3" data-testid="flashcard-review-actions">
-              <Button variant="secondary" size="md" onClick={() => onAnswer(false)} leftIcon={X} fullWidth className="!px-3 sm:!px-5">
-                다시 볼래요
-              </Button>
-              <Button variant="primary" size="md" onClick={() => onAnswer(true)} rightIcon={Check} fullWidth className="!px-3 sm:!px-5">
-                알고 있어요
-              </Button>
-            </div>
-          )}
+      {isRevealed && (
+        <div className="mx-auto mt-5 grid max-w-md grid-cols-2 gap-3" data-testid="flashcard-review-actions">
+          <Button variant="secondary" size="md" onClick={() => onAnswer(false)} leftIcon={X} fullWidth className="!px-3 sm:!px-5">
+            다시 볼래요
+          </Button>
+          <Button variant="primary" size="md" onClick={() => onAnswer(true)} rightIcon={Check} fullWidth className="!px-3 sm:!px-5">
+            알고 있어요
+          </Button>
         </div>
-      </Card>
+      )}
     </div>
   );
 }

@@ -42,13 +42,13 @@ afterEach(() => {
 });
 
 describe('FlashcardQuiz', () => {
-  test('renders the dashboard word card until it is flipped', () => {
+  test('renders the dashboard word card directly until it is flipped', () => {
     renderFlashcard();
 
-    const quizCard = screen.getByTestId('flashcard-quiz-card');
     const wordCard = screen.getByTestId('flashcard-word-card');
 
-    expect(quizCard.contains(wordCard)).toBe(true);
+    expect(screen.queryByTestId('flashcard-quiz-card')).toBeNull();
+    expect(wordCard.closest('[data-testid="flashcard-quiz-card"]')).toBeNull();
     expect(screen.getByTestId('flashcard-word-card')).toBeTruthy();
     expect(screen.getByTestId('word-card-shell')).toBeTruthy();
     expect(screen.getAllByText('serendipity').length).toBeGreaterThanOrEqual(1);
@@ -67,7 +67,7 @@ describe('FlashcardQuiz', () => {
     expect(screen.getByText('"The discovery was pure serendipity."')).toBeTruthy();
   });
 
-  test('uses the WordCard flip surface instead of a flashcard-specific card', () => {
+  test('uses the WordCard flip surface instead of a flashcard-specific card shell', () => {
     renderFlashcard();
 
     const flipShell = screen.getByTestId('word-card-shell');
@@ -76,14 +76,16 @@ describe('FlashcardQuiz', () => {
     expect(flipSurface.className).toContain('card-flip');
     expect(flipSurface.className).not.toContain('flipped');
     expect(flipShell.className).toContain('card-inner');
+    expect(screen.queryByTestId('flashcard-quiz-card')).toBeNull();
     expect(screen.queryByTestId('flashcard-shell')).toBeNull();
     expect(screen.queryByTestId('flashcard-front-face')).toBeNull();
 
     flipCard();
 
     expect(flipSurface.className).toContain('flipped');
-    expect(screen.getByTestId('flashcard-quiz-card').contains(screen.getByRole('button', { name: '다시 볼래요' }))).toBe(true);
-    expect(screen.getByTestId('flashcard-quiz-card').contains(screen.getByRole('button', { name: '알고 있어요' }))).toBe(true);
+    const actionRow = screen.getByTestId('flashcard-review-actions');
+    expect(actionRow.contains(screen.getByRole('button', { name: '다시 볼래요' }))).toBe(true);
+    expect(actionRow.contains(screen.getByRole('button', { name: '알고 있어요' }))).toBe(true);
   });
 
   test('keeps review actions side by side on compact screens', () => {
