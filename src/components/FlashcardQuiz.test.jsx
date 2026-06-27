@@ -42,15 +42,21 @@ afterEach(() => {
 });
 
 describe('FlashcardQuiz', () => {
-  test('renders the dashboard word card directly until it is flipped', () => {
+  test('renders the existing word card inside the shared quiz shell until it is flipped', () => {
     renderFlashcard();
 
+    const quizShell = screen.getByTestId('flashcard-quiz-shell');
+    const quizHeader = screen.getByTestId('flashcard-quiz-header');
+    const cardBody = screen.getByTestId('flashcard-card-body');
     const wordCard = screen.getByTestId('flashcard-word-card');
 
-    expect(screen.queryByTestId('flashcard-quiz-card')).toBeNull();
-    expect(wordCard.closest('[data-testid="flashcard-quiz-card"]')).toBeNull();
+    expect(quizShell.className).toContain('bg-white');
+    expect(quizShell.className).toContain('rounded-card');
+    expect(quizHeader.className).toContain('from-surface-800');
+    expect(cardBody.contains(wordCard)).toBe(true);
+    expect(quizShell.contains(wordCard)).toBe(true);
     expect(screen.getByTestId('flashcard-word-card')).toBeTruthy();
-    expect(screen.getByTestId('word-card-shell')).toBeTruthy();
+    expect(screen.getByTestId('word-card-shell').dataset.variant).toBeUndefined();
     expect(screen.getAllByText('serendipity').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('noun')).toBeTruthy();
     expect(screen.getByText('/ser-en-DIP-i-tee/')).toBeTruthy();
@@ -67,7 +73,7 @@ describe('FlashcardQuiz', () => {
     expect(screen.getByText('"The discovery was pure serendipity."')).toBeTruthy();
   });
 
-  test('uses the WordCard flip surface instead of a flashcard-specific card shell', () => {
+  test('uses the WordCard flip surface without a flashcard-specific flip card', () => {
     renderFlashcard();
 
     const flipShell = screen.getByTestId('word-card-shell');
@@ -76,7 +82,6 @@ describe('FlashcardQuiz', () => {
     expect(flipSurface.className).toContain('card-flip');
     expect(flipSurface.className).not.toContain('flipped');
     expect(flipShell.className).toContain('card-inner');
-    expect(screen.queryByTestId('flashcard-quiz-card')).toBeNull();
     expect(screen.queryByTestId('flashcard-shell')).toBeNull();
     expect(screen.queryByTestId('flashcard-front-face')).toBeNull();
 
@@ -84,6 +89,7 @@ describe('FlashcardQuiz', () => {
 
     expect(flipSurface.className).toContain('flipped');
     const actionRow = screen.getByTestId('flashcard-review-actions');
+    expect(screen.getByTestId('flashcard-card-body').contains(actionRow)).toBe(true);
     expect(actionRow.contains(screen.getByRole('button', { name: '다시 볼래요' }))).toBe(true);
     expect(actionRow.contains(screen.getByRole('button', { name: '알고 있어요' }))).toBe(true);
   });
