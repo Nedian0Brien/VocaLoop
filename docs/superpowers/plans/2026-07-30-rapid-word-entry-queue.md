@@ -1,6 +1,6 @@
 # Rapid Word Entry Queue Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 일반 단어 입력을 즉시 대기열에 넣어 다음 단어를 계속 입력하게 하고, AI 분석과 저장은 등록 순서대로 하나씩 처리한다.
 
@@ -76,7 +76,7 @@
 - Create: `src/hooks/useWordCreationQueue.test.jsx`
 - Create: `src/hooks/useWordCreationQueue.js`
 
-- [ ] **Step 1: 단일 작업과 StrictMode 중복 방지 테스트 작성**
+- [x] **Step 1: 단일 작업과 StrictMode 중복 방지 테스트 작성**
 
 ```jsx
 const first = deferred();
@@ -94,13 +94,13 @@ await act(() => first.resolve({ word: 'abate' }));
 await waitFor(() => expect(createWord).toHaveBeenCalledTimes(1));
 ```
 
-- [ ] **Step 2: focused test를 실행해 RED 확인**
+- [x] **Step 2: focused test를 실행해 RED 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
 Expected: FAIL because `useWordCreationQueue.js` does not exist.
 
-- [ ] **Step 3: 최소 queue hook 구현**
+- [x] **Step 3: 최소 queue hook 구현**
 
 ```js
 export function useWordCreationQueue({ onWordSaved, showNotification, userId }) {
@@ -131,13 +131,13 @@ export function useWordCreationQueue({ onWordSaved, showNotification, userId }) 
 
 최소 worker는 `workerActiveRef`를 먼저 잠그고 첫 작업 하나만 처리한다. AI 완료 후와 저장 완료 후 session generation을 확인하고 작업이 끝나면 active ref를 해제한다. 이 단계에서는 다음 작업 재시작과 failure continuation을 아직 구현하지 않는다.
 
-- [ ] **Step 4: 순차 실행 테스트 GREEN 확인**
+- [x] **Step 4: 순차 실행 테스트 GREEN 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
 Expected: PASS.
 
-- [ ] **Step 5: 빠른 연속 enqueue, 실패 지속, worker handoff 테스트 작성**
+- [x] **Step 5: 빠른 연속 enqueue, 실패 지속, worker handoff 테스트 작성**
 
 테스트 계약:
 
@@ -146,13 +146,13 @@ Expected: PASS.
 - 첫 `createWord`가 reject되어도 두 번째 작업을 처리하고, 저장 실패 알림에는 실패한 첫 단어가 포함된다.
 - 마지막 작업의 `createWord`가 resolve되는 같은 `act` 경계에서 enqueue한 작업도 새 worker가 처리한다.
 
-- [ ] **Step 6: 새 테스트를 실행해 RED 확인**
+- [x] **Step 6: 새 테스트를 실행해 RED 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
 Expected: 두 번째 작업이 queue에 남아 처리되지 않아 rapid enqueue 또는 handoff 테스트 FAIL.
 
-- [ ] **Step 7: worker handoff와 오류 격리 구현**
+- [x] **Step 7: worker handoff와 오류 격리 구현**
 
 ```js
 const startWorker = useCallback(() => {
@@ -177,13 +177,13 @@ const startWorker = useCallback(() => {
 
 작업 오류는 `processJob` 내부에서 알림 후 종료하고 worker loop 밖으로 던지지 않는다.
 
-- [ ] **Step 8: worker 경계 테스트 GREEN 확인**
+- [x] **Step 8: worker 경계 테스트 GREEN 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
 Expected: rapid enqueue/failure/lost-wakeup 테스트 PASS이고 AI 분석 실패와 저장 실패 알림이 각각 해당 word를 포함한다.
 
-- [ ] **Step 9: config snapshot과 session 전환 테스트 작성**
+- [x] **Step 9: config snapshot과 session 전환 테스트 작성**
 
 테스트 계약:
 
@@ -192,13 +192,13 @@ Expected: rapid enqueue/failure/lost-wakeup 테스트 PASS이고 AI 분석 실�
 - 저장 요청 뒤 `userId`가 바뀌면 이전 응답으로 `onWordSaved`나 알림을 호출하지 않는다.
 - 이전 worker가 active인 동안 새 사용자가 enqueue해도 새 작업은 최신 `onWordSaved`와 `showNotification` callback으로 처리한다.
 
-- [ ] **Step 10: session 테스트 RED 확인**
+- [x] **Step 10: session 테스트 RED 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
 Expected: session clear 또는 stale callback 테스트 FAIL.
 
-- [ ] **Step 11: generation과 latest callback ref 구현**
+- [x] **Step 11: generation과 latest callback ref 구현**
 
 ```js
 const callbacksRef = useRef({ onWordSaved, showNotification });
@@ -213,7 +213,7 @@ useLayoutEffect(() => {
 
 각 job에 현재 generation과 `aiConfig: { ...aiConfig }`를 저장한다. AI 완료 뒤와 저장 완료 뒤 job generation이 현재 값과 같은지 확인한다. stale job은 저장·callback·알림을 건너뛴다. 기존 worker가 active인 상태에서 새 session job이 들어오면 old job `finally`가 새 job을 제거하지 않고 같은 loop가 최신 `callbacksRef.current`로 처리한다.
 
-- [ ] **Step 12: queue hook 전체 GREEN 확인**
+- [x] **Step 12: queue hook 전체 GREEN 확인**
 
 Run: `rtk npm test -- src/hooks/useWordCreationQueue.test.jsx`
 
@@ -226,17 +226,17 @@ Expected: 모든 queue hook 테스트 PASS.
 - Modify: `src/hooks/useVocabularyCommands.js:1-167,270-289`
 - Test: `src/App.test.jsx`
 
-- [ ] **Step 1: 연속 입력과 folder snapshot 통합 테스트 작성**
+- [x] **Step 1: 연속 입력과 folder snapshot 통합 테스트 작성**
 
 첫 번째 `generateWordData`를 deferred promise로 멈춘다. 첫 단어를 folder 1에서 제출하고, 입력값이 비고 입력이 enabled인지 확인한 뒤 folder 2로 바꿔 두 번째 단어를 제출한다. 첫 promise를 풀기 전에는 분석 호출이 1회인지, 이후 두 저장 payload의 `folder_id`가 각각 1과 2인지 확인한다.
 
-- [ ] **Step 2: App focused test RED 확인**
+- [x] **Step 2: App focused test RED 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "queues rapid word entries"`
 
 Expected: FAIL because the input remains disabled and the second word cannot be queued.
 
-- [ ] **Step 3: `handleAddWord`를 enqueue 방식으로 교체**
+- [x] **Step 3: `handleAddWord`를 enqueue 방식으로 교체**
 
 ```js
 const handleAddWord = (event) => {
@@ -263,13 +263,13 @@ const handleAddWord = (event) => {
 
 `isAnalyzing`은 `pendingWordCreations.length > 0`에서 파생한다. `handleBulkAddWords`는 일반 queue가 남아 있으면 명시적 오류로 중단한다.
 
-- [ ] **Step 4: App focused test GREEN 확인**
+- [x] **Step 4: App focused test GREEN 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "queues rapid word entries"`
 
 Expected: PASS.
 
-- [ ] **Step 5: 일반 queue와 bulk 동기 상호배제 테스트 작성**
+- [x] **Step 5: 일반 queue와 bulk 동기 상호배제 테스트 작성**
 
 테스트 계약:
 
@@ -278,17 +278,17 @@ Expected: PASS.
 - bulk가 끝나면 일반 입력이 다시 enabled다.
 - 명령 계층에서 일반 queue 중 bulk 호출과 bulk 중 일반 enqueue가 각각 거부된다.
 
-- [ ] **Step 6: bulk 상호배제 테스트 RED 확인**
+- [x] **Step 6: bulk 상호배제 테스트 RED 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "locks bulk and rapid entry against each other"`
 
 Expected: FAIL because `bulkAddProgress`가 설정되기 전 일반 입력이 잠기지 않는다.
 
-- [ ] **Step 7: synchronous bulk lock 구현**
+- [x] **Step 7: synchronous bulk lock 구현**
 
 `useVocabularyCommands`에 `bulkAddActiveRef`와 `isBulkAdding` state를 추가한다. `handleBulkAddWords` 진입 시 queue ref를 검사한 뒤 ref/state를 즉시 잠그고, `finally`에서 해제한다. queue hook은 `hasPendingJobs()`를 제공해 stale React state 없이 guard한다.
 
-- [ ] **Step 8: bulk 상호배제 테스트 GREEN 확인**
+- [x] **Step 8: bulk 상호배제 테스트 GREEN 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "locks bulk and rapid entry against each other"`
 
@@ -302,17 +302,17 @@ Expected: PASS.
 - Modify: `src/App.jsx:117-145,195-231,367-397`
 - Test: `src/App.test.jsx`
 
-- [ ] **Step 1: 처리 중·대기 중 상태와 focus 통합 테스트 작성**
+- [x] **Step 1: 처리 중·대기 중 상태와 focus 통합 테스트 작성**
 
 두 작업을 enqueue한 뒤 `abate` 카드에 `단어 생성 중...`, `candid` 카드에 `생성 대기 중`이 보이는지 확인한다. 두 번째 제출 뒤 입력에 focus가 돌아오고, queue 처리 중 새 입력 자동완성이 열리는지도 확인한다.
 
-- [ ] **Step 2: UI focused test RED 확인**
+- [x] **Step 2: UI focused test RED 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "shows queued word status"`
 
 Expected: FAIL because only one loading card exists and input stays disabled.
 
-- [ ] **Step 3: 기존 카드 renderer를 pending job 배열로 확장**
+- [x] **Step 3: 기존 카드 renderer를 pending job 배열로 확장**
 
 ```jsx
 const renderPendingCard = (job) => {
@@ -342,14 +342,14 @@ const renderPendingCard = (job) => {
 
 기존 surface/brand/radius/shadow class를 유지한다. 새 패널, 카드 셸, 토큰, 아이콘 dependency는 추가하지 않는다.
 
-- [ ] **Step 4: 입력·bulk·자동완성 조건 분리**
+- [x] **Step 4: 입력·bulk·자동완성 조건 분리**
 
 - 일반 input/Generate: `isBulkAdding`일 때 잠금
 - 이미지/bulk 버튼: `isAnalyzing || isBulkAdding`일 때 잠금 유지
 - 자동완성: `isAnalyzing` 조건 제거
 - 제출 성공 시 `wordInputRef.current?.focus()` 호출
 
-- [ ] **Step 5: UI focused test GREEN 확인**
+- [x] **Step 5: UI focused test GREEN 확인**
 
 Run: `rtk npm test -- src/App.test.jsx -t "shows queued word status"`
 
@@ -365,7 +365,7 @@ Expected: PASS.
 - Create: `.superloopy/evidence/frontend/rapid-word-entry/768.png`
 - Create: `.superloopy/evidence/frontend/rapid-word-entry/1280.png`
 
-- [ ] **Step 1: 전체 로컬 검증**
+- [x] **Step 1: 전체 로컬 검증**
 
 Run:
 
@@ -378,7 +378,7 @@ rtk git diff --check
 
 Expected: 모든 명령 exit 0.
 
-- [ ] **Step 2: 브라우저 QA**
+- [x] **Step 2: 브라우저 QA**
 
 운영 DB 대신 `mktemp -d` 아래 임시 SQLite와 임시 auth secret으로 로컬 FastAPI를 port 3051에 띄운다.
 
@@ -413,11 +413,11 @@ esac
 
 Expected: PID가 종료되고 검증된 `/tmp/vocaloop-rapid-qa.*` 디렉터리만 제거된다.
 
-- [ ] **Step 3: anti-slop pre-flight 기록**
+- [x] **Step 3: anti-slop pre-flight 기록**
 
 `src/design-system/tokens.js`, `src/index.css`, 기존 `VocabularyDashboard`를 기준 UI로 기록한다. 디자인 영향은 기존 로딩 카드가 작업별 상태를 표시하도록 확장되는 범위이며, 새 visual direction은 없다고 명시한다.
 
-- [ ] **Step 4: 변경 파일 커밋**
+- [x] **Step 4: 변경 파일 커밋**
 
 ```bash
 rtk git add src/hooks/useWordCreationQueue.js src/hooks/useWordCreationQueue.test.jsx \
@@ -427,7 +427,7 @@ rtk git add src/hooks/useWordCreationQueue.js src/hooks/useWordCreationQueue.tes
 rtk git commit -m "feat: queue rapid word creation"
 ```
 
-- [ ] **Step 5: `main` push와 Actions 확인**
+- [x] **Step 5: `main` push와 Actions 확인**
 
 ```bash
 GIT_SSH_COMMAND="ssh -i /home/ubuntu/.ssh/id_ed25519 -o StrictHostKeyChecking=no" rtk git push origin main
@@ -437,7 +437,7 @@ rtk gh run watch <run-id> --exit-status
 
 Expected: deploy workflow completed successfully.
 
-- [ ] **Step 6: 운영 검증**
+- [x] **Step 6: 운영 검증**
 
 ```bash
 rtk curl -fsS https://vocaloop.lawdigest.kr/api/health

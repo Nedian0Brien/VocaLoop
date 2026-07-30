@@ -127,6 +127,8 @@ function App() {
         handleSaveVocabularyWord,
         handleUpdateLearningRate,
         isAnalyzing,
+        isBulkAdding,
+        pendingWordCreations,
         clearAddToFolderIfFolder,
         resetAddToFolder,
         setAddToFolderId,
@@ -192,7 +194,7 @@ function App() {
         }
         return handleBulkAddWords({ words: bulkWords, folderId: targetFolderId });
     }, [handleBulkAddWords, handleCreateFolder]);
-    const shouldShowWordSuggestions = isWordSuggestOpen && !isAnalyzing && wordAutocompleteSuggestions.length > 0;
+    const shouldShowWordSuggestions = isWordSuggestOpen && wordAutocompleteSuggestions.length > 0;
     const updateWordSuggestionPanel = useCallback(() => {
         if (!wordInputRef.current || typeof window === 'undefined') return;
         const rect = wordInputRef.current.getBoundingClientRect();
@@ -209,7 +211,7 @@ function App() {
     useEffect(() => {
         let isCurrent = true;
 
-        if (!isWordSuggestOpen || isAnalyzing || inputWord.trim().length < MIN_WORD_SUGGESTION_LENGTH) {
+        if (!isWordSuggestOpen || inputWord.trim().length < MIN_WORD_SUGGESTION_LENGTH) {
             setWordAutocompleteSuggestions([]);
             return () => {
                 isCurrent = false;
@@ -228,7 +230,7 @@ function App() {
         return () => {
             isCurrent = false;
         };
-    }, [inputWord, isAnalyzing, isWordSuggestOpen]);
+    }, [inputWord, isWordSuggestOpen]);
 
     useEffect(() => {
         if (!shouldShowWordSuggestions) return undefined;
@@ -379,6 +381,8 @@ function App() {
                         wordInputRef={wordInputRef}
                         shouldShowWordSuggestions={shouldShowWordSuggestions}
                         isAnalyzing={isAnalyzing}
+                        isBulkAdding={isBulkAdding}
+                        pendingWordCreations={pendingWordCreations}
                         bulkAddProgress={bulkAddProgress}
                         onAddWord={handleAddWord}
                         onBulkAddWords={handleBulkAddWordsWithFolder}

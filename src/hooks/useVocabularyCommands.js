@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { generateBulkWordData, generateWordData } from '../services/geminiService';
 import { hasAiProviderAccess } from '../services/aiModelService';
 import { createWord, deleteWord, updateWord } from '../services/wordApi';
 import { runBulkWordAdd } from '../services/bulkWordAddService';
 import {
   buildAcceptedAnswerPatch,
-  buildFolderIds,
   buildLearningRatePatch,
   buildMeaningWithAcceptedAnswer,
   buildRegeneratedWordPatch,
@@ -17,6 +16,7 @@ import {
   normalizeCapturedWord,
 } from '../utils/vocabularyCapture';
 import { normalizeWord, sortWordsByNewest } from '../utils/appDataTransforms';
+import { useWordCreationQueue } from './useWordCreationQueue';
 
 export { buildMeaningWithAcceptedAnswer } from '../services/vocabularyCommandHelpers';
 
@@ -34,8 +34,9 @@ export function useVocabularyCommands({
   words,
 }) {
   const [addToFolderId, setAddToFolderId] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [bulkAddProgress, setBulkAddProgress] = useState(null);
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
+  const bulkAddActiveRef = useRef(false);
 
   useEffect(() => {
     setAddToFolderId(selectedFolderId);
@@ -50,43 +51,44 @@ export function useVocabularyCommands({
   const removeWordFromState = (wordId) =>
     setWords((prev) => prev.filter((it) => it.id !== wordId));
 
+  const {
+    enqueue: enqueueWord,
+    hasPendingJobs,
+    jobs: pendingWordCreations,
+  } = useWordCreationQueue({
+    onWordSaved: upsertWordInState,
+    showNotification,
+    userId: user?.id ?? null,
+  });
+
   const resetAddToFolder = () => setAddToFolderId(null);
   const clearAddToFolderIfFolder = (folderId) =>
     setAddToFolderId((current) => (current === folderId ? null : current));
   const activeAiProviderNeedsKey = !hasAiProviderAccess(activeAiConfig);
   const activeAiProviderAccessError = `${activeAiProvider.name} API Key가 필요합니다. 계정 설정에서 키를 등록해 주세요.`;
 
-  const handleAddWord = async (event) => {
+  const handleAddWord = (event) => {
     event.preventDefault();
-    if (!inputWord.trim() || !user) return;
+    const queuedWord = inputWord.trim();
+    if (!queuedWord || !user || bulkAddActiveRef.current) return false;
     setIsWordSuggestOpen(false);
     if (activeAiProviderNeedsKey) {
       showNotification(activeAiProviderAccessError, 'error');
-      return;
+      return false;
     }
 
-    setIsAnalyzing(true);
-    try {
-      const analysisResult = await generateWordData(inputWord, activeAiConfig);
-      const folderId = getNullableFolderId(addToFolderId);
-      const createdWord = await createWord({
-        ...analysisResult,
-        folder_id: folderId,
-        folder_ids: buildFolderIds(folderId),
-      });
-      upsertWordInState(createdWord);
-
-      setInputWord('');
-      const folderName = folderId === null
-        ? null
-        : folders.find((folder) => folder.id === folderId)?.name;
-      showNotification(`'${analysisResult.word}' ${folderName ? `→ ${folderName}` : ''} 추가 완료!`);
-    } catch (error) {
-      console.error('Add Word Error:', error);
-      showNotification(error.message.includes('403') ? 'API Key Invalid or Expired' : 'Analysis failed: ' + error.message, 'error');
-    } finally {
-      setIsAnalyzing(false);
-    }
+    const folderId = getNullableFolderId(addToFolderId);
+    const folderName = folderId === null
+      ? null
+      : folders.find((folder) => folder.id === folderId)?.name || null;
+    enqueueWord({
+      aiConfig: activeAiConfig,
+      folderId,
+      folderName,
+      word: queuedWord,
+    });
+    setInputWord('');
+    return true;
   };
 
   const handleSaveVocabularyWord = async (rawWord, context = {}) => {
@@ -113,12 +115,21 @@ export function useVocabularyCommands({
 
   const handleBulkAddWords = async ({ words: queuedWords, folderId }) => {
     if (!user) throw new Error('로그인이 필요합니다.');
-
+    if (hasPendingJobs()) {
+      const message = '단어 생성이 끝난 뒤 여러 단어를 추가해 주세요.';
+      showNotification(message, 'error');
+      throw new Error(message);
+    }
+    if (bulkAddActiveRef.current) {
+      throw new Error('여러 단어를 저장하고 있습니다.');
+    }
     if (activeAiProviderNeedsKey) {
       showNotification(activeAiProviderAccessError, 'error');
       throw new Error(activeAiProviderAccessError);
     }
 
+    bulkAddActiveRef.current = true;
+    setIsBulkAdding(true);
     try {
       const {
         assignedWords,
@@ -163,6 +174,8 @@ export function useVocabularyCommands({
       throw error;
     } finally {
       setBulkAddProgress(null);
+      bulkAddActiveRef.current = false;
+      setIsBulkAdding(false);
     }
   };
 
@@ -282,7 +295,9 @@ export function useVocabularyCommands({
     handleAcceptQuizAnswer,
     handleSaveVocabularyWord,
     handleUpdateLearningRate,
-    isAnalyzing,
+    isAnalyzing: pendingWordCreations.length > 0,
+    isBulkAdding,
+    pendingWordCreations,
     resetAddToFolder,
     setAddToFolderId,
     upsertWordInState,

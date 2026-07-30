@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const authApi = vi.hoisted(() => ({
@@ -124,6 +124,16 @@ vi.mock('./components/LearningRateDonut', () => ({
 
 import App from './App';
 import { resetDictionaryAutocompleteCache } from './services/dictionaryAutocompleteService';
+
+const createDeferred = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
+};
 
 describe('App backend session bootstrap', () => {
     beforeEach(() => {
@@ -503,6 +513,105 @@ describe('App backend session bootstrap', () => {
         });
     });
 
+    test('queues rapid word entries with the folder selected at submission time', async () => {
+        const firstAnalysis = createDeferred();
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([
+            { id: 301, name: 'Core', color: '#2563EB', order: 0 },
+            { id: 302, name: 'Later', color: '#7C3AED', order: 1 },
+        ]);
+        geminiService.generateWordData
+            .mockReturnValueOnce(firstAnalysis.promise)
+            .mockResolvedValueOnce({ word: 'candid', meaning_ko: '솔직한' });
+        wordApi.createWord.mockImplementation(async (payload) => ({
+            id: payload.word === 'abate' ? 401 : 402,
+            created_at: '2026-07-30T00:00:00Z',
+            ...payload,
+        }));
+
+        render(<App />);
+
+        const input = await screen.findByLabelText('새 영어 단어 입력');
+        const folderSelect = screen.getByLabelText('추가할 폴더 선택');
+        fireEvent.change(folderSelect, { target: { value: '301' } });
+        fireEvent.change(input, { target: { value: 'abate' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+        expect(input.disabled).toBe(false);
+        expect(input.value).toBe('');
+
+        fireEvent.change(folderSelect, { target: { value: '302' } });
+        fireEvent.change(input, { target: { value: 'candid' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+        expect(geminiService.generateWordData).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            firstAnalysis.resolve({ word: 'abate', meaning_ko: '줄다' });
+            await firstAnalysis.promise;
+        });
+
+        await waitFor(() => {
+            expect(wordApi.createWord).toHaveBeenCalledTimes(2);
+        });
+        expect(wordApi.createWord.mock.calls.map(([payload]) => payload.folder_id)).toEqual([301, 302]);
+    });
+
+    test('locks bulk and rapid entry against each other before bulk progress resolves', async () => {
+        const bulkAnalysis = createDeferred();
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+        geminiService.generateBulkWordData.mockReturnValueOnce(bulkAnalysis.promise);
+        wordApi.createWord.mockImplementation(async (payload) => ({
+            id: 401,
+            created_at: '2026-07-30T00:00:00Z',
+            ...payload,
+        }));
+
+        render(<App />);
+
+        const singleWordInput = await screen.findByLabelText('새 영어 단어 입력');
+        fireEvent.click(screen.getByRole('button', { name: '여러 단어 추가' }));
+        const bulkInput = screen.getByLabelText('대량 추가 단어 입력');
+        fireEvent.change(bulkInput, { target: { value: 'abate' } });
+        fireEvent.keyDown(bulkInput, { key: 'Enter', code: 'Enter' });
+        fireEvent.click(screen.getByRole('button', { name: '1개 저장' }));
+
+        expect(singleWordInput.disabled).toBe(true);
+
+        await act(async () => {
+            bulkAnalysis.resolve([{ word: 'abate', meaning_ko: '줄다' }]);
+            await bulkAnalysis.promise;
+        });
+        await waitFor(() => {
+            expect(singleWordInput.disabled).toBe(false);
+        });
+    });
+
     test('folder deletion can remove words in the selected folder', async () => {
         authApi.getCurrentUser.mockResolvedValue({
             user: { id: 1, email: 'user@example.com', display_name: 'User' },
@@ -579,6 +688,57 @@ describe('App backend session bootstrap', () => {
         );
         consoleErrorSpy.mockRestore();
         expect(keyWarning).toBeUndefined();
+    });
+
+    test('shows queued word status while keeping focus and autocomplete available', async () => {
+        const firstAnalysis = createDeferred();
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'gemini',
+            model: 'gemini-2.0-flash',
+            toeflTarget: null,
+            geminiApiKey: 'test-key',
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([]);
+        geminiService.generateWordData.mockReturnValueOnce(firstAnalysis.promise);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                entries: [
+                    { word: 'Epiphany', meaning_ko: '깨달음', pos: 'noun' },
+                ],
+            }),
+        }));
+
+        render(<App />);
+
+        const input = await screen.findByLabelText('새 영어 단어 입력');
+        fireEvent.change(input, { target: { value: 'abate' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+        expect(document.activeElement).toBe(input);
+
+        fireEvent.change(input, { target: { value: 'candid' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+        expect(await screen.findByText('abate')).toBeTruthy();
+        expect(screen.getByText('candid')).toBeTruthy();
+        expect(screen.getByText('단어 생성 중...')).toBeTruthy();
+        expect(screen.getByText('생성 대기 중')).toBeTruthy();
+        expect(screen.getByLabelText('abate 단어 생성 중')).toBeTruthy();
+        expect(screen.getByLabelText('candid 생성 대기 중')).toBeTruthy();
+        expect(screen.getByRole('button', { name: '여러 단어 추가' }).disabled).toBe(true);
+        expect(screen.getByRole('button', { name: '이미지에서 추가' }).disabled).toBe(true);
+
+        fireEvent.change(input, { target: { value: 'epi' } });
+        fireEvent.focus(input);
+
+        expect(await screen.findByRole('option', { name: /Epiphany 자동완성 선택/ })).toBeTruthy();
     });
 
     test('suggests words from the English-Korean dictionary instead of saved vocabulary', async () => {

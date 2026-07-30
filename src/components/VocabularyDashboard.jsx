@@ -28,6 +28,8 @@ export default function VocabularyDashboard({
     wordInputRef,
     shouldShowWordSuggestions,
     isAnalyzing,
+    isBulkAdding = false,
+    pendingWordCreations = [],
     bulkAddProgress,
     onAddWord,
     onBulkAddWords,
@@ -82,24 +84,41 @@ export default function VocabularyDashboard({
         ? groupWordsByStatus(filteredWords)
         : null;
 
-    const renderWordCards = (wordList, includeLoading = false) => {
-        const loadingCard = (
-            <div key="generating-word-card" className="w-full h-64 relative animate-in fade-in zoom-in duration-300">
+    const renderPendingCard = (job) => {
+        const isProcessing = job.status === 'processing';
+        return (
+            <div
+                key={`pending-word-${job.id}`}
+                aria-label={`${job.word} ${isProcessing ? '단어 생성 중' : '생성 대기 중'}`}
+                className="w-full h-64 relative animate-in fade-in zoom-in duration-300"
+            >
                 <div className="w-full h-full rounded-xl bg-white shadow-[var(--shadow-soft)] border border-brand-200 overflow-hidden relative">
                     <div className="p-6 flex flex-col items-center justify-center text-center h-full opacity-40 blur-[2px]">
-                        <span className="text-xs font-black text-brand-300 uppercase tracking-wider mb-2">Generating</span>
-                        <h3 className="text-3xl font-bold text-surface-400 font-serif mb-2">{inputWord || 'New Word'}</h3>
+                        <span className="text-xs font-black text-brand-300 uppercase tracking-wider mb-2">
+                            {isProcessing ? 'Generating' : 'Queued'}
+                        </span>
+                        <h3 className="text-3xl font-bold text-surface-400 font-serif mb-2">New Word</h3>
                         <div className="w-8 h-8 rounded-pill border-4 border-surface-100 mt-4"></div>
                     </div>
                     <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center">
-                        <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-3" aria-hidden="true" />
-                        <p className="text-lg font-black text-brand-700 tracking-tight">단어 생성 중...</p>
-                        <p className="text-sm font-semibold text-surface-600 mt-1">AI가 분석하고 있습니다</p>
+                        <Loader2
+                            className={`w-10 h-10 text-brand-600 mb-3 ${isProcessing ? 'animate-spin' : 'opacity-40'}`}
+                            aria-hidden="true"
+                        />
+                        <p className="mb-1 text-xl font-black text-surface-900 font-serif">{job.word}</p>
+                        <p className="text-lg font-black text-brand-700 tracking-tight">
+                            {isProcessing ? '단어 생성 중...' : '생성 대기 중'}
+                        </p>
+                        <p className="text-sm font-semibold text-surface-600 mt-1">
+                            {isProcessing ? 'AI가 분석하고 있습니다' : '앞 단어가 끝나면 시작합니다'}
+                        </p>
                     </div>
                 </div>
             </div>
         );
+    };
 
+    const renderWordCards = (wordList, pendingJobs = []) => {
         const renderItem = (word, index) => (
             <div key={word.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
                 <WordCard
@@ -116,7 +135,7 @@ export default function VocabularyDashboard({
         if (isMobile) {
             return (
                 <div className="flex flex-col gap-4">
-                    {includeLoading && loadingCard}
+                    {pendingJobs.map(renderPendingCard)}
                     {wordList.map((word, index) => renderItem(word, index))}
                 </div>
             );
@@ -124,19 +143,14 @@ export default function VocabularyDashboard({
 
         const leftColumn = [];
         const rightColumn = [];
-
-        if (includeLoading) {
-            leftColumn.push(loadingCard);
-            wordList.forEach((word, index) => {
-                if (index % 2 === 0) rightColumn.push(renderItem(word, index));
-                else leftColumn.push(renderItem(word, index));
-            });
-        } else {
-            wordList.forEach((word, index) => {
-                if (index % 2 === 0) leftColumn.push(renderItem(word, index));
-                else rightColumn.push(renderItem(word, index));
-            });
-        }
+        const cards = [
+            ...pendingJobs.map(renderPendingCard),
+            ...wordList.map((word, index) => renderItem(word, index)),
+        ];
+        cards.forEach((card, index) => {
+            if (index % 2 === 0) leftColumn.push(card);
+            else rightColumn.push(card);
+        });
 
         return (
             <div className="grid grid-cols-2 gap-4 items-start">
@@ -174,7 +188,7 @@ export default function VocabularyDashboard({
                                     Creating New Word
                                 </h3>
                             </div>
-                            {renderWordCards([], true)}
+                            {renderWordCards([], pendingWordCreations)}
                         </div>
                     )}
                     {statusOrder.map((status) => {
@@ -192,7 +206,7 @@ export default function VocabularyDashboard({
                                         {groupWords.length}개
                                     </span>
                                 </div>
-                                {renderWordCards(groupWords, false)}
+                                {renderWordCards(groupWords)}
                             </div>
                         );
                     })}
@@ -200,7 +214,7 @@ export default function VocabularyDashboard({
             );
         }
 
-        return renderWordCards(filteredWords, isAnalyzing);
+        return renderWordCards(filteredWords, pendingWordCreations);
     };
 
     const selectedFolderName = selectedFolderId
@@ -236,7 +250,7 @@ export default function VocabularyDashboard({
                             <button
                                 type="button"
                                 onClick={() => setIsScreenshotImportModalOpen(true)}
-                                disabled={isAnalyzing || Boolean(bulkAddProgress)}
+                                disabled={isAnalyzing || isBulkAdding}
                                 className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <Camera className="h-4 w-4" aria-hidden="true" />
@@ -245,7 +259,7 @@ export default function VocabularyDashboard({
                             <button
                                 type="button"
                                 onClick={() => setIsBulkWordModalOpen(true)}
-                                disabled={isAnalyzing || Boolean(bulkAddProgress)}
+                                disabled={isAnalyzing || isBulkAdding}
                                 className="inline-flex w-fit items-center gap-1.5 rounded-md border border-surface-300 bg-white px-3 py-2 text-sm font-black text-surface-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -253,7 +267,12 @@ export default function VocabularyDashboard({
                             </button>
                         </div>
                     </div>
-                    <form onSubmit={onAddWord} className="relative">
+                    <form
+                        onSubmit={(event) => {
+                            if (onAddWord(event)) wordInputRef.current?.focus();
+                        }}
+                        className="relative"
+                    >
                         <div className="flex gap-3">
                             <div
                                 className="relative flex-1 group"
@@ -284,34 +303,25 @@ export default function VocabularyDashboard({
                                     aria-controls="word-autocomplete-suggestions"
                                     aria-expanded={shouldShowWordSuggestions}
                                     className="block w-full pl-10 pr-3 py-3 border border-surface-300 rounded-md leading-5 bg-surface-50 text-surface-900 placeholder-surface-400 focus:outline-none focus:bg-surface-0 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
-                                    disabled={isAnalyzing}
+                                    disabled={isBulkAdding}
                                 />
                             </div>
                             <button
                                 type="submit"
-                                disabled={isAnalyzing || !inputWord.trim()}
-                                style={{ backgroundPosition: isAnalyzing ? 'right center' : 'left center' }}
+                                disabled={isBulkAdding || !inputWord.trim()}
+                                style={{ backgroundPosition: 'left center' }}
                                 className={[
                                     'relative overflow-hidden px-6 py-3 rounded-md font-black text-white shadow-[var(--shadow-card)] transition-all duration-300',
-                                    isAnalyzing ? 'cursor-wait pl-10' : 'hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5',
+                                    'hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5',
                                     'bg-gradient-to-r from-brand-600 via-indigo-pair-600 to-accent-600 bg-[length:200%_auto]',
                                     'disabled:opacity-70 disabled:cursor-not-allowed group',
                                 ].join(' ')}
                             >
                                 <div className="flex items-center gap-2 relative z-10">
-                                    {isAnalyzing ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-                                            <span>Crafting...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Generate</span>
-                                            <Sparkles className="w-4 h-4 opacity-80 group-hover:scale-110 transition-transform" aria-hidden="true" />
-                                        </>
-                                    )}
+                                    <span>Generate</span>
+                                    <Sparkles className="w-4 h-4 opacity-80 group-hover:scale-110 transition-transform" aria-hidden="true" />
                                 </div>
-                                {!isAnalyzing && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>}
+                                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite] skew-x-12"></div>
                             </button>
                         </div>
                         <div className="flex items-center justify-between mt-2 ml-1">
