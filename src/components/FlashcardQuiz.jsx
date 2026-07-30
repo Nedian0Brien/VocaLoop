@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import WordCard from './WordCard';
 import { Check, X } from './Icons';
 import { Button } from '../design-system';
+import { speakEnglishWord } from '../utils/speechSynthesis';
 
 const noop = () => {};
 
@@ -22,6 +23,11 @@ export default function FlashcardQuiz({
   useEffect(() => {
     setIsRevealed(false);
   }, [word?.id, word?.word]);
+
+  useEffect(() => {
+    if (!soundEnabled || !word?.word) return;
+    speakEnglishWord(word.word, word.pronunciationAudioUrl);
+  }, [soundEnabled, word?.id, word?.pronunciationAudioUrl, word?.word]);
 
   return (
     <div className="mx-auto max-w-2xl animate-in fade-in duration-700">

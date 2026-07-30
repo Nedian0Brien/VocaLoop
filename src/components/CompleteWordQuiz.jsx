@@ -207,7 +207,9 @@ export default function CompleteWordQuiz({
               return (
                 <span
                   key="blank-1"
-                  className={`inline-flex items-stretch mx-1 align-middle overflow-hidden rounded-md border shadow-sm ${
+                  role="group"
+                  aria-label="단어 철자 입력"
+                  className={`inline-flex max-w-full items-stretch mx-1 align-middle overflow-x-auto overflow-y-hidden rounded-md border shadow-sm ${
                     isAnswered
                       ? isCorrect
                         ? 'border-success-400 bg-success-50/70'
@@ -219,7 +221,7 @@ export default function CompleteWordQuiz({
                 >
                   {question.blank.segments.map((segment, segmentIndex) => {
                     const isLastSegment = segmentIndex === question.blank.segments.length - 1;
-                    const baseCellClass = `inline-flex h-9 w-9 items-center justify-center text-xl font-black leading-none ${
+                    const baseCellClass = `inline-flex h-9 w-9 shrink-0 items-center justify-center text-xl font-black leading-none ${
                       isLastSegment ? '' : 'border-r border-surface-200'
                     }`;
 

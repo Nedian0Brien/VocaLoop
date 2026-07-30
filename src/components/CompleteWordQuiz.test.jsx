@@ -31,6 +31,32 @@ afterEach(() => {
 });
 
 describe('CompleteWordQuiz', () => {
+  test('contains a long word blank inside its own horizontal scroll region', () => {
+    render(
+      <CompleteWordQuiz
+        {...baseProps}
+        word={{
+          ...baseProps.word,
+          word: 'counterintelligence',
+          examples: [
+            {
+              en: 'The report described counterintelligence operations.',
+              ko: '그 보고서는 방첩 작전을 설명했다.',
+            },
+          ],
+        }}
+      />
+    );
+
+    const blank = screen.getByRole('group', { name: '단어 철자 입력' });
+
+    expect(blank.className).toContain('max-w-full');
+    expect(blank.className).toContain('overflow-x-auto');
+    Array.from(blank.querySelectorAll('input')).forEach((input) => {
+      expect(input.className).toContain('shrink-0');
+    });
+  });
+
   test('puts the answer input directly inside a blanked example sentence', () => {
     render(<CompleteWordQuiz {...baseProps} />);
 

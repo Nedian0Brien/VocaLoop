@@ -3,6 +3,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { speakEnglishWord } from '../utils/speechSynthesis';
 import FlashcardQuiz from './FlashcardQuiz';
 
 vi.mock('../utils/speechSynthesis', () => ({
@@ -14,6 +15,7 @@ const baseWord = {
   id: 1,
   word: 'serendipity',
   pronunciation: '/ser-en-DIP-i-tee/',
+  pronunciationAudioUrl: '/uploads/tts/words/serendipity.wav',
   pos: 'noun',
   meaning_ko: '뜻밖의 발견',
   definitions: ['The occurrence of happy discoveries by chance.'],
@@ -42,6 +44,37 @@ afterEach(() => {
 });
 
 describe('FlashcardQuiz', () => {
+  test('automatically plays the pronunciation when a new flashcard appears', () => {
+    const { rerender } = renderFlashcard({ soundEnabled: true });
+
+    expect(speakEnglishWord).toHaveBeenCalledTimes(1);
+    expect(speakEnglishWord).toHaveBeenLastCalledWith(
+      'serendipity',
+      '/uploads/tts/words/serendipity.wav'
+    );
+
+    rerender(
+      <FlashcardQuiz
+        word={{
+          ...baseWord,
+          id: 2,
+          word: 'ephemeral',
+          pronunciationAudioUrl: '/uploads/tts/words/ephemeral.wav',
+        }}
+        onAnswer={vi.fn()}
+        progress={{ current: 2, total: 3 }}
+        stats={{ correct: 1, wrong: 0 }}
+        soundEnabled
+      />
+    );
+
+    expect(speakEnglishWord).toHaveBeenCalledTimes(2);
+    expect(speakEnglishWord).toHaveBeenLastCalledWith(
+      'ephemeral',
+      '/uploads/tts/words/ephemeral.wav'
+    );
+  });
+
   test('renders the existing word card inside the shared quiz shell until it is flipped', () => {
     renderFlashcard();
 

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VocaLoop quiz fixes QA</title>
+  </head>
+  <body class="bg-surface-50">
+    <div id="root"></div>
+    <pre id="qa-results" class="sr-only"></pre>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import '/src/index.css';
+
+      const spokenWords = [];
+      class TestUtterance {
+        constructor(text) {
+          this.text = text;
+        }
+      }
+      globalThis.SpeechSynthesisUtterance = TestUtterance;
+      Object.defineProperty(window, 'speechSynthesis', {
+        configurable: true,
+        value: {
+          cancel() {},
+          getVoices() {
+            return [{ lang: 'en-US', name: 'QA English' }];
+          },
+          speak(utterance) {
+            spokenWords.push(utterance.text);
+          },
+          addEventListener() {},
+          removeEventListener() {},
+        },
+      });
+
+      const [{ default: FlashcardQuiz }, { default: CompleteWordQuiz }] = await Promise.all([
+        import('/src/components/FlashcardQuiz.jsx'),
+        import('/src/components/CompleteWordQuiz.jsx'),
+      ]);
+
+      const longWord = {
+        id: 2,
+        word: 'counterintelligence',
+        pronunciation: '/ˌkaʊn.tər.ɪnˈtel.ə.dʒəns/',
+        pos: 'noun',
+        meaning_ko: '방첩',
+        definitions: ['Activities intended to prevent hostile intelligence operations.'],
+        definitions_ko: ['적대적 정보 활동을 막기 위한 활동.'],
+        examples: [{
+          en: 'The report described counterintelligence operations.',
+          ko: '그 보고서는 방첩 작전을 설명했다.',
+        }],
+      };
+
+      createRoot(document.getElementById('root')).render(
+        React.createElement(
+          'main',
+          { className: 'mx-auto max-w-3xl space-y-12 px-4 py-8' },
+          React.createElement(FlashcardQuiz, {
+            word: {
+              id: 1,
+              word: 'serendipity',
+              pronunciation: '/ˌser.ənˈdɪp.ə.ti/',
+              pos: 'noun',
+              meaning_ko: '뜻밖의 발견',
+              definitions: ['A happy discovery made by chance.'],
+              definitions_ko: ['우연히 한 기쁜 발견.'],
+              examples: [{ en: 'It was pure serendipity.', ko: '그것은 뜻밖의 행운이었다.' }],
+            },
+            onAnswer() {},
+            progress: { current: 1, total: 2 },
+            stats: { correct: 0, wrong: 0 },
+            soundEnabled: true,
+          }),
+          React.createElement(CompleteWordQuiz, {
+            word: longWord,
+            onAnswer() {},
+            progress: { current: 2, total: 2 },
+            stats: { correct: 0, wrong: 0 },
+            aiMode: false,
+            soundEnabled: false,
+          })
+        )
+      );
+
+      window.setTimeout(() => {
+        const blank = document.querySelector('[aria-label="단어 철자 입력"]');
+        const documentElement = document.documentElement;
+        const result = {
+          viewportWidth: window.innerWidth,
+          documentClientWidth: documentElement.clientWidth,
+          documentScrollWidth: documentElement.scrollWidth,
+          rootHasHorizontalOverflow: documentElement.scrollWidth > documentElement.clientWidth,
+          blankClientWidth: blank?.clientWidth ?? null,
+          blankScrollWidth: blank?.scrollWidth ?? null,
+          blankOwnsHorizontalOverflow: Boolean(blank && blank.scrollWidth > blank.clientWidth),
+          spokenWords,
+        };
+        document.getElementById('qa-results').textContent = JSON.stringify(result);
+        document.body.dataset.qaReady = 'true';
+      }, 1000);
+    </script>
+  </body>
+</html>
