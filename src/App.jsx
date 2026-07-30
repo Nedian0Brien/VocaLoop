@@ -183,16 +183,17 @@ function App() {
             setIsDeletingFolder(false);
         }
     }, [folderPendingDelete, handleDeleteFolder]);
-    const handleBulkAddWordsWithFolder = useCallback(async ({ words: bulkWords, folderId, newFolderName }) => {
-        let targetFolderId = folderId;
-        if (newFolderName) {
-            const createdFolder = await handleCreateFolder(newFolderName, 'blue', null);
-            if (!createdFolder) {
-                throw new Error('폴더를 만들지 못했습니다.');
+    const handleBulkAddWordsWithFolder = useCallback(({ words: bulkWords, folderId, newFolderName }) => {
+        const createTargetFolder = newFolderName
+            ? async () => {
+                const createdFolder = await handleCreateFolder(newFolderName, 'blue', null);
+                if (!createdFolder) {
+                    throw new Error('폴더를 만들지 못했습니다.');
+                }
+                return createdFolder.id;
             }
-            targetFolderId = createdFolder.id;
-        }
-        return handleBulkAddWords({ words: bulkWords, folderId: targetFolderId });
+            : null;
+        return handleBulkAddWords({ words: bulkWords, folderId, createTargetFolder });
     }, [handleBulkAddWords, handleCreateFolder]);
     const shouldShowWordSuggestions = isWordSuggestOpen && wordAutocompleteSuggestions.length > 0;
     const updateWordSuggestionPanel = useCallback(() => {

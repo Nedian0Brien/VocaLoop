@@ -113,7 +113,7 @@ export function useVocabularyCommands({
     return normalizedWord;
   };
 
-  const handleBulkAddWords = async ({ words: queuedWords, folderId }) => {
+  const handleBulkAddWords = async ({ words: queuedWords, folderId, createTargetFolder }) => {
     if (!user) throw new Error('로그인이 필요합니다.');
     if (hasPendingJobs()) {
       const message = '단어 생성이 끝난 뒤 여러 단어를 추가해 주세요.';
@@ -131,6 +131,9 @@ export function useVocabularyCommands({
     bulkAddActiveRef.current = true;
     setIsBulkAdding(true);
     try {
+      const targetFolderId = createTargetFolder
+        ? await createTargetFolder()
+        : folderId;
       const {
         assignedWords,
         createdWords,
@@ -141,7 +144,7 @@ export function useVocabularyCommands({
         activeAiConfig,
         createWord,
         existingWords: words,
-        folderId,
+        folderId: targetFolderId,
         generateBulkWordData,
         generateWordData,
         onProgress: setBulkAddProgress,

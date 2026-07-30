@@ -998,7 +998,8 @@ describe('App backend session bootstrap', () => {
         }));
     });
 
-    test('bulk add can create a folder before saving queued words', async () => {
+    test('bulk add locks rapid entry while creating a folder before saving queued words', async () => {
+        const folderCreation = createDeferred();
         authApi.getCurrentUser.mockResolvedValue({
             user: { id: 1, email: 'user@example.com', display_name: 'User' },
         });
@@ -1013,14 +1014,15 @@ describe('App backend session bootstrap', () => {
         });
         wordApi.listWords.mockResolvedValue([]);
         folderApi.listFolders.mockResolvedValue([]);
-        folderApi.createFolder.mockResolvedValue({
+        folderApi.createFolder.mockReturnValue(folderCreation.promise);
+        const createdFolder = {
             id: 501,
             name: 'SAT',
             color: 'blue',
             icon: null,
             order: 0,
             created_at: '2026-04-01T00:00:00Z',
-        });
+        };
         geminiService.generateBulkWordData.mockResolvedValue([
             {
                 word: 'laconic',
@@ -1059,11 +1061,21 @@ describe('App backend session bootstrap', () => {
                 color: 'blue',
                 icon: null,
             });
+        });
+        expect(screen.getByLabelText('새 영어 단어 입력').disabled).toBe(true);
+
+        await act(async () => {
+            folderCreation.resolve(createdFolder);
+            await folderCreation.promise;
+        });
+
+        await waitFor(() => {
             expect(wordApi.createWord).toHaveBeenCalledWith(expect.objectContaining({
                 word: 'laconic',
                 folder_id: 501,
             }));
         });
+        expect(screen.getByLabelText('새 영어 단어 입력').disabled).toBe(false);
     });
 
     test('bulk add retries a word that fails backend validation without stopping the queue', async () => {
