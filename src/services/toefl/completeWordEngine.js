@@ -7,6 +7,25 @@ export const getPrefixRevealCount = (letterCount) => {
 const getLetterCount = (answer = '') =>
   String(answer).split('').filter((char) => /^[a-zA-Z]$/.test(char)).length;
 
+const COMPLETE_WORD_FUNCTION_WORDS = new Set([
+  'as', 'at', 'by', 'if', 'in', 'of', 'on', 'or', 'so', 'to',
+  'up', 'yet', 'and', 'but', 'for', 'nor', 'the', 'with', 'from',
+]);
+
+const PLACEHOLDER_PATTERN = /{{(\d+)}}/g;
+
+const countWords = (value) =>
+  String(value).trim().split(/\s+/).filter(Boolean).length;
+
+const splitSentences = (value) =>
+  (String(value).match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+const failGeneratedQuestion = (questionIndex, message) => {
+  throw new Error(`Complete the Words 문항 ${questionIndex + 1}: ${message}`);
+};
+
 export const resolveBlankRevealCount = (answer, revealCount) => {
   const letterCount = getLetterCount(answer);
   if (
@@ -67,6 +86,86 @@ export const prepareCompleteQuestions = (questions, blanksPerQuestion) =>
         }),
       })) || [],
   }));
+
+export const validateGeneratedCompleteQuestionSet = (
+  questions,
+  { questionCount, blanksPerQuestion }
+) => {
+  if (!Array.isArray(questions) || questions.length !== questionCount) {
+    throw new Error(`Complete the Words 문항 수가 ${questionCount}개가 아닙니다.`);
+  }
+
+  questions.forEach((question, questionIndex) => {
+    const paragraph = String(question?.paragraph || '');
+    const fullParagraph = String(question?.fullParagraph || '');
+    const fullSentences = splitSentences(fullParagraph);
+    const maskedSentences = splitSentences(paragraph);
+    const blanks = Array.isArray(question?.blanks) ? question.blanks : [];
+    const wordCount = countWords(fullParagraph);
+
+    if (wordCount < 70 || wordCount > 100) {
+      failGeneratedQuestion(questionIndex, '완성 지문은 70~100단어여야 합니다.');
+    }
+    if (fullSentences.length < 4 || maskedSentences.length < 4) {
+      failGeneratedQuestion(questionIndex, '지문은 최소 4문장이어야 합니다.');
+    }
+    if (PLACEHOLDER_PATTERN.test(fullParagraph)) {
+      PLACEHOLDER_PATTERN.lastIndex = 0;
+      failGeneratedQuestion(questionIndex, '완성 지문에는 placeholder가 없어야 합니다.');
+    }
+    PLACEHOLDER_PATTERN.lastIndex = 0;
+    if (PLACEHOLDER_PATTERN.test(maskedSentences[0])) {
+      PLACEHOLDER_PATTERN.lastIndex = 0;
+      failGeneratedQuestion(questionIndex, '첫 문장에는 placeholder를 둘 수 없습니다.');
+    }
+    PLACEHOLDER_PATTERN.lastIndex = 0;
+    if (PLACEHOLDER_PATTERN.test(maskedSentences[maskedSentences.length - 1])) {
+      PLACEHOLDER_PATTERN.lastIndex = 0;
+      failGeneratedQuestion(questionIndex, '마지막 문장에는 placeholder를 둘 수 없습니다.');
+    }
+    PLACEHOLDER_PATTERN.lastIndex = 0;
+
+    if (blanks.length !== blanksPerQuestion) {
+      failGeneratedQuestion(questionIndex, `빈칸은 ${blanksPerQuestion}개여야 합니다.`);
+    }
+
+    const blankIds = blanks.map((blank) => blank?.id);
+    if (
+      blankIds.some((id) => !Number.isInteger(id)) ||
+      new Set(blankIds).size !== blankIds.length
+    ) {
+      failGeneratedQuestion(questionIndex, '빈칸 ID는 중복되지 않은 정수여야 합니다.');
+    }
+
+    const placeholderIds = Array.from(paragraph.matchAll(PLACEHOLDER_PATTERN), (match) => Number(match[1]));
+    const sortedBlankIds = [...blankIds].sort((a, b) => a - b);
+    const sortedPlaceholderIds = [...placeholderIds].sort((a, b) => a - b);
+    if (
+      placeholderIds.length !== blanksPerQuestion ||
+      new Set(placeholderIds).size !== placeholderIds.length ||
+      JSON.stringify(sortedPlaceholderIds) !== JSON.stringify(sortedBlankIds)
+    ) {
+      failGeneratedQuestion(questionIndex, 'placeholder와 빈칸 ID가 일치해야 합니다.');
+    }
+
+    const answers = blanks.map((blank) => String(blank?.answer || '').toLowerCase());
+    if (answers.some((answer) => !/^[a-z]{2,10}$/.test(answer))) {
+      failGeneratedQuestion(questionIndex, '정답은 2~10자의 영단어여야 합니다.');
+    }
+    if (new Set(answers).size !== answers.length) {
+      failGeneratedQuestion(questionIndex, '정답 단어가 중복되어서는 안 됩니다.');
+    }
+
+    const functionWordCount = answers.filter(
+      (answer) => answer.length <= 4 && COMPLETE_WORD_FUNCTION_WORDS.has(answer)
+    ).length;
+    if (functionWordCount < 2 || functionWordCount > 4) {
+      failGeneratedQuestion(questionIndex, '짧은 기능어는 2~4개여야 합니다.');
+    }
+  });
+
+  return questions;
+};
 
 export const initializeCompleteAnswers = (questionList) =>
   questionList.map((question) =>
