@@ -4,6 +4,21 @@ export const getPrefixRevealCount = (letterCount) => {
   return 3;
 };
 
+const getLetterCount = (answer = '') =>
+  String(answer).split('').filter((char) => /^[a-zA-Z]$/.test(char)).length;
+
+export const resolveBlankRevealCount = (answer, revealCount) => {
+  const letterCount = getLetterCount(answer);
+  if (
+    Number.isInteger(revealCount) &&
+    revealCount >= 1 &&
+    revealCount < letterCount
+  ) {
+    return revealCount;
+  }
+  return getPrefixRevealCount(letterCount);
+};
+
 export const getBlankSegments = (answer = '', options = {}) => {
   const safeAnswer = String(answer);
   if (!safeAnswer) return [{ type: 'editable', value: '' }];
@@ -47,7 +62,9 @@ export const prepareCompleteQuestions = (questions, blanksPerQuestion) =>
     blanks:
       question.blanks?.slice(0, blanksPerQuestion).map((blank) => ({
         ...blank,
-        segments: getBlankSegments(blank.answer || ''),
+        segments: getBlankSegments(blank.answer || '', {
+          prefixRevealCount: resolveBlankRevealCount(blank.answer, blank.revealCount),
+        }),
       })) || [],
   }));
 
@@ -103,7 +120,12 @@ export const getBlankResults = (question, questionAnswers = []) => {
 export const buildCompleteUserAnswers = (question, questionAnswers = []) =>
   (question?.blanks || []).map((blank, blankIndex) => {
     const blankAnswers = questionAnswers[blankIndex] || [];
-    return getBlankSegments(blank.answer).map((segment) => {
+    const segments = blank.segments?.length
+      ? blank.segments
+      : getBlankSegments(blank.answer, {
+          prefixRevealCount: resolveBlankRevealCount(blank.answer, blank.revealCount),
+        });
+    return segments.map((segment) => {
       if (segment.type === 'fixed') return segment.value;
       return blankAnswers[segment.inputIndex] || '';
     }).join('');
