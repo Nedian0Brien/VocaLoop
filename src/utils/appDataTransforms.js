@@ -1,5 +1,3 @@
-import { resolveAssetUrl } from '../services/apiClient';
-
 export const getCreatedAtValue = (value) => {
     if (!value) return 0;
     if (value instanceof Date) return value.getTime();
@@ -18,8 +16,7 @@ export const normalizeSessionUser = (value) => {
     return {
         ...value,
         displayName: value.displayName ?? value.display_name ?? null,
-        // 네이티브에서는 `/uploads/...` 상대 경로가 앱 번들을 가리키므로 API origin을 붙인다.
-        photoURL: resolveAssetUrl(value.photoURL ?? value.photo_url ?? null),
+        photoURL: value.photoURL ?? value.photo_url ?? null,
     };
 };
 

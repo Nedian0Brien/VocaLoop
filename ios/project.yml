@@ -1,0 +1,82 @@
+name: VocaLoop
+options:
+  bundleIdPrefix: kr.lawdigest
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_LANGUAGE: ko
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  VocaLoop:
+    type: application
+    platform: iOS
+    sources:
+      - path: VocaLoop
+    info:
+      path: VocaLoop/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: VocaLoop
+        CFBundleDevelopmentRegion: ko
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSPhotoLibraryUsageDescription: 단어장 스크린샷에서 단어를 가져오려면 사진 접근 권한이 필요합니다.
+        NSCameraUsageDescription: 단어장을 촬영해 단어를 가져오려면 카메라 접근 권한이 필요합니다.
+        # 로컬 개발 서버(http://localhost:3050)로 붙기 위한 예외.
+        # 공개 HTTP는 여전히 차단되고 로컬/사설망만 허용된다.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: kr.lawdigest.vocaloop
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        # 팀 ID는 커밋하지 않는다. 빌드 시 DEVELOPMENT_TEAM=... 으로 넘긴다.
+        DEVELOPMENT_TEAM: ""
+
+  VocaLoopTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: VocaLoopTests
+    dependencies:
+      - target: VocaLoop
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  VocaLoop:
+    build:
+      targets:
+        VocaLoop: all
+        VocaLoopTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - VocaLoopTests
+    archive:
+      config: Release

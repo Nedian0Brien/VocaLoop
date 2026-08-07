@@ -74,44 +74,60 @@ npm run build
 
 ## iOS 앱
 
-Capacitor 8로 같은 React 코드를 iOS 네이티브 앱(WKWebView 셸)으로 패키징합니다. 웹 자산은 앱에 번들되고, `/api/*` 호출만 원격 FastAPI 서버로 나갑니다.
+`ios/`는 SwiftUI로 만든 **네이티브 앱**입니다. 웹 코드를 감싸지 않고 같은 FastAPI API만 공유합니다.
 
 ### 요구 사항
 
-- Xcode 16 이상 (CocoaPods 불필요 — Capacitor 8은 Swift Package Manager를 사용)
-- Node 20 이상
+- Xcode 26 이상 (최소 지원 iOS 26.0)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
+
+`VocaLoop.xcodeproj`는 `ios/project.yml`에서 생성하며 커밋하지 않습니다. pbxproj 병합 충돌을 피하기 위함입니다.
 
 ### 빌드와 실행
 
 ```bash
-npm run ios:run
+npm run ios:open
 ```
 
 | 명령 | 역할 |
 |---|---|
-| `npm run ios:build` | 네이티브용 프론트엔드 빌드 (`VITE_API_BASE_URL` 주입) |
-| `npm run ios:sync` | 빌드 후 웹 자산과 플러그인을 `ios/`에 동기화 |
-| `npm run ios:open` | Xcode에서 프로젝트 열기 |
-| `npm run ios:run` | 동기화 후 시뮬레이터/기기에서 실행 |
+| `npm run ios:gen` | `project.yml`에서 Xcode 프로젝트 생성 |
+| `npm run ios:open` | 프로젝트 생성 후 Xcode로 열기 |
+| `npm run ios:test` | 시뮬레이터에서 유닛 테스트 실행 |
 
-API 서버 주소는 `VOCALOOP_API_URL`로 바꿉니다. 기본값은 `https://vocaloop.lawdigest.kr`입니다.
+실기기에 설치할 때는 팀 ID를 넘깁니다 (프로젝트에는 커밋하지 않습니다).
 
 ```bash
-VOCALOOP_API_URL=http://localhost:3050 npm run ios:sync
+cd ios && xcodebuild -project VocaLoop.xcodeproj -scheme VocaLoop -configuration Debug -destination 'id=<device-udid>' -derivedDataPath ./DerivedData DEVELOPMENT_TEAM=<team-id> -allowProvisioningUpdates build
 ```
 
-### 네이티브에서 달라지는 점
+API 서버는 기본이 `https://vocaloop.lawdigest.kr`입니다. 로컬 백엔드로 붙일 때는 실행 인자로 덮어씁니다.
+
+```bash
+xcrun simctl launch <udid> kr.lawdigest.vocaloop -VocaLoopAPIBaseURL "http://localhost:3050"
+```
+
+### 구조
+
+| 경로 | 역할 |
+|---|---|
+| `ios/VocaLoop/Core/Networking` | `APIClient`(actor), 엔드포인트, JSON 코딩 규칙 |
+| `ios/VocaLoop/Core/Auth` | Keychain 세션 저장, 로그인/세션 복원 |
+| `ios/VocaLoop/Core/Models` | 백엔드 스키마와 대응하는 도메인 모델 |
+| `ios/VocaLoop/Features` | 화면별 뷰와 `@Observable` 스토어 |
+| `ios/VocaLoopTests` | 퀴즈 채점·출제 로직과 디코딩 테스트 |
+
+### 웹과 다른 점
 
 | 항목 | 웹 | iOS 앱 |
 |---|---|---|
-| 인증 | `vocaloop_session` HttpOnly 쿠키 | `Authorization: Bearer` + 기기 저장 토큰 |
-| origin | API와 동일 | `capacitor://localhost` (CORS 필요) |
-| 발음 재생 | `window.speechSynthesis` | 네이티브 AVSpeechSynthesizer, 실패 시 웹으로 폴백 |
-| 정답/오답 피드백 | 효과음 | 효과음 + 햅틱 |
+| 인증 | `vocaloop_session` HttpOnly 쿠키 | `Authorization: Bearer` + Keychain 저장 토큰 |
+| 발음 재생 | `window.speechSynthesis` | `AVSpeechSynthesizer` |
+| 정답/오답 피드백 | 효과음 | `sensoryFeedback` 햅틱 |
 
 백엔드는 `X-VocaLoop-Client` 헤더가 붙은 요청에만 로그인/회원가입 응답에 `session_token`을 실어 보냅니다. 웹 응답에는 항상 `null`이라 브라우저에서는 토큰이 노출되지 않습니다.
 
-허용 origin은 `NATIVE_APP_ORIGINS` 환경 변수로 추가할 수 있습니다 (쉼표 구분).
+네이티브 앱은 `Authorization` 헤더만 쓰므로 CORS가 필요 없지만, 백엔드의 `NATIVE_APP_ORIGINS` 설정은 그대로 두었습니다 (쉼표 구분으로 origin 추가 가능).
 
 ## 검증
 

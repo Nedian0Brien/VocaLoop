@@ -1,13 +1,12 @@
-App/build
-App/Pods
-App/output
-App/App/public
-DerivedData
-xcuserdata
+# XcodeGen이 project.yml에서 생성한다. pbxproj 병합 충돌을 피하려고 커밋하지 않는다.
+# 열기 전에 `cd ios && xcodegen generate` 를 실행할 것.
+VocaLoop.xcodeproj/
 
-# Cordova plugins for Capacitor
-capacitor-cordova-ios-plugins
+# 빌드 산출물
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
 
-# Generated Config files
-App/App/capacitor.config.json
-App/App/config.xml
+# XcodeGen이 project.yml의 info.properties에서 생성한다.
+VocaLoop/Resources/Info.plist

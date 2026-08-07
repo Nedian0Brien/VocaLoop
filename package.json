@@ -8,27 +8,16 @@
     "test": "vitest run",
     "start": "python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 3050",
     "preview": "vite preview",
-    "ios:build": "VITE_API_BASE_URL=${VOCALOOP_API_URL:-https://vocaloop.lawdigest.kr} vite build",
-    "ios:sync": "npm run ios:build && cap sync ios",
-    "ios:open": "cap open ios",
-    "ios:run": "npm run ios:sync && cap run ios"
+    "ios:gen": "cd ios && xcodegen generate",
+    "ios:open": "npm run ios:gen && open ios/VocaLoop.xcodeproj",
+    "ios:test": "npm run ios:gen && cd ios && xcodebuild -project VocaLoop.xcodeproj -scheme VocaLoop -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedData CODE_SIGNING_ALLOWED=NO test"
   },
   "dependencies": {
-    "@capacitor-community/text-to-speech": "^8.0.2",
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/haptics": "^8.0.2",
-    "@capacitor/keyboard": "^8.0.5",
-    "@capacitor/preferences": "^8.0.1",
-    "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.3",
     "@vercel/speed-insights": "^1.3.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/ios": "^8.5.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^5.2.0",
