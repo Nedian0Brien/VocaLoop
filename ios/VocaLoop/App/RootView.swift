@@ -24,12 +24,12 @@ struct RootView: View {
     }
 }
 
-/// 세션 복원 동안 잠깐 보이는 화면. 런치 스크린과 이어지도록 같은 배경을 쓴다.
+/// 세션 복원 동안 잠깐 보이는 화면. 로그인 화면과 이어지도록 같은 그라디언트를 쓴다.
 private struct LaunchView: View {
     var body: some View {
         ZStack {
-            Color.launchBackground.ignoresSafeArea()
-            VocaLoopMark(size: 72)
+            DS.Gradient.hero.ignoresSafeArea()
+            VocaLoopMark(size: 64)
         }
     }
 }

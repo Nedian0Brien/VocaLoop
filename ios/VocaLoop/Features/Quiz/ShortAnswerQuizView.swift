@@ -9,14 +9,16 @@ struct ShortAnswerQuizView: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 20) {
             prompt
             answerField
             if let result { resultBanner(isCorrect: result) }
-            Spacer()
+            Spacer(minLength: 0)
             if result == nil { submitButton }
         }
-        .padding(20)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
         .sensoryFeedback(.success, trigger: result) { _, new in new == true }
         .sensoryFeedback(.error, trigger: result) { _, new in new == false }
         .onAppear { isFocused = true }
@@ -24,65 +26,74 @@ struct ShortAnswerQuizView: View {
     }
 
     private var prompt: some View {
-        VStack(spacing: 8) {
-            Text("이 뜻의 영어 단어는?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(word.primaryMeaning)
-                .font(.title.bold())
-                .multilineTextAlignment(.center)
+        DSCard(variant: .dark, radius: DS.Radius.card, padding: .lg) {
+            VStack(spacing: 12) {
+                DSBadge(text: "이 뜻의 영어 단어는?", tone: .onDark, style: .pill)
+
+                Text(word.primaryMeaning)
+                    .font(DS.Font.pageTitle)
+                    .tracking(DS.Tracking.tighter(34))
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.5)
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .padding(.horizontal, 16)
-        .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 24))
     }
 
     private var answerField: some View {
         TextField("영어 단어 입력", text: $input)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .font(.title3)
+            .font(DS.Font.bodyLarge)
+            .foregroundStyle(DS.Surface.level900)
             .multilineTextAlignment(.center)
             .focused($isFocused)
             .submitLabel(.done)
             .onSubmit(check)
             .disabled(result != nil)
-            .padding(.vertical, 16)
-            .padding(.horizontal, 18)
-            .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 16))
+            .frame(height: 56)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.lg)
+                    .strokeBorder(fieldBorder, lineWidth: result == nil ? 1 : 2)
+            )
+    }
+
+    private var fieldBorder: Color {
+        guard let result else { return DS.Surface.level200 }
+        return result ? DS.Solid.success : DS.Solid.danger
     }
 
     private func resultBanner(isCorrect: Bool) -> some View {
-        VStack(spacing: 6) {
-            Label(
-                isCorrect ? "정답입니다" : "정답: \(word.word)",
-                systemImage: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill"
-            )
-            .font(.headline)
-            .foregroundStyle(isCorrect ? Color.successGreen : Color.dangerRed)
+        DSCard(variant: .flat, radius: DS.Radius.xl, padding: .md) {
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .bold))
+                    Text(isCorrect ? "정답입니다" : "정답: \(word.word)")
+                        .font(DS.Font.bodyStrong)
+                        .dsTightTracking(16)
+                }
+                .foregroundStyle(isCorrect ? DS.BrandText.success : DS.BrandText.danger)
 
-            if word.hasPronunciation {
-                Text(word.pronunciation ?? "")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                if word.hasPronunciation {
+                    Text(word.pronunciation ?? "")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(DS.Surface.level500)
+                }
             }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
         .background(
-            (isCorrect ? Color.successGreen : Color.dangerRed).opacity(0.12),
-            in: .rect(cornerRadius: 16)
+            (isCorrect ? DS.Wash.success : DS.Wash.danger),
+            in: .rect(cornerRadius: DS.Radius.xl)
         )
         .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
 
     private var submitButton: some View {
         Button("확인", action: check)
-            .buttonStyle(.borderedProminent)
-            .controlSize(.extraLarge)
-            .tint(.brand)
-            .frame(maxWidth: .infinity)
+            .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
             .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty)
     }
 
@@ -101,3 +112,10 @@ struct ShortAnswerQuizView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("주관식") {
+    ShortAnswerQuizView(word: PreviewData.serendipity, onAnswer: { _, _ in })
+        .background(DS.Surface.level50)
+}
+#endif

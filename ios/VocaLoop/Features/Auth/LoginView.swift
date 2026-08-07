@@ -28,96 +28,125 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient.brandGradient.ignoresSafeArea()
+            DS.Gradient.hero.ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 28) {
+                VStack(spacing: 32) {
                     header
                     card
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 60)
+                .padding(.horizontal, 20)
+                .padding(.top, 56)
                 .padding(.bottom, 40)
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
         }
-        .preferredColorScheme(.dark)
     }
 
     private var header: some View {
-        VStack(spacing: 12) {
-            VocaLoopMark(size: 56)
+        VStack(spacing: 14) {
+            VocaLoopMark(size: 52)
+
             Text("VocaLoop")
-                .font(.largeTitle.bold())
+                .font(DS.Font.hero)
+                .tracking(DS.Tracking.tighter(48))
                 .foregroundStyle(.white)
+
+            DSBadge(text: "AI Adaptive Learning", tone: .onDark, style: .pill)
+
             Text("AI가 단어를 분석하고, 반복이 기억으로 남습니다")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.85))
+                .font(DS.Font.meta)
+                .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
         }
     }
 
     private var card: some View {
-        VStack(spacing: 18) {
-            Picker("모드", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: mode) { errorMessage = nil }
+        DSCard(variant: .elevated, radius: DS.Radius.card, padding: .lg) {
+            VStack(spacing: 20) {
+                modeSwitch
+                fields
 
-            fields
-
-            if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Color.dangerRed)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                        Text(errorMessage).font(DS.Font.caption)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(DS.BrandText.danger)
+                    .padding(12)
+                    .background(DS.Wash.danger, in: .rect(cornerRadius: DS.Radius.sm))
                     .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            Button {
-                Task { await submit() }
-            } label: {
-                if isSubmitting {
-                    ProgressView().tint(.white)
-                } else {
-                    Text(mode.rawValue)
                 }
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.extraLarge)
-            .tint(.brand)
-            .frame(maxWidth: .infinity)
-            .disabled(!canSubmit)
 
-            if mode == .signup {
-                Text("비밀번호는 8자 이상이어야 합니다.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await submit() }
+                } label: {
+                    if isSubmitting {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text(mode.rawValue)
+                    }
+                }
+                .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
+                .disabled(!canSubmit)
+
+                if mode == .signup {
+                    Text("비밀번호는 8자 이상이어야 합니다.")
+                        .font(DS.Font.caption)
+                        .foregroundStyle(DS.Surface.level500)
+                }
             }
         }
-        .padding(24)
-        .background(.regularMaterial, in: .rect(cornerRadius: 28))
         .animation(.smooth(duration: 0.25), value: errorMessage)
         .animation(.smooth(duration: 0.25), value: mode)
+    }
+
+    /// 세그먼티드 대신 웹의 pill 토글을 옮겼다. 시스템 컨트롤을 쓰면
+    /// 이 화면만 iOS 기본 룩으로 튀어 카드의 편집 디자인과 어긋난다.
+    private var modeSwitch: some View {
+        HStack(spacing: 4) {
+            ForEach(Mode.allCases, id: \.self) { item in
+                Button {
+                    mode = item
+                    errorMessage = nil
+                } label: {
+                    Text(item.rawValue)
+                        .font(DS.Font.label)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .foregroundStyle(mode == item ? .white : DS.Surface.level600)
+                        .background(
+                            mode == item ? AnyShapeStyle(DS.Solid.brand) : AnyShapeStyle(.clear),
+                            in: .rect(cornerRadius: DS.Radius.sm)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(DS.Surface.level100, in: .rect(cornerRadius: DS.Radius.md))
     }
 
     @ViewBuilder
     private var fields: some View {
         VStack(spacing: 12) {
             if mode == .signup {
-                TextField("이름 (선택)", text: $displayName)
-                    .textContentType(.name)
-                    .focused($focusedField, equals: .displayName)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .email }
-                    .authFieldStyle()
+                DSTextField(
+                    label: "이름 (선택)",
+                    systemImage: "person",
+                    text: $displayName,
+                    placeholder: "표시할 이름"
+                )
+                .textContentType(.name)
+                .focused($focusedField, equals: .displayName)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .email }
             }
 
-            TextField("이메일", text: $email)
+            DSTextField(label: "이메일", systemImage: "envelope", text: $email, placeholder: "example@email.com")
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -125,14 +154,18 @@ struct LoginView: View {
                 .focused($focusedField, equals: .email)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .password }
-                .authFieldStyle()
 
-            SecureField("비밀번호", text: $password)
-                .textContentType(mode == .login ? .password : .newPassword)
-                .focused($focusedField, equals: .password)
-                .submitLabel(.go)
-                .onSubmit { if canSubmit { Task { await submit() } } }
-                .authFieldStyle()
+            DSTextField(
+                label: "비밀번호",
+                systemImage: "lock",
+                text: $password,
+                isSecure: true,
+                placeholder: "8자 이상"
+            )
+            .textContentType(mode == .login ? .password : .newPassword)
+            .focused($focusedField, equals: .password)
+            .submitLabel(.go)
+            .onSubmit { if canSubmit { Task { await submit() } } }
         }
     }
 
@@ -167,16 +200,51 @@ struct LoginView: View {
     }
 }
 
-private extension View {
-    func authFieldStyle() -> some View {
-        self
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(.thinMaterial, in: .rect(cornerRadius: 14))
+/// 웹 `Input` 프리미티브 — 라벨 + 좌측 아이콘 + 12px 모서리.
+struct DSTextField: View {
+    let label: String
+    var systemImage: String?
+    @Binding var text: String
+    var isSecure = false
+    var placeholder: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(DS.Font.caption)
+                .foregroundStyle(DS.Surface.level600)
+
+            HStack(spacing: 10) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Surface.level400)
+                        .frame(width: 18)
+                }
+
+                Group {
+                    if isSecure {
+                        SecureField(placeholder, text: $text)
+                    } else {
+                        TextField(placeholder, text: $text)
+                    }
+                }
+                .font(DS.Font.body)
+                .foregroundStyle(DS.Surface.level900)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .background(DS.Surface.level100, in: .rect(cornerRadius: DS.Radius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.sm)
+                    .strokeBorder(DS.Surface.level200, lineWidth: 1)
+            )
+        }
     }
 }
 
-#Preview {
-    LoginView()
-        .environment(AppState())
+#if DEBUG
+#Preview("로그인") {
+    LoginView().environment(AppState())
 }
+#endif

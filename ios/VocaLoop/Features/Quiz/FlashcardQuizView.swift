@@ -7,12 +7,14 @@ struct FlashcardQuizView: View {
     @State private var isRevealed = false
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             card
-            Spacer()
+            Spacer(minLength: 0)
             controls
         }
-        .padding(20)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
         .onAppear { SpeechSynthesizer.shared.speak(word.word) }
     }
 
@@ -20,39 +22,46 @@ struct FlashcardQuizView: View {
         Button {
             withAnimation(.smooth(duration: 0.45)) { isRevealed.toggle() }
         } label: {
-            VStack(spacing: 14) {
-                if isRevealed {
-                    Text(word.primaryMeaning)
-                        .font(.title.bold())
-                        .multilineTextAlignment(.center)
-                    if let pos = word.pos, !pos.isEmpty {
-                        Text(pos).font(.caption).foregroundStyle(.secondary)
-                    }
-                    if let example = word.examples.first {
-                        Text(example.en)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+            DSCard(
+                variant: isRevealed ? .gradient : .dark,
+                radius: DS.Radius.hero,
+                padding: .xl
+            ) {
+                VStack(spacing: 14) {
+                    if isRevealed {
+                        DSBadge(text: "Meaning", tone: .onDark, style: .pill)
+
+                        Text(word.primaryMeaning)
+                            .font(DS.Font.sectionTitle)
+                            .dsTightTracking(24)
                             .multilineTextAlignment(.center)
-                            .padding(.top, 6)
+
+                        if let example = word.examples.first {
+                            Text(example.en)
+                                .font(.system(size: 14, weight: .medium, design: .serif))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 4)
+                        }
+                    } else {
+                        Text(word.word)
+                            .font(DS.Font.hero)
+                            .tracking(DS.Tracking.tighter(48))
+                            .minimumScaleFactor(0.45)
+                            .lineLimit(1)
+
+                        Text("탭하면 뜻이 보입니다")
+                            .font(DS.Font.caption)
+                            .foregroundStyle(.white.opacity(0.6))
                     }
-                } else {
-                    Text(word.word)
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
-                    Text("탭하면 뜻이 보입니다")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 220)
+                // 카드를 뒤집으면 내용도 좌우 반전되므로 같은 각도로 되돌려 글자를 바로 세운다.
+                .rotation3DEffect(.degrees(isRevealed ? 180 : 0), axis: (x: 0, y: 1, z: 0))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 60)
-            .padding(.horizontal, 20)
-            // 카드를 뒤집으면 내용도 좌우 반전되므로 같은 각도로 되돌려 글자를 바로 세운다.
-            .rotation3DEffect(.degrees(isRevealed ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         }
         .buttonStyle(.plain)
-        .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 28))
         .rotation3DEffect(.degrees(isRevealed ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .accessibilityLabel(isRevealed ? word.primaryMeaning : word.word)
         .accessibilityHint("두 번 탭하면 뒤집힙니다")
@@ -61,38 +70,32 @@ struct FlashcardQuizView: View {
     private var controls: some View {
         VStack(spacing: 12) {
             if isRevealed {
-                HStack(spacing: 12) {
-                    Button {
+                HStack(spacing: 10) {
+                    Button("아직이에요") {
                         onAnswer(word.primaryMeaning, false)
-                    } label: {
-                        Label("아직이에요", systemImage: "arrow.counterclockwise")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .tint(.dangerRed)
+                    .buttonStyle(.ds(.secondary, size: .lg, fullWidth: true))
 
-                    Button {
+                    Button("알아요") {
                         onAnswer(word.primaryMeaning, true)
-                    } label: {
-                        Label("알아요", systemImage: "checkmark")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(.successGreen)
+                    .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 Button("뜻 보기") {
                     withAnimation(.smooth(duration: 0.45)) { isRevealed = true }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.extraLarge)
-                .tint(.brand)
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
             }
         }
         .animation(.smooth(duration: 0.3), value: isRevealed)
     }
 }
+
+#if DEBUG
+#Preview("플래시카드") {
+    FlashcardQuizView(word: PreviewData.serendipity, onAnswer: { _, _ in })
+        .background(DS.Surface.level50)
+}
+#endif

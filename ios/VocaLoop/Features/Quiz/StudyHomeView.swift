@@ -21,122 +21,192 @@ struct StudyHomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    summaryCard
-                    modePicker
-                    countPicker
-                    startButton
+            ZStack {
+                DS.Surface.level50.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        heroCard
+                        statsRow
+                        modeSection
+                        countSection
+                        startButton
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 32)
                 }
-                .padding(20)
+                .scrollEdgeEffectStyle(.soft, for: .top)
             }
             .navigationTitle("학습")
+            .toolbarBackground(DS.Surface.level50, for: .navigationBar)
             .fullScreenCover(item: $session) { session in
                 QuizContainerView(session: session)
             }
         }
     }
 
-    private var summaryCard: some View {
-        let words = appState.vocabulary?.words ?? []
-        let mastered = words.count { $0.status == .mastered }
-        let learning = words.count { $0.status == .learning }
+    private var heroCard: some View {
+        DSCard(variant: .gradient, radius: DS.Radius.card, padding: .lg) {
+            VStack(alignment: .leading, spacing: 12) {
+                DSBadge(text: "Today's loop", tone: .onDark, style: .pill)
 
-        return VStack(spacing: 16) {
-            Text("오늘도 한 바퀴 돌려볼까요?")
-                .font(.headline)
-                .foregroundStyle(.white)
+                Text("오늘도 한 바퀴\n돌려볼까요?")
+                    .font(DS.Font.sectionTitle)
+                    .dsTightTracking(24)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 0) {
-                summaryTile("전체", words.count)
-                summaryTile("학습 중", learning)
-                summaryTile("완료", mastered)
+                Text("\(availableWords.count)개 단어가 학습 대기 중입니다")
+                    .font(DS.Font.meta)
+                    .foregroundStyle(.white.opacity(0.85))
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(LinearGradient.brandGradient, in: .rect(cornerRadius: 24))
     }
 
-    private func summaryTile(_ title: String, _ value: Int) -> some View {
-        VStack(spacing: 4) {
-            Text("\(value)")
-                .font(.title.bold().monospacedDigit())
-                .foregroundStyle(.white)
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.8))
+    private var statsRow: some View {
+        let words = appState.vocabulary?.words ?? []
+
+        return DSCard(variant: .elevated, radius: DS.Radius.xl, padding: .md) {
+            HStack(spacing: 12) {
+                DSStat(
+                    title: "전체",
+                    value: "\(words.count)",
+                    systemImage: "square.stack.3d.up",
+                    tone: .brand
+                )
+                Divider().frame(height: 52)
+                DSStat(
+                    title: "학습 중",
+                    value: "\(words.count { $0.status == .learning })",
+                    systemImage: "arrow.trianglehead.2.clockwise",
+                    tone: .warning
+                )
+                Divider().frame(height: 52)
+                DSStat(
+                    title: "완료",
+                    value: "\(words.count { $0.status == .mastered })",
+                    systemImage: "checkmark.seal.fill",
+                    tone: .success
+                )
+            }
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private var modePicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("모드").font(.headline)
+    private var modeSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            DSSectionHeading(
+                title: "Vocabulary Training",
+                subtitle: "암기 수준에 맞춘 기초 단계 학습",
+                systemImage: "book.pages",
+                tone: .brand
+            )
 
-            ForEach(QuizMode.allCases) { mode in
-                Button {
-                    selectedMode = mode
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: mode.symbolName)
-                            .font(.title3)
-                            .frame(width: 32)
-                            .foregroundStyle(selectedMode == mode ? Color.brand : .secondary)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(mode.title).font(.body.weight(.semibold))
-                            Text(mode.detail).font(.caption).foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        if selectedMode == mode {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.brand)
-                        }
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        selectedMode == mode
-                            ? AnyShapeStyle(Color.brand.opacity(0.1))
-                            : AnyShapeStyle(.quaternary.opacity(0.5)),
-                        in: .rect(cornerRadius: 16)
-                    )
+            VStack(spacing: 10) {
+                ForEach(QuizMode.allCases) { mode in
+                    modeCard(mode)
                 }
-                .buttonStyle(.plain)
             }
         }
         .animation(.smooth(duration: 0.2), value: selectedMode)
     }
 
-    private var countPicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("문제 수").font(.headline)
+    private func modeCard(_ mode: QuizMode) -> some View {
+        let isSelected = selectedMode == mode
 
-            Picker("문제 수", selection: $questionCount) {
+        return Button {
+            selectedMode = mode
+        } label: {
+            DSCard(
+                variant: isSelected ? .elevated : .flat,
+                radius: DS.Radius.xl,
+                padding: .none
+            ) {
+                HStack(spacing: 14) {
+                    Image(systemName: mode.symbolName)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(isSelected ? .white : DS.Surface.level500)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            isSelected
+                                ? AnyShapeStyle(DS.Solid.brand)
+                                : AnyShapeStyle(DS.Surface.level100),
+                            in: .rect(cornerRadius: DS.Radius.md)
+                        )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(mode.title)
+                            .font(DS.Font.bodyStrong)
+                            .dsTightTracking(16)
+                            .foregroundStyle(DS.Surface.level900)
+                        Text(mode.detail)
+                            .font(DS.Font.caption)
+                            .foregroundStyle(DS.Surface.level500)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(isSelected ? DS.BrandText.base : DS.Surface.level300)
+                }
+                .padding(16)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.xl)
+                    .strokeBorder(isSelected ? DS.Solid.brand : .clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var countSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("문제 수")
+                .font(DS.Font.bodyStrong)
+                .dsTightTracking(16)
+                .foregroundStyle(DS.Surface.level900)
+
+            HStack(spacing: 8) {
                 ForEach([5, 10, 20, 30], id: \.self) { count in
-                    Text("\(count)").tag(count)
+                    Button {
+                        questionCount = count
+                    } label: {
+                        Text("\(count)")
+                            .font(DS.Font.label)
+                            .monospacedDigit()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .foregroundStyle(questionCount == count ? .white : DS.Surface.level600)
+                            .background(
+                                questionCount == count
+                                    ? AnyShapeStyle(DS.Solid.brand)
+                                    : AnyShapeStyle(DS.Surface.level0),
+                                in: .rect(cornerRadius: DS.Radius.md)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.md).strokeBorder(
+                                    questionCount == count ? .clear : DS.Surface.level200,
+                                    lineWidth: 1
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .pickerStyle(.segmented)
+            .animation(.smooth(duration: 0.2), value: questionCount)
         }
     }
 
     private var startButton: some View {
-        VStack(spacing: 8) {
-            Button("시작하기") {
+        VStack(spacing: 10) {
+            Button("학습 시작") {
                 session = QuizSession(
                     mode: selectedMode,
                     words: availableWords,
                     questionCount: questionCount
                 )
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.extraLarge)
-            .tint(.brand)
-            .frame(maxWidth: .infinity)
+            .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
             .disabled(!canStart)
 
             if !canStart {
@@ -145,8 +215,8 @@ struct StudyHomeView: View {
                         ? "객관식은 뜻이 있는 단어가 4개 이상 필요합니다."
                         : "뜻이 등록된 단어가 없습니다."
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(DS.Font.caption)
+                .foregroundStyle(DS.Surface.level500)
                 .multilineTextAlignment(.center)
             }
         }

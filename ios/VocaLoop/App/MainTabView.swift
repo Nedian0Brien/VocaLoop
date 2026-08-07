@@ -19,7 +19,7 @@ struct MainTabView: View {
         }
         // 목록을 아래로 훑을 때 탭바가 접혀 내용에 집중된다.
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tint(.brand)
+        .tint(DS.BrandText.base)
         .task {
             await appState.vocabulary?.loadIfNeeded()
         }

@@ -65,8 +65,8 @@ struct AddWordView: View {
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Color.dangerRed)
-                            .font(.footnote)
+                            .foregroundStyle(DS.BrandText.danger)
+                            .font(DS.Font.caption)
                     }
                 }
             }
