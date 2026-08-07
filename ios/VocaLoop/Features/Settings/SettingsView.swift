@@ -25,6 +25,7 @@ struct SettingsView: View {
                     .padding(.bottom, 32)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
+                .autoHidesNavBar()
             }
             .navigationTitle("설정")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)
@@ -81,8 +82,8 @@ struct SettingsView: View {
                     )
                     Divider().frame(height: 52)
                     DSStat(
-                        title: "학습 완료",
-                        value: "\(words.count { $0.status == .mastered })",
+                        title: "외웠어요",
+                        value: "\(words.count { $0.learningStatus == .memorized })",
                         systemImage: "checkmark.seal.fill",
                         tone: .success
                     )

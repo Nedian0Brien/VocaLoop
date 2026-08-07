@@ -84,6 +84,12 @@ struct QuizContainerView: View {
         }
 
         // 서버 반영은 화면 진행을 막지 않는다.
-        Task { await appState.vocabulary?.recordQuizResult(for: word, wasCorrect: isCorrect) }
+        Task {
+            await appState.vocabulary?.recordQuizResult(
+                for: word,
+                wasCorrect: isCorrect,
+                mode: session.mode
+            )
+        }
     }
 }

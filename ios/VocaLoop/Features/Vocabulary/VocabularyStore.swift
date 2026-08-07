@@ -61,7 +61,7 @@ final class VocabularyStore {
         await patch(word, body: ["is_flagged": !word.isFlagged])
     }
 
-    func updateStatus(_ word: Word, to status: Word.LearningStatus) async {
+    func updateStatus(_ word: Word, to status: Word.ServerStatus) async {
         await patch(word, body: ["status": status.rawValue])
     }
 
@@ -80,20 +80,29 @@ final class VocabularyStore {
         }
     }
 
-    /// 퀴즈 결과를 반영한다. 오답 수와 학습률은 서버가 진실의 원본이므로
-    /// 응답으로 받은 단어로 통째로 교체한다.
-    func recordQuizResult(for word: Word, wasCorrect: Bool) async {
+    /// 퀴즈 결과를 반영한다.
+    ///
+    /// 학습률 계산은 웹 `quizAnswerFlow.js`와 같은 공식을 쓴다.
+    /// 웹은 `status` 필드를 건드리지 않으므로 여기서도 보내지 않는다.
+    /// 화면에 보이는 상태는 학습률에서 파생되기 때문에 그것만으로 충분하다.
+    func recordQuizResult(for word: Word, wasCorrect: Bool, mode: QuizMode) async {
         var stats = word.stats
         stats.reviewCount += 1
-        if !wasCorrect { stats.wrongCount += 1 }
 
-        let nextRate = max(0, min(100, word.learningRate + (wasCorrect ? 10 : -5)))
-        let nextStatus: Word.LearningStatus = nextRate >= 100 ? .mastered : .learning
+        let nextRate: Int
+        if wasCorrect {
+            nextRate = LearningRate.rateAfterCorrect(currentRate: word.learningRate, mode: mode)
+        } else {
+            nextRate = LearningRate.rateAfterWrong(
+                currentRate: word.learningRate,
+                wrongCount: stats.wrongCount
+            )
+            stats.wrongCount += 1
+        }
 
         await patch(word, body: [
             "stats": ["wrong_count": stats.wrongCount, "review_count": stats.reviewCount],
             "learning_rate": nextRate,
-            "status": nextStatus.rawValue,
         ])
     }
 
@@ -109,6 +118,14 @@ final class VocabularyStore {
             errorMessage = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    #if DEBUG
+    /// 디자인 확인용. 서버 호출 없이 목록을 채운다.
+    func loadPreviewData(_ words: [Word]) {
+        self.words = words
+        recomputeVisibleWords()
+    }
+    #endif
 
     func insert(_ word: Word) {
         words.insert(word, at: 0)

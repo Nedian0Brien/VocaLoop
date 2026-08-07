@@ -46,12 +46,30 @@ final class AppState {
     }
 
     func restoreSession() async {
+        #if DEBUG
+        // 디자인 확인용. 서버 없이 목 데이터로 화면을 띄운다.
+        //   xcrun simctl launch <udid> kr.lawdigest.vocaloop -VocaLoopUseMockData YES
+        if UserDefaults.standard.bool(forKey: "VocaLoopUseMockData") {
+            signInWithMockData()
+            return
+        }
+        #endif
+
         if let user = await auth.restoreSession() {
             signIn(user)
         } else {
             phase = .signedOut
         }
     }
+
+    #if DEBUG
+    private func signInWithMockData() {
+        let store = VocabularyStore(api: api)
+        store.loadPreviewData(PreviewData.words)
+        vocabulary = store
+        phase = .signedIn(User(id: 1, email: "preview@vocaloop.app", displayName: "미리보기"))
+    }
+    #endif
 
     func signIn(_ user: User) {
         vocabulary = VocabularyStore(api: api)

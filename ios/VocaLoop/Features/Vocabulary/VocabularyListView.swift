@@ -3,6 +3,8 @@ import SwiftUI
 struct VocabularyListView: View {
     @Environment(AppState.self) private var appState
     @State private var isAddingWord = false
+    /// 카드 뒤집기로 대부분 볼 수 있지만, 학습 기록까지 보려면 상세를 연다.
+    @State private var selectedWord: Word?
 
     var body: some View {
         NavigationStack {
@@ -26,8 +28,10 @@ struct VocabularyListView: View {
             .sheet(isPresented: $isAddingWord) {
                 AddWordView()
             }
-            .navigationDestination(for: Word.self) { word in
-                WordDetailView(word: word)
+            .sheet(item: $selectedWord) { word in
+                NavigationStack {
+                    WordDetailView(word: word)
+                }
             }
         }
     }
@@ -45,39 +49,27 @@ struct VocabularyListView: View {
                 emptyState
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 14) {
+                    LazyVStack(spacing: 16, pinnedViews: []) {
                         FolderFilterRow(store: store)
-                            .padding(.bottom, 2)
 
                         if store.visibleWords.isEmpty {
                             noMatchState
                         } else {
-                            ForEach(store.visibleWords) { word in
-                                NavigationLink(value: word) {
-                                    WordCard(word: word) {
-                                        Task { await store.toggleFlag(word) }
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button(
-                                        word.isFlagged ? "즐겨찾기 해제" : "즐겨찾기",
-                                        systemImage: word.isFlagged ? "star.slash" : "star"
-                                    ) {
-                                        Task { await store.toggleFlag(word) }
-                                    }
-                                    Button("삭제", systemImage: "trash", role: .destructive) {
-                                        Task { await store.delete(word) }
-                                    }
+                            // 웹은 학습 상태별로 묶어 보여준다 (어려워요 → 학습 중 → 외웠어요).
+                            ForEach(LearningStatus.allCases, id: \.self) { status in
+                                let group = store.visibleWords.filter { $0.learningStatus == status }
+                                if !group.isEmpty {
+                                    statusGroup(status, words: group, store: store)
                                 }
                             }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 28)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
+                .autoHidesNavBar()
             }
         }
         .searchable(text: $store.searchText, prompt: "단어 또는 뜻 검색")
@@ -89,22 +81,59 @@ struct VocabularyListView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            DSCard(variant: .gradient, radius: DS.Radius.hero, padding: .xl) {
-                VStack(alignment: .leading, spacing: 12) {
-                    DSBadge(text: "Start here", tone: .onDark, style: .pill)
-                    Text("첫 단어를 추가해 보세요")
-                        .font(DS.Font.sectionTitle)
-                        .dsTightTracking(24)
-                    Text("단어만 입력하면 AI가 뜻·발음·예문·유의어를 채웁니다.")
-                        .font(DS.Font.meta)
-                        .foregroundStyle(.white.opacity(0.85))
+    private func statusGroup(
+        _ status: LearningStatus,
+        words: [Word],
+        store: VocabularyStore
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 웹의 그룹 헤더: 색 점 + 대문자 black 라벨 + 개수
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(status.dotColor)
+                    .frame(width: 10, height: 10)
+                Text(status.label.uppercased())
+                    .font(.system(size: 14, weight: .black))
+                    .tracking(0.7)
+                    .foregroundStyle(status.textColor)
+                Text("\(words.count)개")
+                    .font(DS.Font.caption)
+                    .foregroundStyle(DS.Surface.level400)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4)
 
-                    Button("단어 추가") { isAddingWord = true }
-                        .buttonStyle(.ds(.dark, size: .md))
-                        .padding(.top, 4)
+            ForEach(words) { word in
+                WordFlipCard(
+                    word: word,
+                    folderName: word.folderIds.first.flatMap { store.folder(withID: $0)?.name },
+                    onToggleFlag: { Task { await store.toggleFlag(word) } },
+                    onSpeak: { SpeechSynthesizer.shared.speak(word.word) }
+                )
+                .contextMenu {
+                    Button("상세 보기", systemImage: "info.circle") { selectedWord = word }
+                    Button("삭제", systemImage: "trash", role: .destructive) {
+                        Task { await store.delete(word) }
+                    }
                 }
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        DSCard(variant: .gradient, radius: DS.Radius.hero, padding: .xl) {
+            VStack(alignment: .leading, spacing: 12) {
+                DSBadge(text: "Start here", tone: .onDark, style: .pill)
+                Text("첫 단어를 추가해 보세요")
+                    .font(DS.Font.sectionTitle)
+                    .dsTightTracking(24)
+                Text("단어만 입력하면 AI가 뜻·발음·예문·유의어를 채웁니다.")
+                    .font(DS.Font.meta)
+                    .foregroundStyle(.white.opacity(0.85))
+
+                Button("단어 추가") { isAddingWord = true }
+                    .buttonStyle(.ds(.dark, size: .md))
+                    .padding(.top, 4)
             }
         }
         .padding(20)
@@ -161,7 +190,9 @@ private struct FolderFilterRow: View {
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
                     .background(
-                        isSelected ? AnyShapeStyle(.white.opacity(0.25)) : AnyShapeStyle(DS.Surface.level200),
+                        isSelected
+                            ? AnyShapeStyle(.white.opacity(0.25))
+                            : AnyShapeStyle(DS.Surface.level200),
                         in: .capsule
                     )
             }
@@ -173,106 +204,11 @@ private struct FolderFilterRow: View {
                 in: .capsule
             )
             .overlay(
-                Capsule().strokeBorder(
-                    isSelected ? .clear : DS.Surface.level200,
-                    lineWidth: 1
-                )
+                Capsule().strokeBorder(isSelected ? .clear : DS.Surface.level200, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
         .animation(.smooth(duration: 0.2), value: isSelected)
-    }
-}
-
-/// 웹 `WordCard`의 앱 대응. 좌측 상태 바 + 단어 + 뜻 + 학습률 진행 바.
-private struct WordCard: View {
-    let word: Word
-    let onToggleFlag: () -> Void
-
-    var body: some View {
-        DSCard(variant: .elevated, radius: DS.Radius.xl, padding: .none) {
-            HStack(spacing: 0) {
-                // 상태 색 띠 — 목록에서 학습 단계를 한눈에 구분한다.
-                Rectangle()
-                    .fill(word.status.solidTint)
-                    .frame(width: 5)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(word.word)
-                                .font(DS.Font.cardTitle)
-                                .dsTightTracking(20)
-                                .foregroundStyle(DS.Surface.level900)
-
-                            Text(word.primaryMeaning)
-                                .font(DS.Font.meta)
-                                .foregroundStyle(DS.Surface.level500)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                        }
-
-                        Spacer(minLength: 4)
-
-                        Button(action: onToggleFlag) {
-                            Image(systemName: word.isFlagged ? "star.fill" : "star")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(
-                                    word.isFlagged ? DS.Solid.warning : DS.Surface.level300
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(word.isFlagged ? "즐겨찾기 해제" : "즐겨찾기")
-                    }
-
-                    HStack(spacing: 8) {
-                        DSBadge(
-                            text: word.status.label,
-                            tone: word.status.badgeTone,
-                            style: .pill,
-                            systemImage: word.status.symbolName
-                        )
-
-                        if let pos = word.pos, !pos.isEmpty {
-                            DSBadge(text: pos, tone: .neutral, style: .tag)
-                        }
-
-                        Spacer(minLength: 0)
-
-                        Text("\(word.learningRate)%")
-                            .font(DS.Font.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(DS.Surface.level500)
-                    }
-
-                    ProgressBar(value: Double(word.learningRate) / 100, tint: word.status.solidTint)
-                }
-                .padding(16)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(word.word), \(word.primaryMeaning), 학습률 \(word.learningRate)퍼센트")
-    }
-}
-
-/// 웹의 pill 진행 바. 시스템 ProgressView는 모서리·두께가 달라 직접 그린다.
-struct ProgressBar: View {
-    let value: Double
-    var tint: Color = DS.Solid.brand
-    var height: CGFloat = 6
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(DS.Surface.level200)
-                Capsule()
-                    .fill(tint)
-                    .frame(width: max(0, min(1, value)) * proxy.size.width)
-            }
-        }
-        .frame(height: height)
-        .animation(.smooth(duration: 0.4), value: value)
-        .accessibilityHidden(true)
     }
 }
 
@@ -303,5 +239,26 @@ struct ErrorBanner: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 10)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+/// 웹의 pill 진행 바. 시스템 ProgressView는 모서리·두께가 달라 직접 그린다.
+struct ProgressBar: View {
+    let value: Double
+    var tint: Color = DS.Solid.brand
+    var height: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(DS.Surface.level200)
+                Capsule()
+                    .fill(tint)
+                    .frame(width: max(0, min(1, value)) * proxy.size.width)
+            }
+        }
+        .frame(height: height)
+        .animation(.smooth(duration: 0.4), value: value)
+        .accessibilityHidden(true)
     }
 }

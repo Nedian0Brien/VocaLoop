@@ -46,12 +46,7 @@ struct WordDetailView: View {
         DSCard(variant: .dark, radius: DS.Radius.card, padding: .lg) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    DSBadge(
-                        text: current.status.label,
-                        tone: .onDark,
-                        style: .pill,
-                        systemImage: current.status.symbolName
-                    )
+                    LearningStatusBadge(rate: current.learningRate)
 
                     if let pos = current.pos, !pos.isEmpty {
                         DSBadge(text: pos, tone: .onDark, style: .tag)

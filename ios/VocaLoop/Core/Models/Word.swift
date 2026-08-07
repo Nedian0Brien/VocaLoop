@@ -16,28 +16,25 @@ struct Word: Identifiable, Codable, Hashable, Sendable {
     var isFlagged: Bool
     var folderIds: [Int]
     var learningRate: Int
-    var status: LearningStatus
+    var status: ServerStatus
     var stats: WordStats
     var createdAt: Date
     var updatedAt: Date
 
-    /// 서버가 새 상태값을 추가해도 디코딩이 깨지지 않도록 알 수 없는 값은 `.new`로 떨어뜨린다.
-    enum LearningStatus: String, Codable, CaseIterable, Sendable {
+    /// 서버의 `status` 필드를 그대로 담는다.
+    ///
+    /// 화면에 보여주는 학습 상태(어려워요/학습 중/외웠어요)는 이 값이 아니라
+    /// `learningRate`에서 파생한다 (`LearningRate.swift`의 `LearningStatus`).
+    /// 웹이 그렇게 하고 있어서, 이걸로 분류하면 두 클라이언트가 어긋난다.
+    enum ServerStatus: String, Codable, CaseIterable, Sendable {
         case new
         case learning
         case mastered
 
+        /// 서버가 새 값을 추가해도 디코딩이 깨지지 않게 알 수 없는 값은 `.new`로 떨어뜨린다.
         init(from decoder: Decoder) throws {
             let raw = try decoder.singleValueContainer().decode(String.self)
-            self = LearningStatus(rawValue: raw) ?? .new
-        }
-
-        var label: String {
-            switch self {
-            case .new: return "새 단어"
-            case .learning: return "학습 중"
-            case .mastered: return "완료"
-            }
+            self = ServerStatus(rawValue: raw) ?? .new
         }
     }
 }

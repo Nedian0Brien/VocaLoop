@@ -37,6 +37,7 @@ struct StudyHomeView: View {
                     .padding(.bottom, 32)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
+                .autoHidesNavBar()
             }
             .navigationTitle("학습")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)
@@ -77,14 +78,14 @@ struct StudyHomeView: View {
                 Divider().frame(height: 52)
                 DSStat(
                     title: "학습 중",
-                    value: "\(words.count { $0.status == .learning })",
+                    value: "\(words.count { $0.learningStatus == .learning })",
                     systemImage: "arrow.trianglehead.2.clockwise",
                     tone: .warning
                 )
                 Divider().frame(height: 52)
                 DSStat(
-                    title: "완료",
-                    value: "\(words.count { $0.status == .mastered })",
+                    title: "외웠어요",
+                    value: "\(words.count { $0.learningStatus == .memorized })",
                     systemImage: "checkmark.seal.fill",
                     tone: .success
                 )
