@@ -113,12 +113,12 @@ final class QuizSession {
         }
     }
 
-    /// 주관식 채점. 대소문자와 앞뒤 공백은 무시한다.
-    /// 순수 함수라 어느 스레드에서나 호출할 수 있다.
+    /// 주관식 채점.
+    ///
+    /// 웹 기본 방향(en-ko)과 같이 **한국어 뜻**을 정답으로 본다.
+    /// 정규화·쉼표 후보·오타 허용 규칙은 `ShortAnswerGrading`이 웹과 동일하게 처리한다.
     nonisolated static func isShortAnswerCorrect(_ given: String, for word: Word) -> Bool {
-        let normalized = given.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalized.isEmpty else { return false }
-        return normalized == word.word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        ShortAnswerGrading.grade(given, against: word.primaryMeaning).isCorrect
     }
 
     /// 오답 보기는 같은 단어장 안의 다른 뜻에서 뽑는다. 후보가 모자라면

@@ -30,22 +30,67 @@ private func makeWord(
     return try! JSONCoding.decoder.decode(Word.self, from: Data(json.utf8))
 }
 
+/// 웹 `quizService.js`의 `gradeShortAnswer`와 결과가 같아야 한다.
 @Suite("주관식 채점")
 struct ShortAnswerGradingTests {
     private let word = makeWord(id: 1, word: "Serendipity", meaning: "뜻밖의 행운")
 
-    @Test("대소문자와 앞뒤 공백은 무시한다")
-    func ignoresCaseAndWhitespace() {
-        #expect(QuizSession.isShortAnswerCorrect("serendipity", for: word))
-        #expect(QuizSession.isShortAnswerCorrect("  Serendipity  ", for: word))
-        #expect(QuizSession.isShortAnswerCorrect("SERENDIPITY", for: word))
+    @Test("한국어 뜻을 정답으로 본다 (기본 방향 en-ko)")
+    func gradesAgainstKoreanMeaning() {
+        #expect(QuizSession.isShortAnswerCorrect("뜻밖의 행운", for: word))
+        // 영어 단어를 적는 건 이 방향에서는 정답이 아니다.
+        #expect(!QuizSession.isShortAnswerCorrect("Serendipity", for: word))
+    }
+
+    @Test("앞뒤 공백과 연속 공백은 무시한다")
+    func normalizesWhitespace() {
+        #expect(QuizSession.isShortAnswerCorrect("  뜻밖의 행운  ", for: word))
+        #expect(QuizSession.isShortAnswerCorrect("뜻밖의   행운", for: word))
+    }
+
+    @Test("대소문자는 무시한다")
+    func ignoresCase() {
+        let english = makeWord(id: 2, word: "Test", meaning: "Trial")
+        #expect(QuizSession.isShortAnswerCorrect("trial", for: english))
+        #expect(QuizSession.isShortAnswerCorrect("TRIAL", for: english))
+    }
+
+    @Test("쉼표로 나열된 뜻은 조각 하나만 맞아도 정답이다")
+    func acceptsAnyCommaSeparatedPiece() {
+        let multi = makeWord(id: 3, word: "Serendipity", meaning: "뜻밖의 행운, 우연한 발견")
+        #expect(QuizSession.isShortAnswerCorrect("우연한 발견", for: multi))
+        #expect(QuizSession.isShortAnswerCorrect("뜻밖의 행운", for: multi))
+        #expect(QuizSession.isShortAnswerCorrect("뜻밖의 행운, 우연한 발견", for: multi))
+    }
+
+    @Test("괄호로 덧붙인 설명은 없어도 정답이다")
+    func stripsParentheticalNotes() {
+        let noted = makeWord(id: 4, word: "Resilience", meaning: "회복력(탄성)")
+        #expect(QuizSession.isShortAnswerCorrect("회복력", for: noted))
+        #expect(QuizSession.isShortAnswerCorrect("회복력(탄성)", for: noted))
     }
 
     @Test("빈 입력과 오답은 틀린 것으로 본다")
     func rejectsEmptyAndWrong() {
         #expect(!QuizSession.isShortAnswerCorrect("", for: word))
         #expect(!QuizSession.isShortAnswerCorrect("   ", for: word))
-        #expect(!QuizSession.isShortAnswerCorrect("serendipty", for: word))
+        #expect(!QuizSession.isShortAnswerCorrect("완전히 다른 뜻", for: word))
+    }
+
+    @Test("유사도 0.8이 합격선이다")
+    func usesWebSimilarityThreshold() {
+        #expect(ShortAnswerGrading.similarityThreshold == 0.8)
+        // 한 글자 틀린 5글자 답: 유사도 0.8 → 정답
+        #expect(ShortAnswerGrading.grade("뜻밖의 행운", against: "뜻밖의 행복").isCorrect)
+        // 절반 이상 다르면 오답
+        #expect(!ShortAnswerGrading.grade("행운", against: "뜻밖의 행운").isCorrect)
+    }
+
+    @Test("Levenshtein 거리 계산이 맞다")
+    func computesLevenshtein() {
+        #expect(ShortAnswerGrading.levenshteinDistance("kitten", "sitting") == 3)
+        #expect(ShortAnswerGrading.levenshteinDistance("", "abc") == 3)
+        #expect(ShortAnswerGrading.levenshteinDistance("same", "same") == 0)
     }
 }
 
