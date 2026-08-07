@@ -13,6 +13,8 @@ struct WordFlipCard: View {
     var folderName: String?
     var onToggleFlag: () -> Void
     var onSpeak: () -> Void
+    /// 플래시카드 모드는 뒤집힘을 알아야 복습 버튼을 띄울 수 있다.
+    var onFlipChange: ((Bool) -> Void)?
 
     @State private var isFlipped = false
 
@@ -74,6 +76,7 @@ struct WordFlipCard: View {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
                 isFlipped.toggle()
             }
+            onFlipChange?(isFlipped)
         }
         .accessibilityElement(children: .contain)
         .accessibilityHint("두 번 탭하면 뒤집힙니다")

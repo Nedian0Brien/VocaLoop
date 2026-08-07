@@ -112,6 +112,72 @@ struct QuizProgressHeader: View {
     }
 }
 
+/// 다크 헤더 좌상단의 모드 라벨. 웹은 반투명 박스 안에 넣는다.
+/// (bg-white/5, 모서리 16, 보더 1px white/10, 패딩 10×4)
+struct QuizModeBadge: View {
+    let label: String
+
+    var body: some View {
+        Text(label.uppercased())
+            .font(.system(size: 10, weight: .black))
+            .tracking(0.5)
+            // 측정: brand-200 70%
+            .foregroundStyle(Color(hex: 0xBFDBFE).opacity(0.7))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(.white.opacity(0.05), in: .rect(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+            )
+    }
+}
+
+/// 단어를 카드로 보여주는 모드(플래시카드)의 다크 헤더.
+/// 단어 대신 무엇을 하는 화면인지 안내한다.
+struct QuizIntroHeader: View {
+    let modeLabel: String
+    let eyebrow: String
+    let title: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            QuizModeBadge(label: modeLabel)
+                .padding(.bottom, 24)
+
+            Text(eyebrow.uppercased())
+                .font(.system(size: 10, weight: .black))
+                // 웹: tracking-[0.3em] → 10pt에서 3
+                .tracking(3)
+                .foregroundStyle(Color(hex: 0xBFDBFE).opacity(0.6))
+                .padding(.bottom, 12)
+
+            Text(title)
+                .font(.system(size: 24, weight: .black))
+                .tracking(-0.6)
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            LinearGradient(
+                colors: [Color(hex: 0x1E293B), Color(hex: 0x0F172A)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay(alignment: .topTrailing) {
+                Circle()
+                    .fill(DS.Solid.brand500.opacity(0.1))
+                    .frame(width: 256, height: 256)
+                    .blur(radius: 80)
+                    .offset(x: 34, y: -56)
+            }
+        }
+        .clipped()
+    }
+}
+
 /// 퀴즈 카드의 다크 헤더. 단어를 크게 세우고 발음·품사를 붙인다.
 struct QuizWordHeader: View {
     let word: Word
@@ -120,12 +186,7 @@ struct QuizWordHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(modeLabel.uppercased())
-                .font(.system(size: 10, weight: .black))
-                .tracking(0.5)
-                // 측정: brand-200 70%
-                .foregroundStyle(Color(hex: 0xBFDBFE).opacity(0.7))
-                .padding(.top, 5)
+            QuizModeBadge(label: modeLabel)
 
             Spacer(minLength: 12)
 
@@ -222,15 +283,14 @@ struct QuizPromptLabel: View {
 }
 
 /// 퀴즈 카드 껍데기 — 다크 헤더 + 흰 본문.
-struct QuizCard<Content: View>: View {
-    let word: Word
-    let modeLabel: String
-    var onSpeak: () -> Void
+/// 헤더는 모드마다 달라서 밖에서 넣는다.
+struct QuizCardShell<Header: View, Content: View>: View {
+    @ViewBuilder var header: Header
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(spacing: 0) {
-            QuizWordHeader(word: word, modeLabel: modeLabel, onSpeak: onSpeak)
+            header
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -242,5 +302,21 @@ struct QuizCard<Content: View>: View {
                 .strokeBorder(DS.Surface.level100, lineWidth: 1)
         )
         .dsShadow(.elevated)
+    }
+}
+
+/// 단어를 헤더에 세우는 모드(객관식·주관식)용 축약형.
+struct QuizCard<Content: View>: View {
+    let word: Word
+    let modeLabel: String
+    var onSpeak: () -> Void
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        QuizCardShell {
+            QuizWordHeader(word: word, modeLabel: modeLabel, onSpeak: onSpeak)
+        } content: {
+            content
+        }
     }
 }
