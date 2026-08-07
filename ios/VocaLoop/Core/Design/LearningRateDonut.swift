@@ -35,19 +35,20 @@ struct LearningStatusBadge: View {
 
     private var status: LearningStatus { LearningStatus(rate: rate) }
 
+    /// 측정값: 높이 16.5, 폰트 10/900 자간 0.25, 패딩 2×8, 점 6pt, 간격 4.
     var body: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(status.dotColor)
+                .fill(status.badgeDotColor)
                 .frame(width: 6, height: 6)
             Text(status.label)
-                .font(DS.Font.eyebrow)
-                .tracking(0.5)
+                .font(.system(size: 10, weight: .black))
+                .tracking(0.25)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(status.backgroundColor, in: .capsule)
-        .foregroundStyle(status.textColor)
+        .padding(.vertical, 2)
+        .background(status.badgeBackgroundColor, in: .capsule)
+        .foregroundStyle(status.badgeTextColor)
         .accessibilityLabel(status.label)
     }
 }

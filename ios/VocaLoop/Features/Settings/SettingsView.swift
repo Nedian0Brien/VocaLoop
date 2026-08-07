@@ -25,7 +25,6 @@ struct SettingsView: View {
                     .padding(.bottom, 32)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
-                .autoHidesNavBar()
             }
             .navigationTitle("설정")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)

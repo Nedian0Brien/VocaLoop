@@ -28,8 +28,12 @@ enum LearningStatus: String, CaseIterable, Sendable {
         }
     }
 
-    /// 웹은 이 세 상태에만 raw 팔레트를 쓴다 (brand/success 토큰이 아니라
-    /// red-500 / blue-500 / green-500). 값을 임의로 토큰으로 바꾸면 웹과 색이 달라진다.
+    // 웹은 같은 상태를 두 곳에서 서로 다른 팔레트로 그린다. 헷갈리기 쉬우니 나눠 둔다.
+    //  - 목록 그룹 헤더(`LEARNING_STATUS_CONFIG`): Tailwind raw red/blue/green
+    //  - 상태 배지(`LearningStatusBadge`): 디자인 토큰 danger/brand/success
+    // 초록만 값이 다르다 (green-600 #16A34A vs success-600 #059669).
+
+    /// 목록 그룹 헤더의 점 — red/blue/green-500.
     var dotColor: Color {
         switch self {
         case .difficult: return Color(hex: 0xEF4444)
@@ -38,6 +42,7 @@ enum LearningStatus: String, CaseIterable, Sendable {
         }
     }
 
+    /// 목록 그룹 헤더의 글자 — red/blue/green-600.
     var textColor: Color {
         switch self {
         case .difficult: return Color.adaptive(light: 0xDC2626, dark: 0xFCA5A5)
@@ -46,11 +51,30 @@ enum LearningStatus: String, CaseIterable, Sendable {
         }
     }
 
-    var backgroundColor: Color {
+    /// 상태 배지의 점 — danger/brand/success-500.
+    var badgeDotColor: Color {
+        switch self {
+        case .difficult: return Color(hex: 0xEF4444)
+        case .learning: return Color(hex: 0x3B82F6)
+        case .memorized: return Color(hex: 0x10B981)
+        }
+    }
+
+    /// 상태 배지의 글자 — danger/brand/success-600.
+    var badgeTextColor: Color {
+        switch self {
+        case .difficult: return Color.adaptive(light: 0xDC2626, dark: 0xFCA5A5)
+        case .learning: return Color.adaptive(light: 0x2563EB, dark: 0x93C5FD)
+        case .memorized: return Color.adaptive(light: 0x059669, dark: 0xA7F3D0)
+        }
+    }
+
+    /// 상태 배지의 배경 — danger/brand/success-50.
+    var badgeBackgroundColor: Color {
         switch self {
         case .difficult: return Color.adaptive(light: 0xFEF2F2, dark: 0xEF4444, darkAlpha: 0.12)
         case .learning: return Color.adaptive(light: 0xEFF6FF, dark: 0x3B82F6, darkAlpha: 0.12)
-        case .memorized: return Color.adaptive(light: 0xF0FDF4, dark: 0x22C55E, darkAlpha: 0.12)
+        case .memorized: return Color.adaptive(light: 0xECFDF5, dark: 0x10B981, darkAlpha: 0.12)
         }
     }
 }

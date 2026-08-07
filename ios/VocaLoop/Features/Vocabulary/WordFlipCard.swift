@@ -2,9 +2,12 @@ import SwiftUI
 
 /// 웹 `src/components/WordCard.jsx`의 이식.
 ///
-/// 목록 행이 아니라 **탭하면 뒤집히는 카드**다. 앞면은 단어만 크게 세우고,
-/// 뒷면에 정의·뉘앙스·유의어·예문을 편집 디자인 섹션으로 펼친다.
-/// 앞면 높이 192pt(웹 12rem), 모서리 24pt(rounded-xl)까지 웹과 맞춘다.
+/// 아래 수치는 눈대중이 아니라 실제 웹을 375pt 뷰포트로 렌더링해
+/// `getComputedStyle`/`getBoundingClientRect`로 측정한 값이다.
+/// 값을 바꾸려면 웹을 먼저 바꾸고 다시 측정할 것.
+///
+/// 딱 하나 다른 것: 웹은 단어에 Merriweather를 쓰고 앱은 시스템 serif(New York)를 쓴다.
+/// 폰트 파일을 번들하지 않기 위한 선택이며, 크기·굵기·행간은 측정값 그대로 맞췄다.
 struct WordFlipCard: View {
     let word: Word
     var folderName: String?
@@ -13,19 +16,60 @@ struct WordFlipCard: View {
 
     @State private var isFlipped = false
 
-    private static let frontHeight: CGFloat = 192
-    private static let radius = DS.Radius.xl
+    // MARK: - 측정값
+
+    private enum Metrics {
+        /// 카드 343×192, rounded-xl은 실제로 12px로 계산된다.
+        static let frontHeight: CGFloat = 192
+        static let radius: CGFloat = 12
+        static let padding: CGFloat = 24
+        /// 폴더 배지·플래그 버튼의 모서리 여백 (top-3 left-3 / right-3)
+        static let cornerInset: CGFloat = 13
+        static let flagSize: CGFloat = 32
+        /// 플래그 버튼 rounded-md = 16px → 32pt에서는 원이 된다.
+        static let flagRadius: CGFloat = 16
+
+        static let posSize: CGFloat = 12
+        static let posTracking: CGFloat = 0.6
+        static let wordSize: CGFloat = 30
+        static let wordLineHeight: CGFloat = 36
+        static let pronSize: CGFloat = 16
+        static let pronLineHeight: CGFloat = 24
+        /// pos → word, word → pron 사이 간격 (mb-2)
+        static let stackGap: CGFloat = 8
+        /// 발음 아래 여백 (mb-3). 세로 가운데 정렬 계산에 포함된다.
+        static let pronBottomGap: CGFloat = 12
+        /// 도넛 아래쪽 위치 (측정: 카드 하단에서 19.5)
+        static let donutBottom: CGFloat = 19.5
+        static let donutSize: CGFloat = 30
+        static let donutLineWidth: CGFloat = 3
+
+        // 뒷면
+        static let backWordSize: CGFloat = 20
+        static let backWordLineHeight: CGFloat = 28
+        static let meaningSize: CGFloat = 18
+        static let meaningLineHeight: CGFloat = 22.5
+        /// 헤더 아래 구분선까지 여백(pb-3) + 구분선 뒤 여백(mb-4)
+        static let headerBottomPadding: CGFloat = 12
+        static let headerBottomMargin: CGFloat = 16
+        /// 섹션 사이 간격 (space-y-4)
+        static let sectionGap: CGFloat = 16
+        /// 구분선 아래 여백 (pt-3)
+        static let dividerGap: CGFloat = 12
+        static let eyebrowSize: CGFloat = 12
+        static let eyebrowTracking: CGFloat = 0.3
+        static let eyebrowIconSize: CGFloat = 14
+        /// 아이콘과 eyebrow 사이 (gap-1.5), eyebrow와 본문 사이 (mb-1)
+        static let eyebrowIconGap: CGFloat = 6
+        static let eyebrowBottomGap: CGFloat = 4
+    }
 
     var body: some View {
         ZStack {
-            if isFlipped {
-                back
-            } else {
-                front
-            }
+            if isFlipped { back } else { front }
         }
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
-        .contentShape(.rect(cornerRadius: Self.radius))
+        .contentShape(.rect(cornerRadius: Metrics.radius))
         .onTapGesture {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
                 isFlipped.toggle()
@@ -39,104 +83,115 @@ struct WordFlipCard: View {
 
     private var front: some View {
         ZStack {
+            // 웹은 pos/word/pron 묶음을 패딩 안쪽에서 세로 가운데 정렬한다.
+            // (mb-3 포함 104pt 묶음이 144pt 안에 들어가 위쪽 44pt에서 시작)
             VStack(spacing: 0) {
-                Spacer(minLength: 0)
-
-                // 품사 eyebrow — 웹은 text-xs font-black brand-600 uppercase tracking-wider
                 if let pos = word.pos, !pos.isEmpty {
                     Text(pos.uppercased())
-                        .font(.system(size: 12, weight: .black))
-                        .tracking(0.6)
+                        .font(.system(size: Metrics.posSize, weight: .black))
+                        .tracking(Metrics.posTracking)
                         .foregroundStyle(DS.BrandText.base)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, Metrics.stackGap)
                 }
 
-                // 웹은 단어를 serif(Merriweather)로 세운다. iOS는 New York이 대응된다.
                 Text(word.word)
-                    .font(.system(size: 30, weight: .bold, design: .serif))
+                    .font(.system(size: Metrics.wordSize, weight: .bold, design: .serif))
+                    .lineSpacing(Metrics.wordLineHeight - Metrics.wordSize)
                     .foregroundStyle(DS.Surface.level900)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Metrics.stackGap)
 
-                if word.hasPronunciation {
-                    Button {
-                        onSpeak()
-                    } label: {
-                        Text(word.pronunciation ?? "")
-                            .font(.system(size: 15, weight: .regular, design: .serif))
-                            .italic()
+                Group {
+                    if word.hasPronunciation {
+                        Button(action: onSpeak) {
+                            Text(word.pronunciation ?? "")
+                                .font(.system(size: Metrics.pronSize, design: .serif))
+                                .italic()
+                                .foregroundStyle(DS.Surface.level500)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(word.word) 발음 듣기")
+                    } else {
+                        // 웹은 발음이 없으면 빈 자리로 두지만, 앱에서는 뜻이라도 보이는 편이 낫다.
+                        Text(word.primaryMeaning)
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(DS.Surface.level500)
+                            .lineLimit(1)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(word.word) 발음 듣기")
-                } else {
-                    // 발음이 없어도 뜻은 보여야 카드가 비어 보이지 않는다.
-                    Text(word.primaryMeaning)
-                        .font(DS.Font.meta)
-                        .foregroundStyle(DS.Surface.level500)
-                        .lineLimit(1)
                 }
-
-                Spacer(minLength: 0)
-
-                LearningRateDonut(rate: word.learningRate, size: 30, lineWidth: 3)
-                    .padding(.bottom, 12)
+                .frame(height: Metrics.pronLineHeight)
+                .padding(.bottom, Metrics.pronBottomGap)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.frontHeight)
+            .padding(Metrics.padding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 폴더 배지 / 플래그 버튼은 모서리에 고정한다.
+            // 도넛은 흐름에서 빠져 카드 하단에 고정된다.
+            VStack {
+                Spacer(minLength: 0)
+                LearningRateDonut(
+                    rate: word.learningRate,
+                    size: Metrics.donutSize,
+                    lineWidth: Metrics.donutLineWidth
+                )
+                .padding(.bottom, Metrics.donutBottom)
+            }
+
+            // 폴더 배지 / 플래그 버튼
             VStack {
                 HStack(alignment: .top) {
                     if let folderName {
-                        HStack(spacing: 4) {
-                            Image(systemName: "folder.fill")
-                                .font(.system(size: 9, weight: .black))
-                            Text(folderName)
-                                .font(DS.Font.eyebrow)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(DS.Wash.brand, in: .capsule)
-                        .foregroundStyle(DS.BrandText.base)
+                        folderBadge(folderName)
                     }
-
                     Spacer(minLength: 0)
-
                     flagButton
                 }
                 Spacer(minLength: 0)
             }
-            .padding(12)
+            .padding(Metrics.cornerInset)
         }
-        .background(DS.Surface.level0, in: .rect(cornerRadius: Self.radius))
+        .frame(height: Metrics.frontHeight)
+        .background(DS.Surface.level0, in: .rect(cornerRadius: Metrics.radius))
         .overlay(
-            RoundedRectangle(cornerRadius: Self.radius)
+            RoundedRectangle(cornerRadius: Metrics.radius)
                 .strokeBorder(DS.Surface.level200, lineWidth: 1)
         )
         .dsShadow(.soft)
+    }
+
+    private func folderBadge(_ name: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "folder")
+                .font(.system(size: 10, weight: .black))
+            Text(name)
+                .font(.system(size: 10, weight: .black))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background(DS.Wash.brandStrong, in: .capsule)
+        .foregroundStyle(DS.BrandText.base)
     }
 
     private var flagButton: some View {
         Button(action: onToggleFlag) {
             Image(systemName: "star")
                 .symbolVariant(word.isFlagged ? .fill : .none)
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 32, height: 32)
+                .font(.system(size: 16, weight: .regular))
+                .frame(width: Metrics.flagSize, height: Metrics.flagSize)
                 .background(
                     word.isFlagged ? DS.Wash.warning : DS.Surface.level0,
-                    in: .rect(cornerRadius: DS.Radius.md)
+                    in: .rect(cornerRadius: Metrics.flagRadius)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.md).strokeBorder(
-                        word.isFlagged ? DS.Solid.warning.opacity(0.5) : DS.Surface.level200,
+                    RoundedRectangle(cornerRadius: Metrics.flagRadius).strokeBorder(
+                        // 측정: 플래그 상태 border warning-300(#FCD34D), 아니면 surface-200
+                        word.isFlagged ? Color(hex: 0xFCD34D) : DS.Surface.level200,
                         lineWidth: 1
                     )
                 )
-                .foregroundStyle(word.isFlagged ? DS.Solid.warning : DS.Surface.level300)
+                .foregroundStyle(
+                    word.isFlagged ? DS.Solid.warning : DS.Surface.level300
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(word.isFlagged ? "단어 플래그 해제" : "단어 플래그 추가")
@@ -144,7 +199,7 @@ struct WordFlipCard: View {
 
     // MARK: - Back
 
-    /// 뒷면에 보여줄 내용이 하나라도 있는지. 없으면 구분선만 덩그러니 남는다.
+    /// 뒷면에 보여줄 내용이 하나라도 있는지.
     private var hasBackContent: Bool {
         !word.definitions.isEmpty
             || !(word.nuance ?? "").isEmpty
@@ -155,92 +210,26 @@ struct WordFlipCard: View {
     private var back: some View {
         VStack(alignment: .leading, spacing: 0) {
             backHeader
+                .padding(.bottom, Metrics.headerBottomPadding)
+
+            Rectangle()
+                .fill(DS.Wash.brandStrong)
+                .frame(height: 1)
+                .padding(.bottom, Metrics.headerBottomMargin)
 
             if hasBackContent {
-                Divider().overlay(DS.Wash.brandStrong).padding(.vertical, 12)
+                backSections
             } else {
                 Text("아직 상세 정보가 없습니다. 단어를 다시 분석해 보세요.")
-                    .font(DS.Font.caption)
+                    .font(.system(size: Metrics.eyebrowSize))
                     .foregroundStyle(DS.Surface.level500)
-                    .padding(.top, 12)
-            }
-
-            VStack(alignment: .leading, spacing: 0) {
-                if let definition = word.definitions.first {
-                    section(
-                        eyebrow: "Definition",
-                        symbol: "doc.text",
-                        symbolColor: DS.BrandText.base,
-                        eyebrowColor: DS.Surface.level500
-                    ) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(definition)
-                                .font(DS.Font.label.weight(.regular))
-                                .foregroundStyle(DS.Surface.level800)
-                            if let ko = word.definitionsKo.first {
-                                Text(ko)
-                                    .font(DS.Font.caption.weight(.regular))
-                                    .foregroundStyle(DS.Surface.level500)
-                            }
-                        }
-                    }
-                }
-
-                if let nuance = word.nuance, !nuance.isEmpty {
-                    dividedSection(
-                        eyebrow: "Nuance",
-                        symbol: "brain",
-                        symbolColor: DS.Solid.accent500,
-                        eyebrowColor: DS.BrandText.accent
-                    ) {
-                        Text(nuance)
-                            .font(DS.Font.caption.weight(.regular))
-                            .foregroundStyle(DS.Surface.level700)
-                    }
-                }
-
-                if !word.synonyms.isEmpty {
-                    dividedSection(
-                        eyebrow: "Synonyms",
-                        symbol: "arrow.left.arrow.right",
-                        symbolColor: DS.Solid.warning,
-                        eyebrowColor: DS.BrandText.warning
-                    ) {
-                        Text(word.synonyms.joined(separator: ", "))
-                            .font(DS.Font.label.weight(.regular))
-                            .italic()
-                            .foregroundStyle(DS.Surface.level800)
-                    }
-                }
-
-                if !word.examples.isEmpty {
-                    dividedSection(
-                        eyebrow: "Examples",
-                        symbol: "quote.opening",
-                        symbolColor: DS.BrandText.base,
-                        eyebrowColor: DS.Surface.level500
-                    ) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(Array(word.examples.enumerated()), id: \.offset) { _, example in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("“\(example.en)”")
-                                        .font(DS.Font.label.weight(.medium))
-                                        .foregroundStyle(DS.BrandText.strong)
-                                    Text(example.ko)
-                                        .font(DS.Font.caption.weight(.regular))
-                                        .foregroundStyle(DS.Surface.level500)
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
-        .padding(24)
+        .padding(Metrics.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DS.Wash.brand, in: .rect(cornerRadius: Self.radius))
+        .background(DS.Wash.brand, in: .rect(cornerRadius: Metrics.radius))
         .overlay(
-            RoundedRectangle(cornerRadius: Self.radius)
+            RoundedRectangle(cornerRadius: Metrics.radius)
                 .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
         )
         .dsShadow(.soft)
@@ -252,12 +241,13 @@ struct WordFlipCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text(word.word)
-                    .font(.system(size: 20, weight: .bold, design: .serif))
+                    .font(.system(size: Metrics.backWordSize, weight: .bold, design: .serif))
+                    .lineSpacing(Metrics.backWordLineHeight - Metrics.backWordSize)
                     .foregroundStyle(DS.Surface.level900)
 
                 Button(action: onSpeak) {
                     Image(systemName: "speaker.wave.2")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: Metrics.eyebrowIconSize, weight: .regular))
                         .foregroundStyle(DS.Surface.level400)
                 }
                 .buttonStyle(.plain)
@@ -267,7 +257,7 @@ struct WordFlipCard: View {
 
                 if word.isFlagged {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: 14))
                         .foregroundStyle(DS.Solid.warning)
                 }
 
@@ -275,53 +265,139 @@ struct WordFlipCard: View {
             }
 
             Text(word.primaryMeaning)
-                .font(DS.Font.bodyLarge)
+                .font(.system(size: Metrics.meaningSize, weight: .bold))
+                .lineSpacing(Metrics.meaningLineHeight - Metrics.meaningSize)
                 .foregroundStyle(DS.BrandText.strong)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    /// 웹의 각 섹션: 작은 아이콘 + 대문자 eyebrow + 내용.
+    @ViewBuilder
+    private var backSections: some View {
+        VStack(alignment: .leading, spacing: Metrics.sectionGap) {
+            if let definition = word.definitions.first {
+                section(
+                    eyebrow: "Definition",
+                    symbol: "doc.text",
+                    // 측정: FileText 아이콘 brand-400, eyebrow surface-500
+                    symbolColor: Color(hex: 0x60A5FA),
+                    eyebrowColor: DS.Surface.level500,
+                    divided: false
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        bodyText(definition, size: 14, lineHeight: 22.75, color: DS.Surface.level800)
+                        if let ko = word.definitionsKo.first {
+                            bodyText(ko, size: 12, lineHeight: 16, color: DS.Surface.level500)
+                        }
+                    }
+                }
+            }
+
+            if let nuance = word.nuance, !nuance.isEmpty {
+                section(
+                    eyebrow: "Nuance",
+                    symbol: "brain",
+                    symbolColor: DS.Solid.accent500,
+                    eyebrowColor: DS.BrandText.accent,
+                    divided: true
+                ) {
+                    bodyText(nuance, size: 12, lineHeight: 19.5, color: DS.Surface.level700)
+                }
+            }
+
+            if !word.synonyms.isEmpty {
+                section(
+                    eyebrow: "Synonyms",
+                    symbol: "arrow.left.arrow.right",
+                    symbolColor: DS.Solid.warning,
+                    eyebrowColor: DS.BrandText.warning,
+                    divided: true
+                ) {
+                    bodyText(
+                        word.synonyms.joined(separator: ", "),
+                        size: 14,
+                        lineHeight: 22.75,
+                        color: DS.Surface.level800,
+                        italic: true
+                    )
+                }
+            }
+
+            if !word.examples.isEmpty {
+                section(
+                    eyebrow: "Examples",
+                    symbol: "quote.opening",
+                    symbolColor: Color(hex: 0x60A5FA),
+                    eyebrowColor: DS.Surface.level500,
+                    divided: true
+                ) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(word.examples.enumerated()), id: \.offset) { _, example in
+                            VStack(alignment: .leading, spacing: 2) {
+                                bodyText(
+                                    "\"\(example.en)\"",
+                                    size: 14,
+                                    lineHeight: 19.25,
+                                    color: DS.BrandText.deep,
+                                    weight: .medium
+                                )
+                                bodyText(example.ko, size: 12, lineHeight: 16, color: DS.Surface.level500)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func bodyText(
+        _ text: String,
+        size: CGFloat,
+        lineHeight: CGFloat,
+        color: Color,
+        weight: Font.Weight = .regular,
+        italic: Bool = false
+    ) -> some View {
+        Text(text)
+            .font(.system(size: size, weight: weight))
+            .italic(italic)
+            .lineSpacing(lineHeight - size)
+            .foregroundStyle(color)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 웹의 각 섹션: (구분선) + 작은 아이콘 + eyebrow + 내용.
     private func section<Content: View>(
         eyebrow: String,
         symbol: String,
         symbolColor: Color,
         eyebrowColor: Color,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(symbolColor)
-                Text(eyebrow.uppercased())
-                    .font(DS.Font.caption)
-                    .tracking(0.5)
-                    .foregroundStyle(eyebrowColor)
-            }
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 섹션 사이 구분선까지 포함한 형태.
-    private func dividedSection<Content: View>(
-        eyebrow: String,
-        symbol: String,
-        symbolColor: Color,
-        eyebrowColor: Color,
+        divided: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Divider().overlay(DS.Wash.brandStrong).padding(.vertical, 12)
-            section(
-                eyebrow: eyebrow,
-                symbol: symbol,
-                symbolColor: symbolColor,
-                eyebrowColor: eyebrowColor,
-                content: content
-            )
+            if divided {
+                Rectangle()
+                    .fill(DS.Wash.brandStrong)
+                    .frame(height: 1)
+                    .padding(.bottom, Metrics.dividerGap)
+            }
+
+            HStack(spacing: Metrics.eyebrowIconGap) {
+                Image(systemName: symbol)
+                    .font(.system(size: Metrics.eyebrowIconSize, weight: .regular))
+                    .foregroundStyle(symbolColor)
+                Text(eyebrow.uppercased())
+                    .font(.system(size: Metrics.eyebrowSize, weight: .bold))
+                    .tracking(Metrics.eyebrowTracking)
+                    .foregroundStyle(eyebrowColor)
+            }
+            .padding(.bottom, Metrics.eyebrowBottomGap)
+
+            content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -37,7 +37,6 @@ struct StudyHomeView: View {
                     .padding(.bottom, 32)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
-                .autoHidesNavBar()
             }
             .navigationTitle("학습")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)

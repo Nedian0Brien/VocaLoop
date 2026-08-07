@@ -53,7 +53,6 @@ struct ReviewView: View {
                     .padding(.bottom, 28)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
-                .autoHidesNavBar()
             }
             .navigationTitle("복습")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)

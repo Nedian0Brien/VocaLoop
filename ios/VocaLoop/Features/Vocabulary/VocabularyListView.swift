@@ -69,7 +69,6 @@ struct VocabularyListView: View {
                     .padding(.bottom, 28)
                 }
                 .scrollEdgeEffectStyle(.soft, for: .top)
-                .autoHidesNavBar()
             }
         }
         .searchable(text: $store.searchText, prompt: "단어 또는 뜻 검색")

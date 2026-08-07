@@ -77,6 +77,8 @@ extension DS {
     enum BrandText {
         static let base = Color.adaptive(light: 0x2563EB, dark: 0x93C5FD)
         static let strong = Color.adaptive(light: 0x1D4ED8, dark: 0xBFDBFE)
+        /// brand-900. 예문처럼 브랜드 면 위에 얹는 진한 본문에 쓴다.
+        static let deep = Color.adaptive(light: 0x1E3A8A, dark: 0xEFF6FF)
         static let accent = Color.adaptive(light: 0x6D28D9, dark: 0xDDD6FE)
         static let success = Color.adaptive(light: 0x047857, dark: 0xA7F3D0)
         static let warning = Color.adaptive(light: 0xB45309, dark: 0xFDE68A)
