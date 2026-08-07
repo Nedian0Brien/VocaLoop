@@ -169,6 +169,122 @@ def test_logout_clears_cookie_and_blocks_me(client):
     assert me_response.json()["detail"] == "Not authenticated"
 
 
+def test_web_client_login_does_not_expose_session_token(client):
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "web@example.com",
+            "password": "Password123!",
+            "display_name": "Web User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+    assert signup_response.json()["session_token"] is None
+
+    client.cookies.clear()
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": "web@example.com", "password": "Password123!"},
+    )
+
+    assert login_response.status_code == 200
+    assert login_response.json()["session_token"] is None
+
+
+def test_native_client_receives_session_token_and_authenticates_with_bearer(client):
+    native_headers = {"X-VocaLoop-Client": "ios"}
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "native@example.com",
+            "password": "Password123!",
+            "display_name": "Native User",
+        },
+        headers=native_headers,
+    )
+
+    assert signup_response.status_code == 201
+    signup_token = signup_response.json()["session_token"]
+    assert signup_token
+
+    client.cookies.clear()
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": "native@example.com", "password": "Password123!"},
+        headers=native_headers,
+    )
+
+    assert login_response.status_code == 200
+    session_token = login_response.json()["session_token"]
+    assert session_token
+
+    client.cookies.clear()
+    me_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {session_token}"})
+
+    assert me_response.status_code == 200
+    assert me_response.json()["user"]["email"] == "native@example.com"
+
+
+def test_bearer_token_is_rejected_when_tampered_or_after_logout(client):
+    native_headers = {"X-VocaLoop-Client": "ios"}
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "bearer@example.com",
+            "password": "Password123!",
+            "display_name": "Bearer User",
+        },
+        headers=native_headers,
+    )
+    assert signup_response.status_code == 201
+    session_token = signup_response.json()["session_token"]
+
+    client.cookies.clear()
+    tampered_response = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {session_token}tampered"},
+    )
+    assert tampered_response.status_code == 401
+
+    logout_response = client.post(
+        "/api/auth/logout",
+        headers={"Authorization": f"Bearer {session_token}"},
+    )
+    assert logout_response.status_code == 200
+
+    client.cookies.clear()
+    me_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {session_token}"})
+    assert me_response.status_code == 401
+    assert me_response.json()["detail"] == "Not authenticated"
+
+
+def test_bearer_token_takes_precedence_over_stale_cookie(client):
+    native_headers = {"X-VocaLoop-Client": "ios"}
+    first = client.post(
+        "/api/auth/signup",
+        json={"email": "first@example.com", "password": "Password123!", "display_name": "First"},
+        headers=native_headers,
+    )
+    assert first.status_code == 201
+
+    client.cookies.clear()
+    second = client.post(
+        "/api/auth/signup",
+        json={"email": "second@example.com", "password": "Password123!", "display_name": "Second"},
+        headers=native_headers,
+    )
+    assert second.status_code == 201
+    second_token = second.json()["session_token"]
+
+    client.cookies.clear()
+    client.cookies.set("vocaloop_session", first.cookies.get("vocaloop_session"))
+    me_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {second_token}"})
+
+    assert me_response.status_code == 200
+    assert me_response.json()["user"]["email"] == "second@example.com"
+
+
 def test_signup_seeds_default_settings_and_sample_words(client):
     response = client.post(
         "/api/auth/signup",

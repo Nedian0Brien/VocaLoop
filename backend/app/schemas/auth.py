@@ -48,6 +48,8 @@ class UserRead(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserRead
+    # 네이티브 클라이언트(Capacitor)에만 채워진다. 웹은 HttpOnly 쿠키만 사용한다.
+    session_token: str | None = None
 
 
 class AccountDeleteRequest(BaseModel):

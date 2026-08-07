@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -36,6 +37,16 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+# 웹은 같은 origin에서 서빙되므로 CORS가 필요 없다.
+# Capacitor 네이티브 앱만 capacitor://localhost 등에서 cross-origin으로 호출한다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.native_app_origins),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_root), name="uploads")
 app.include_router(account_router)
 app.include_router(ai_router)

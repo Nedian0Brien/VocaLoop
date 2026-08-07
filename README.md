@@ -33,7 +33,9 @@ VocaLoop는 영어 단어를 추가하고, AI가 뜻·발음·예문·동의어�
 | 경로 | 역할 |
 |---|---|
 | src/ | React frontend source, hooks, components, services, quiz flows |
+| src/native/ | Capacitor 네이티브 어댑터 (플랫폼 판별, 세션 토큰, TTS, 햅틱, 부트스트랩) |
 | backend/app/ | FastAPI app, routers, database bootstrap, settings, upload and AI routes |
+| ios/ | Capacitor iOS 네이티브 프로젝트 (Xcode, Swift Package Manager) |
 | docs/ | Design notes, feature specs, troubleshooting reports, implementation plans |
 | shared/ | Shared provider metadata and cross-runtime configuration |
 | public/ | Static assets and dictionary data |
@@ -70,6 +72,47 @@ npm run start
 npm run build
 ```
 
+## iOS 앱
+
+Capacitor 8로 같은 React 코드를 iOS 네이티브 앱(WKWebView 셸)으로 패키징합니다. 웹 자산은 앱에 번들되고, `/api/*` 호출만 원격 FastAPI 서버로 나갑니다.
+
+### 요구 사항
+
+- Xcode 16 이상 (CocoaPods 불필요 — Capacitor 8은 Swift Package Manager를 사용)
+- Node 20 이상
+
+### 빌드와 실행
+
+```bash
+npm run ios:run
+```
+
+| 명령 | 역할 |
+|---|---|
+| `npm run ios:build` | 네이티브용 프론트엔드 빌드 (`VITE_API_BASE_URL` 주입) |
+| `npm run ios:sync` | 빌드 후 웹 자산과 플러그인을 `ios/`에 동기화 |
+| `npm run ios:open` | Xcode에서 프로젝트 열기 |
+| `npm run ios:run` | 동기화 후 시뮬레이터/기기에서 실행 |
+
+API 서버 주소는 `VOCALOOP_API_URL`로 바꿉니다. 기본값은 `https://vocaloop.lawdigest.kr`입니다.
+
+```bash
+VOCALOOP_API_URL=http://localhost:3050 npm run ios:sync
+```
+
+### 네이티브에서 달라지는 점
+
+| 항목 | 웹 | iOS 앱 |
+|---|---|---|
+| 인증 | `vocaloop_session` HttpOnly 쿠키 | `Authorization: Bearer` + 기기 저장 토큰 |
+| origin | API와 동일 | `capacitor://localhost` (CORS 필요) |
+| 발음 재생 | `window.speechSynthesis` | 네이티브 AVSpeechSynthesizer, 실패 시 웹으로 폴백 |
+| 정답/오답 피드백 | 효과음 | 효과음 + 햅틱 |
+
+백엔드는 `X-VocaLoop-Client` 헤더가 붙은 요청에만 로그인/회원가입 응답에 `session_token`을 실어 보냅니다. 웹 응답에는 항상 `null`이라 브라우저에서는 토큰이 노출되지 않습니다.
+
+허용 origin은 `NATIVE_APP_ORIGINS` 환경 변수로 추가할 수 있습니다 (쉼표 구분).
+
 ## 검증
 
 | 항목 | 명령 |
@@ -78,6 +121,7 @@ npm run build
 | Frontend build | `npm run build` |
 | Backend tests | `pytest backend/tests -q` |
 | Health check | `curl http://localhost:3050/api/health` |
+| iOS 시뮬레이터 빌드 | `npm run ios:run` |
 
 ## 운영 메모
 

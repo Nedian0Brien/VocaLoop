@@ -5,9 +5,11 @@ from sqlalchemy.orm import Session
 
 from ..auth import (
     clear_session_cookie,
+    create_session_token,
     get_current_user,
     get_db,
     hash_password,
+    is_native_client,
     issue_session_cookie,
     normalize_email,
     verify_password,
@@ -20,12 +22,20 @@ from ..schemas import AuthResponse, LoginRequest, SignupRequest
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-def _build_user_response(user: User) -> AuthResponse:
-    return AuthResponse(user=user)
+def _build_user_response(user: User, *, native_client: bool = False) -> AuthResponse:
+    return AuthResponse(
+        user=user,
+        session_token=create_session_token(user) if native_client else None,
+    )
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(payload: SignupRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def signup(
+    payload: SignupRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    native_client: bool = Depends(is_native_client),
+) -> AuthResponse:
     email = normalize_email(payload.email)
     existing_user = db.scalar(select(User).where(User.email == email))
     if existing_user is not None:
@@ -47,18 +57,23 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
     db.refresh(user)
 
     issue_session_cookie(response, user)
-    return _build_user_response(user)
+    return _build_user_response(user, native_client=native_client)
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    native_client: bool = Depends(is_native_client),
+) -> AuthResponse:
     email = normalize_email(payload.email)
     user = db.scalar(select(User).where(User.email == email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     issue_session_cookie(response, user)
-    return _build_user_response(user)
+    return _build_user_response(user, native_client=native_client)
 
 
 @router.post("/logout")

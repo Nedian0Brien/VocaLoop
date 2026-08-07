@@ -5,7 +5,7 @@ import hmac
 from typing import Generator
 
 import bcrypt
-from fastapi import Cookie, Depends, HTTPException, Response, status
+from fastapi import Cookie, Depends, Header, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from .config import load_settings
@@ -17,6 +17,11 @@ settings = load_settings()
 SESSION_COOKIE_NAME = "vocaloop_session"
 SESSION_SECRET = settings.auth_secret_key
 COOKIE_SECURE = settings.environment.lower() == "production"
+
+# 네이티브 앱(Capacitor)은 HttpOnly 쿠키를 신뢰할 수 없어 Bearer 토큰으로 인증한다.
+# 이 헤더가 붙은 요청에만 로그인/회원가입 응답에 세션 토큰을 실어 보낸다.
+CLIENT_HEADER_NAME = "X-VocaLoop-Client"
+NATIVE_CLIENT_VALUES = frozenset({"ios", "android", "capacitor"})
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -69,6 +74,28 @@ def _verify_session(token: str) -> tuple[int, int]:
     return user_id, session_version
 
 
+def create_session_token(user: User) -> str:
+    """네이티브 클라이언트가 Bearer 토큰으로 사용할 서명 세션 문자열."""
+    return _sign_session(user.id, user.session_version)
+
+
+def is_native_client(
+    client: str | None = Header(default=None, alias=CLIENT_HEADER_NAME),
+) -> bool:
+    return bool(client) and client.strip().lower() in NATIVE_CLIENT_VALUES
+
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.strip().lower() != "bearer":
+        return None
+
+    return token.strip() or None
+
+
 def issue_session_cookie(response: Response, user: User) -> None:
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
@@ -93,13 +120,15 @@ def clear_session_cookie(response: Response) -> None:
 
 def get_current_user(
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> User:
-    if not session_token:
+    token = _extract_bearer_token(authorization) or session_token
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     try:
-        user_id, session_version = _verify_session(session_token)
+        user_id, session_version = _verify_session(token)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated") from exc
 

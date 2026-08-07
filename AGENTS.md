@@ -3,6 +3,7 @@
 ## 프로젝트 개요
 React + Vite 프론트엔드와 FastAPI + SQLite 백엔드를 함께 쓰는 영단어/TOEFL 학습 앱.
 FastAPI가 `/api/*` REST API, `/uploads/*` 정적 업로드, Vite 빌드 산출물(`dist/`)을 단일 프로세스로 서빙한다.
+같은 프론트엔드 코드를 Capacitor 8로 감싼 iOS 네이티브 앱이 `ios/`에 있다.
 
 - **서버 경로**: `ubuntu@<host>`, `/home/ubuntu/project/VocaLoop`
 - **도메인**: `https://vocaloop.lawdigest.kr`
@@ -134,10 +135,11 @@ gh CLI가 없을 경우 node 스크립트로 확인:
 | UI | React 19 + Tailwind CSS 4 |
 | 백엔드 | FastAPI + SQLAlchemy |
 | DB | SQLite (`vocaloop.db`) |
-| 인증 | 자체 이메일/비밀번호 + 쿠키 세션 |
+| 인증 | 자체 이메일/비밀번호 + 쿠키 세션 (네이티브는 Bearer 토큰) |
 | 업로드 | FastAPI static mount + 로컬 `uploads/` |
 | AI | Codex CLI 기본값 (`gpt-5.3-codex-spark`), Gemini/OpenAI/Claude 대체 provider |
 | 서버 | Uvicorn (`backend.app.main:app`) behind PM2 |
+| iOS 앱 | Capacitor 8 + Swift Package Manager (CocoaPods 미사용) |
 
 ### 주요 파일
 - `src/App.jsx` - 메인 앱 상태, SPA 라우팅, 로그인 후 초기 데이터 로딩

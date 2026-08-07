@@ -1,3 +1,7 @@
+import { isNativeApp } from '../native/platform';
+import { speakWithNativeTts } from '../native/speech';
+import { resolveAssetUrl } from '../services/apiClient';
+
 const ENGLISH_VOICE_NAMES = [
   'Samantha',
   'Google US English',
@@ -86,7 +90,8 @@ export const preloadSpeechSynthesisVoices = () => {
 const playPronunciationAudio = async (audioUrl) => {
   if (!audioUrl || typeof Audio !== 'function') return false;
 
-  const audio = new Audio(audioUrl);
+  // 네이티브에서는 앱 origin이 API 서버가 아니라 상대 경로를 절대 URL로 바꿔야 한다.
+  const audio = new Audio(resolveAssetUrl(audioUrl));
   audio.preload = 'auto';
   await audio.play();
   return true;
@@ -94,6 +99,10 @@ const playPronunciationAudio = async (audioUrl) => {
 
 export const speakEnglishWord = async (text, audioUrl = null) => {
   if (await playPronunciationAudio(audioUrl)) return;
+
+  // WKWebView의 speechSynthesis는 무음이 되는 경우가 있어 네이티브 TTS를 먼저 시도한다.
+  // 웹에서는 동기 단축평가로 빠져 브라우저 경로의 실행 타이밍이 그대로 유지된다.
+  if (isNativeApp() && (await speakWithNativeTts(text))) return;
 
   const speechSynthesis = getSpeechSynthesis();
   if (!speechSynthesis || !text) return;

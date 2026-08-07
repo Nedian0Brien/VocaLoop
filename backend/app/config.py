@@ -16,9 +16,22 @@ class Settings:
     piper_voice_model: Path | None = None
     piper_voice_config: Path | None = None
     piper_timeout_seconds: int = 10
+    native_app_origins: tuple[str, ...] = ()
 
 
 AUTH_SECRET_FILE_DEFAULT = Path(__file__).resolve().parents[2] / ".auth_secret"
+
+# Capacitor WKWebView(iOS)는 capacitor://localhost, Android WebView는 http://localhost에서
+# 앱을 띄운다. 두 경우 모두 API와 cross-origin이라 명시적으로 허용해야 한다.
+NATIVE_APP_ORIGINS_DEFAULT = (
+    "capacitor://localhost",
+    "ionic://localhost",
+    "http://localhost",
+)
+
+
+def _parse_origins(raw: str) -> tuple[str, ...]:
+    return tuple(origin.strip() for origin in raw.split(",") if origin.strip())
 
 
 def _load_auth_secret(auth_secret_file: Path) -> str:
@@ -42,6 +55,7 @@ def load_settings() -> Settings:
     auth_secret_key = _load_auth_secret(auth_secret_file)
     piper_voice_model = os.getenv("PIPER_VOICE_MODEL", "").strip()
     piper_voice_config = os.getenv("PIPER_VOICE_CONFIG", "").strip()
+    extra_native_origins = _parse_origins(os.getenv("NATIVE_APP_ORIGINS", ""))
 
     return Settings(
         app_name=os.getenv("APP_NAME", "VocaLoop"),
@@ -53,4 +67,7 @@ def load_settings() -> Settings:
         piper_voice_model=Path(piper_voice_model).expanduser() if piper_voice_model else None,
         piper_voice_config=Path(piper_voice_config).expanduser() if piper_voice_config else None,
         piper_timeout_seconds=int(os.getenv("PIPER_TIMEOUT_SECONDS", "10")),
+        native_app_origins=tuple(
+            dict.fromkeys(NATIVE_APP_ORIGINS_DEFAULT + extra_native_origins)
+        ),
     )

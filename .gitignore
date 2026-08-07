@@ -50,3 +50,7 @@ uploads/
 # Vite
 vite.config.js.timestamp-*
 *.tsbuildinfo
+
+# iOS / Capacitor
+# 빌드 산출물과 cap sync 생성 파일 제외 규칙은
+# ios/.gitignore 와 ios/App/CapApp-SPM/.gitignore 가 담당한다.
