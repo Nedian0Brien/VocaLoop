@@ -65,7 +65,7 @@ final class AppState {
     #if DEBUG
     private func signInWithMockData() {
         let store = VocabularyStore(api: api)
-        store.loadPreviewData(PreviewData.words)
+        store.loadPreviewData(PreviewData.words, folders: PreviewData.folders)
         vocabulary = store
         phase = .signedIn(User(id: 1, email: "preview@vocaloop.app", displayName: "미리보기"))
     }

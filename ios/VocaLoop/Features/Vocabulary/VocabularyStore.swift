@@ -119,10 +119,114 @@ final class VocabularyStore {
         }
     }
 
+    // MARK: - 폴더
+
+    private struct FolderPayload: Encodable {
+        var name: String?
+        var color: String?
+        var icon: String?
+    }
+
+    private struct ReorderPayload: Encodable {
+        var folderIds: [Int]
+    }
+
+    @discardableResult
+    func createFolder(name: String, color: FolderColor, icon: FolderIcon?) async -> Folder? {
+        do {
+            let endpoint = try Endpoint.json(
+                "/api/folders",
+                method: .post,
+                body: FolderPayload(name: name, color: color.rawValue, icon: icon?.rawValue)
+            )
+            let created = try await api.send(endpoint, as: Folder.self)
+            folders.append(created)
+            folders.sort { $0.order < $1.order }
+            return created
+        } catch {
+            report(error)
+            return nil
+        }
+    }
+
+    func updateFolder(_ folder: Folder, name: String, color: FolderColor, icon: FolderIcon?) async {
+        do {
+            let endpoint = try Endpoint.json(
+                "/api/folders/\(folder.id)",
+                method: .patch,
+                body: FolderPayload(name: name, color: color.rawValue, icon: icon?.rawValue)
+            )
+            let updated = try await api.send(endpoint, as: Folder.self)
+            if let index = folders.firstIndex(where: { $0.id == updated.id }) {
+                folders[index] = updated
+            }
+        } catch {
+            report(error)
+        }
+    }
+
+    /// `deleteWords`가 참이면 폴더 안의 단어까지 함께 지운다 (웹과 같은 선택지).
+    func deleteFolder(_ folder: Folder, deleteWords: Bool) async {
+        let folderSnapshot = folders
+        let wordSnapshot = words
+
+        // 낙관적 반영. 실패하면 되돌린다.
+        folders.removeAll { $0.id == folder.id }
+        if deleteWords {
+            words.removeAll { $0.folderIds.contains(folder.id) }
+        } else {
+            for index in words.indices {
+                words[index].folderIds.removeAll { $0 == folder.id }
+            }
+        }
+        if selection == .folder(folder.id) { selection = .all }
+        recomputeVisibleWords()
+
+        do {
+            try await api.send(Endpoint(
+                path: "/api/folders/\(folder.id)",
+                method: .delete,
+                queryItems: deleteWords ? [URLQueryItem(name: "delete_words", value: "true")] : []
+            ))
+        } catch {
+            folders = folderSnapshot
+            words = wordSnapshot
+            recomputeVisibleWords()
+            report(error)
+        }
+    }
+
+    func reorderFolders(_ ordered: [Folder]) async {
+        let snapshot = folders
+        folders = ordered
+
+        do {
+            let endpoint = try Endpoint.json(
+                "/api/folders/reorder",
+                method: .post,
+                body: ReorderPayload(folderIds: ordered.map(\.id))
+            )
+            folders = try await api.send(endpoint, as: [Folder].self).sorted { $0.order < $1.order }
+        } catch {
+            folders = snapshot
+            report(error)
+        }
+    }
+
+    /// 단어를 폴더로 옮긴다. 웹은 단어당 폴더 하나를 쓰므로 통째로 교체한다.
+    func moveWord(_ word: Word, to folderID: Folder.ID?) async {
+        await patch(word, body: ["folder_ids": folderID.map { [$0] } ?? []])
+    }
+
+    private func report(_ error: Error) {
+        errorMessage = (error as? APIError)?.errorDescription ?? error.localizedDescription
+    }
+
     #if DEBUG
     /// 디자인 확인용. 서버 호출 없이 목록을 채운다.
-    func loadPreviewData(_ words: [Word]) {
+    func loadPreviewData(_ words: [Word], folders: [Folder] = []) {
         self.words = words
+        self.folders = folders
         recomputeVisibleWords()
     }
     #endif

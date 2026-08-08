@@ -7,6 +7,8 @@ struct StudyHomeView: View {
 
     @State private var questionCount = 10
     @State private var session: QuizSession?
+    @State private var completeWordSession: CompleteWordSession?
+    @State private var toeflDifficulty: ToeflDifficulty = .intermediate
 
     private var words: [Word] { appState.vocabulary?.words ?? [] }
 
@@ -33,6 +35,7 @@ struct StudyHomeView: View {
                         kpiRow.padding(.top, 32)
                         statCards.padding(.top, 48)
                         modeSection.padding(.top, 48)
+                        toeflSection.padding(.top, 48)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -45,6 +48,9 @@ struct StudyHomeView: View {
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)
             .fullScreenCover(item: $session) { session in
                 QuizContainerView(session: session)
+            }
+            .fullScreenCover(item: $completeWordSession) { session in
+                CompleteWordQuizView(session: session)
             }
         }
     }
@@ -272,6 +278,123 @@ struct StudyHomeView: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.6)
+    }
+
+    // MARK: - TOEFL
+
+    private var toeflSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("TOEFL Practice")
+                .font(.system(size: 24, weight: .black))
+                .tracking(-0.6)
+                .foregroundStyle(DS.Surface.level900)
+                .padding(.bottom, 6)
+
+            Text("학술 지문으로 실전 감각을 익힙니다")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(DS.Surface.level500)
+                .padding(.bottom, 20)
+
+            difficultyPicker.padding(.bottom, 20)
+
+            completeWordCard
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var difficultyPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("난이도".uppercased())
+                .font(.system(size: 10, weight: .black))
+                .tracking(1)
+                .foregroundStyle(DS.Surface.level400)
+
+            HStack(spacing: 8) {
+                ForEach(ToeflDifficulty.allCases) { level in
+                    Button {
+                        toeflDifficulty = level
+                    } label: {
+                        Text(level.label)
+                            .font(.system(size: 14, weight: .black))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .foregroundStyle(
+                                toeflDifficulty == level ? .white : DS.Surface.level600
+                            )
+                            .background(
+                                toeflDifficulty == level
+                                    ? AnyShapeStyle(DS.Solid.accent)
+                                    : AnyShapeStyle(DS.Surface.level0),
+                                in: .rect(cornerRadius: DS.Radius.md)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.md).strokeBorder(
+                                    toeflDifficulty == level ? .clear : DS.Surface.level200,
+                                    lineWidth: 1
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .animation(.smooth(duration: 0.2), value: toeflDifficulty)
+        }
+    }
+
+    private var completeWordCard: some View {
+        Button {
+            completeWordSession = CompleteWordSession(
+                service: CompleteWordService(api: appState.api),
+                request: CompleteWordService.Request(
+                    difficulty: toeflDifficulty,
+                    // 내 단어장 단어를 지문에 섞어 달라고 요청한다.
+                    vocabularyWords: Array(availableWords.prefix(20).map(\.word))
+                )
+            )
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Image(systemName: "text.word.spacing")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(DS.BrandText.accent)
+                        .frame(width: 48, height: 48)
+                        .background(DS.Wash.accent, in: .rect(cornerRadius: 20))
+
+                    Spacer(minLength: 0)
+
+                    DSBadge(text: "AI", tone: .accent, style: .pill)
+                }
+                .padding(.bottom, 16)
+
+                Text("Complete the Words")
+                    .font(.system(size: 20, weight: .black))
+                    .tracking(-0.5)
+                    .foregroundStyle(DS.Surface.level900)
+                    .padding(.bottom, 8)
+
+                Text("AI가 만든 학술 지문의 빈칸을 한 글자씩 채웁니다. 앞 글자만 보여주므로 철자까지 익힐 수 있습니다.")
+                    .font(.system(size: 12, weight: .bold))
+                    .lineSpacing(6)
+                    .foregroundStyle(DS.Surface.level500.opacity(0.8))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 32)
+
+                HStack(spacing: 6) {
+                    Text("시작하기").font(.system(size: 12, weight: .black))
+                    Image(systemName: "arrow.right").font(.system(size: 12, weight: .black))
+                }
+                .foregroundStyle(DS.BrandText.accent)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.card)
+                    .strokeBorder(DS.Surface.level100, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     /// 객관식은 오답 보기가 필요해 최소 인원이 있어야 말이 된다.

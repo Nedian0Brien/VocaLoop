@@ -3,8 +3,11 @@ import SwiftUI
 struct VocabularyListView: View {
     @Environment(AppState.self) private var appState
     @State private var isAddingWord = false
+    @State private var isManagingFolders = false
     /// 카드 뒤집기로 대부분 볼 수 있지만, 학습 기록까지 보려면 상세를 연다.
     @State private var selectedWord: Word?
+    /// 폴더 이동 대상 단어.
+    @State private var wordToMove: Word?
 
     var body: some View {
         NavigationStack {
@@ -20,6 +23,10 @@ struct VocabularyListView: View {
             .navigationTitle("단어장")
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("폴더", systemImage: "folder") { isManagingFolders = true }
+                        .tint(DS.BrandText.base)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("단어 추가", systemImage: "plus") { isAddingWord = true }
                         .tint(DS.BrandText.base)
@@ -28,9 +35,19 @@ struct VocabularyListView: View {
             .sheet(isPresented: $isAddingWord) {
                 AddWordView()
             }
+            .sheet(isPresented: $isManagingFolders) {
+                if let store = appState.vocabulary {
+                    FolderListView(store: store)
+                }
+            }
             .sheet(item: $selectedWord) { word in
                 NavigationStack {
                     WordDetailView(word: word)
+                }
+            }
+            .sheet(item: $wordToMove) { word in
+                if let store = appState.vocabulary {
+                    FolderPickerView(word: word, store: store)
                 }
             }
         }
@@ -111,6 +128,7 @@ struct VocabularyListView: View {
                 )
                 .contextMenu {
                     Button("상세 보기", systemImage: "info.circle") { selectedWord = word }
+                    Button("폴더 이동", systemImage: "folder") { wordToMove = word }
                     Button("삭제", systemImage: "trash", role: .destructive) {
                         Task { await store.delete(word) }
                     }
@@ -163,7 +181,11 @@ private struct FolderFilterRow: View {
                 chip(for: .flagged, title: "즐겨찾기", symbol: "star")
 
                 ForEach(store.folders) { folder in
-                    chip(for: .folder(folder.id), title: folder.name, symbol: "folder")
+                    chip(
+                        for: .folder(folder.id),
+                        title: folder.name,
+                        symbol: folder.resolvedIcon?.symbol ?? "folder"
+                    )
                 }
             }
             .padding(.horizontal, 2)

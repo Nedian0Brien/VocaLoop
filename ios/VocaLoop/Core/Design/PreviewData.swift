@@ -66,6 +66,11 @@ enum PreviewData {
         stats: WordStats(wrongCount: 2, reviewCount: 8)
     )
 
+    static let folders: [Folder] = [
+        Folder(id: 1, name: "TOEFL", color: "purple", icon: "trophy", order: 0, createdAt: .distantPast, updatedAt: .distantPast),
+        Folder(id: 2, name: "수능 필수", color: "green", icon: "book", order: 1, createdAt: .distantPast, updatedAt: .distantPast),
+    ]
+
     static let words: [Word] = [
         serendipity,
         word(
