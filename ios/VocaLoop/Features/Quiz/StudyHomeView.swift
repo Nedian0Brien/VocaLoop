@@ -12,6 +12,8 @@ struct StudyHomeView: View {
     @State private var buildSentenceSession: BuildSentenceSession?
     @State private var readingTaskSession: ReadingTaskSession?
     @State private var writingTaskSession: WritingTaskSession?
+    @State private var readingMockSession: ReadingMockSession?
+    @State private var writingMockSession: WritingMockSession?
     /// 최근 활동에 남길 모드 이름. 모드 카드의 제목을 그대로 쓴다.
     @State private var runningModeTitle = ""
 
@@ -68,6 +70,12 @@ struct StudyHomeView: View {
             }
             .fullScreenCover(item: $writingTaskSession) { session in
                 WritingTaskQuizView(session: session)
+            }
+            .fullScreenCover(item: $readingMockSession) { session in
+                ReadingMockQuizView(session: session)
+            }
+            .fullScreenCover(item: $writingMockSession) { session in
+                WritingMockQuizView(session: session)
             }
         }
     }
@@ -634,6 +642,23 @@ struct StudyHomeView: View {
                     taskType: launch.mode.id == "toefl-writing-email"
                         ? .email
                         : .academicDiscussion,
+                    difficulty: launch.difficulty,
+                    vocabularyWords: Array(launch.words.prefix(20))
+                )
+            )
+        case "toefl-reading-mock":
+            readingMockSession = ReadingMockSession(
+                service: ReadingMockService(api: appState.api),
+                request: ReadingMockService.Request(
+                    questionCount: max(4, launch.questionCount),
+                    difficulty: launch.difficulty,
+                    vocabularyWords: Array(launch.words.prefix(20))
+                )
+            )
+        case "toefl-writing-mock":
+            writingMockSession = WritingMockSession(
+                service: WritingMockService(api: appState.api),
+                request: WritingMockService.Request(
                     difficulty: launch.difficulty,
                     vocabularyWords: Array(launch.words.prefix(20))
                 )

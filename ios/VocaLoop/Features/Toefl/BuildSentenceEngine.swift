@@ -78,6 +78,24 @@ enum BuildSentenceEngine {
         blankCount(in: question.sentenceFrame) > 0 || !question.answer.isEmpty
     }
 
+    /// 이 문항을 실제로 풀 수 있는지.
+    ///
+    /// AI는 정답 토큰의 첫 글자를 대문자로 쓰면서 조각 목록에는 소문자로 넣는 일이
+    /// 잦다 (웹 프롬프트의 예시 자체가 그렇다). 대소문자를 따지면 멀쩡한 문항이
+    /// 통째로 버려지므로 무시하고 비교한다. 채점도 `isCorrect`에서 소문자로 맞춘다.
+    static func isUsable(_ question: BuildSentenceQuestion) -> Bool {
+        guard !question.target.trimmingCharacters(in: .whitespaces).isEmpty,
+              !question.words.isEmpty,
+              !question.answer.isEmpty else { return false }
+
+        // 빈칸 수와 정답 토큰 수가 다르면 채우다 만 문장이 되어 항상 오답이 된다.
+        let blanks = blankCount(in: question.sentenceFrame)
+        guard blanks == 0 || blanks == question.answer.count else { return false }
+
+        let pool = Set(question.words.map { $0.lowercased() })
+        return question.answer.allSatisfy { pool.contains($0.lowercased()) }
+    }
+
     /// 빈칸에 조각을 순서대로 끼워 넣는다. 모자라면 밑줄을 남긴다.
     static func fill(frame: String, tokens: [String]) -> String {
         var index = 0

@@ -61,8 +61,7 @@ enum QuizModeRegistry {
             detail: "Stage 1 결과에 따라 Stage 2 난이도가 갈리는 실전형 Reading 모의고사입니다.",
             symbolName: "target",
             accent: .accent,
-            recommended: true,
-            comingSoon: true
+            recommended: true
         ),
         QuizModeInfo(
             id: "toefl-complete",
@@ -96,8 +95,7 @@ enum QuizModeRegistry {
             detail: "Build a Sentence 10문항, Email 1문항, Academic Discussion 1문항을 이어서 풉니다.",
             symbolName: "doc.text",
             accent: .accent,
-            recommended: true,
-            comingSoon: true
+            recommended: true
         ),
         QuizModeInfo(
             id: "toefl-build",

@@ -189,14 +189,11 @@ struct QuizModeRegistryTests {
         #expect(recommended == ["mixed", "toefl-reading-mock", "toefl-complete", "toefl-writing-mock"])
     }
 
-    @Test("퀴즈 화면이 있는 모드만 열린다")
-    func onlyImplementedModesOpen() {
-        let playable = QuizModeRegistry.all.filter { !$0.comingSoon }.map(\.id)
-        #expect(playable == [
-            "mixed", "multiple", "short",
-            "toefl-complete", "toefl-daily-life", "toefl-academic-passage",
-            "toefl-build", "toefl-writing-email", "toefl-writing-discussion",
-        ])
+    @Test("모든 모드에 퀴즈 화면이 있다")
+    func everyModeIsPlayable() {
+        // TOEFL 6종까지 붙어 잠긴 모드가 없다.
+        #expect(QuizModeRegistry.all.allSatisfy { !$0.comingSoon })
+        #expect(QuizModeRegistry.all.count == 11)
     }
 
     @Test("제목으로 모드를 되찾을 수 있다 (최근 활동 재실행)")

@@ -8,12 +8,16 @@ struct ToeflReadingReportView: View {
     let report: ToeflReadingReport.Result
     let taskLabel: String
     let difficulty: ToeflDifficulty
+    /// 모의고사에서만 쓰는 추정 밴드. 없으면 표시하지 않는다.
+    var band: Int?
+    var subtitleOverride: String?
     let onExit: () -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                if let band { bandCard(band) }
                 metrics
                 feedbackCard
 
@@ -42,12 +46,38 @@ struct ToeflReadingReportView: View {
                 .tracking(-0.6)
                 .foregroundStyle(DS.Surface.level900)
 
-            Text("\(taskLabel) · 정답 \(report.correctCount)/\(report.totalCount) · 정답률 \(report.accuracy)%")
+            Text(subtitleOverride ?? "\(taskLabel) · 정답 \(report.correctCount)/\(report.totalCount) · 정답률 \(report.accuracy)%")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(DS.Surface.level500)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 추정 밴드. 공식 점수가 아니라는 점을 반드시 함께 적는다.
+    private func bandCard(_ band: Int) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Estimated Reading Band".uppercased())
+                .font(.system(size: 10, weight: .black))
+                .tracking(1)
+                .foregroundStyle(.white.opacity(0.7))
+
+            Text("\(band)")
+                .font(.system(size: 56, weight: .black))
+                .tracking(-2.8)
+                .monospacedDigit()
+                .foregroundStyle(.white)
+
+            Text("공식 ETS 점수가 아닌 앱 내 연습용 추정치")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Gradient.cta)
+        .clipShape(.rect(cornerRadius: DS.Radius.card))
+        .dsShadow(.glowIndigo)
     }
 
     private var metrics: some View {

@@ -61,8 +61,43 @@ enum ToeflReadingReport {
         let skillTag: String
     }
 
+    /// 리포트가 필요한 최소 정보. Reading task의 문항과 모의고사 문항이 모두 이 형태로 들어온다.
+    struct Item: Sendable {
+        let id: Int
+        let prompt: String
+        let options: [String]
+        let answerIndex: Int
+        let skillTag: String
+        let explanationKo: String
+        /// 문항별 주제. 비면 세트 전체 주제를 쓴다.
+        var topicTags: [String] = []
+    }
+
     static func build(
         questions: [ReadingQuestion],
+        answers: [Answer],
+        difficulty: ToeflDifficulty,
+        topicTags: [String] = []
+    ) -> Result {
+        build(
+            items: questions.map {
+                Item(
+                    id: $0.id,
+                    prompt: $0.prompt,
+                    options: $0.options,
+                    answerIndex: $0.answerIndex,
+                    skillTag: $0.skillTag,
+                    explanationKo: $0.explanationKo
+                )
+            },
+            answers: answers,
+            difficulty: difficulty,
+            topicTags: topicTags
+        )
+    }
+
+    static func build(
+        items questions: [Item],
         answers: [Answer],
         difficulty: ToeflDifficulty,
         topicTags: [String] = []
@@ -82,7 +117,8 @@ enum ToeflReadingReport {
                 number: index + 1,
                 prompt: question.prompt,
                 skillTag: question.skillTag,
-                topicTags: topicTags,
+                // 문항이 자기 주제를 들고 있으면 그걸 쓰고, 없으면 세트 주제로 채운다.
+                topicTags: question.topicTags.isEmpty ? topicTags : question.topicTags,
                 selectedIndex: selected,
                 selectedLabel: label(at: selected, in: question.options),
                 selectedAnswer: option(at: selected, in: question.options) ?? "선택 없음",
