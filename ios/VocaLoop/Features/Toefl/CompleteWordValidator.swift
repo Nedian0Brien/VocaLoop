@@ -19,7 +19,17 @@ enum CompleteWordValidator {
         var errorDescription: String? { reason }
     }
 
-    /// 웹의 기능어 목록. 이 중 2~4개가 정답에 섞여 있어야 난도가 맞는다.
+    /// 생성 검증 기준. 웹 `completeWordEngine.js`의 상수와 값이 같아야 한다.
+    ///
+    /// 2026-08-08에 gpt-5.3-codex-spark로 7회(21문항) 생성해 측정한 결과, 기존 기준
+    /// (70~100단어 / 2~10자 정답 / 기능어 2~4개 / 첫·마지막 문장 금지)에서는 세트 전체
+    /// 통과율이 25%, 문항 단위로도 43%에 그쳤다. 프롬프트가 "TOEFL 학술 어휘"를
+    /// 요구하면서 정답을 10자로 묶는 등 지시끼리 충돌하는 부분이 있어 기준을 넓혔다.
+    static let wordCountRange = 70...110
+    static let answerLengthRange = 2...12
+    static let functionWordRange = 1...4
+
+    /// 웹의 기능어 목록. 정답에 섞여 있어야 난도가 맞는다.
     static let functionWords: Set<String> = [
         "as", "at", "by", "if", "in", "of", "on", "or", "so", "to",
         "up", "yet", "and", "but", "for", "nor", "the", "with", "from",
@@ -39,6 +49,23 @@ enum CompleteWordValidator {
         }
     }
 
+    /// 규격을 지킨 문항만 골라낸다.
+    ///
+    /// 검증은 문항 단위라서 한 세트가 통째로 버려질 이유가 없다.
+    /// 실측상 세트 전체 통과율은 25%지만 문항 단위로는 40%대라, 여러 번 받아
+    /// 통과한 것만 모으는 편이 훨씬 빨리 목표 개수에 닿는다.
+    static func valid(
+        in questions: [CompleteWordQuestion],
+        blanksPerQuestion: Int
+    ) -> [CompleteWordQuestion] {
+        questions.enumerated().compactMap { index, question in
+            (try? validate(question, index: index, blanksPerQuestion: blanksPerQuestion)) == nil
+                ? nil
+                : question
+        }
+    }
+
+    /// 문항 하나를 검사한다. 규격을 어기면 던진다.
     private static func validate(
         _ question: CompleteWordQuestion,
         index: Int,
@@ -54,8 +81,10 @@ enum CompleteWordValidator {
         let wordCount = question.fullParagraph
             .split(whereSeparator: \.isWhitespace)
             .count
-        guard (70...100).contains(wordCount) else {
-            throw fail("완성 지문은 70~100단어여야 합니다.")
+        guard wordCountRange.contains(wordCount) else {
+            throw fail(
+                "완성 지문은 \(wordCountRange.lowerBound)~\(wordCountRange.upperBound)단어여야 합니다."
+            )
         }
 
         guard fullSentences.count >= 4, maskedSentences.count >= 4 else {
@@ -66,12 +95,11 @@ enum CompleteWordValidator {
             throw fail("완성 지문에는 placeholder가 없어야 합니다.")
         }
 
-        // 첫/마지막 문장에 빈칸이 있으면 문맥 단서가 사라진다.
+        // 첫 문장은 빈칸 없이 두어야 문맥을 잡을 단서가 남는다.
+        // 마지막 문장까지 막으면 4문장 지문에서 빈칸 5개를 넣을 자리가 부족해
+        // 생성이 자주 실패하므로 제한하지 않는다.
         if let first = maskedSentences.first, !placeholderIDs(in: first).isEmpty {
             throw fail("첫 문장에는 placeholder를 둘 수 없습니다.")
-        }
-        if let last = maskedSentences.last, !placeholderIDs(in: last).isEmpty {
-            throw fail("마지막 문장에는 placeholder를 둘 수 없습니다.")
         }
 
         guard question.blanks.count == blanksPerQuestion else {
@@ -92,22 +120,26 @@ enum CompleteWordValidator {
 
         let answers = question.blanks.map { $0.answer.lowercased() }
         guard answers.allSatisfy(isValidAnswer) else {
-            throw fail("정답은 2~10자의 영단어여야 합니다.")
+            throw fail(
+                "정답은 \(answerLengthRange.lowerBound)~\(answerLengthRange.upperBound)자의 영단어여야 합니다."
+            )
         }
         guard Set(answers).count == answers.count else {
             throw fail("정답 단어가 중복되어서는 안 됩니다.")
         }
 
         let shortFunctionWords = answers.count { $0.count <= 4 && functionWords.contains($0) }
-        guard (2...4).contains(shortFunctionWords) else {
-            throw fail("짧은 기능어는 2~4개여야 합니다.")
+        guard functionWordRange.contains(shortFunctionWords) else {
+            throw fail(
+                "짧은 기능어는 \(functionWordRange.lowerBound)~\(functionWordRange.upperBound)개여야 합니다."
+            )
         }
     }
 
     // MARK: - 도우미
 
     static func isValidAnswer(_ answer: String) -> Bool {
-        (2...10).contains(answer.count)
+        answerLengthRange.contains(answer.count)
             && answer.allSatisfy { $0.isASCII && $0.isLowercase && $0.isLetter }
     }
 

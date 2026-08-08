@@ -30,7 +30,57 @@ struct CompleteWordService: Sendable {
         let questions: [CompleteWordQuestion]
     }
 
-    func generate(_ request: Request) async throws -> [PreparedCompleteQuestion] {
+    /// 실측(2026-08-08, gpt-5.3-codex-spark, 7회 생성 21문항):
+    /// **세트 전체**가 검증을 통과한 비율은 25%, **문항 단위**로는 43%였다.
+    /// 흔한 실패는 지문 101~102단어(상한 100), 11자 정답(상한 10자),
+    /// 마지막 문장에 placeholder다. 웹도 같은 규칙이라 웹에서도 같은 빈도로 깨진다.
+    ///
+    /// 실패 사유를 프롬프트에 붙여 재요청하는 방법도 재봤는데 3회 모두 실패했다.
+    /// 한 곳을 고치면 다른 규칙이 깨져서 도움이 되지 않았다.
+    /// 그래서 세트를 통째로 버리지 않고 **통과한 문항만 모으는** 방식을 쓴다.
+    static let maxAttempts = 3
+
+    func generate(
+        _ request: Request,
+        onAttempt: (@Sendable (Int) -> Void)? = nil
+    ) async throws -> [PreparedCompleteQuestion] {
+        var accepted: [CompleteWordQuestion] = []
+        var lastError: Error?
+
+        for attempt in 1...Self.maxAttempts {
+            onAttempt?(attempt)
+
+            do {
+                let questions = try await requestQuestions(request)
+                accepted += CompleteWordValidator.valid(
+                    in: questions,
+                    blanksPerQuestion: request.blanksPerQuestion
+                )
+            } catch {
+                // 네트워크·파싱 실패는 다음 시도에서 회복될 수 있다.
+                lastError = error
+            }
+
+            if accepted.count >= request.questionCount { break }
+        }
+
+        guard !accepted.isEmpty else {
+            throw lastError ?? APIError.decoding(
+                "\(Self.maxAttempts)번 시도했지만 규격에 맞는 지문을 받지 못했습니다."
+            )
+        }
+
+        // 목표에 못 미쳐도 모은 만큼은 풀 수 있게 한다. 빈손으로 돌려보내지 않는다.
+        return accepted.prefix(request.questionCount).enumerated().map { index, question in
+            PreparedCompleteQuestion(
+                index: index,
+                question: question,
+                blanksPerQuestion: request.blanksPerQuestion
+            )
+        }
+    }
+
+    private func requestQuestions(_ request: Request) async throws -> [CompleteWordQuestion] {
         let endpoint = try Endpoint.json(
             "/api/ai/codex",
             method: .post,
@@ -50,25 +100,10 @@ struct CompleteWordService: Sendable {
             throw APIError.decoding("AI 응답에서 JSON을 찾지 못했습니다.")
         }
 
-        let set: QuestionSet
         do {
-            set = try JSONCoding.decoder.decode(QuestionSet.self, from: data)
+            return try JSONCoding.decoder.decode(QuestionSet.self, from: data).questions
         } catch {
             throw APIError.decoding("AI 응답 형식이 예상과 다릅니다.")
-        }
-
-        try CompleteWordValidator.validate(
-            set.questions,
-            questionCount: request.questionCount,
-            blanksPerQuestion: request.blanksPerQuestion
-        )
-
-        return set.questions.enumerated().map { index, question in
-            PreparedCompleteQuestion(
-                index: index,
-                question: question,
-                blanksPerQuestion: request.blanksPerQuestion
-            )
         }
     }
 
@@ -90,15 +125,15 @@ struct CompleteWordService: Sendable {
         You are creating a TOEFL academic reading practice set.
         \(request.difficulty.promptLine)
         Create \(request.questionCount) questions. Each question must include:
-        1) An academic paragraph (70-100 words) with at least 4 sentences.
+        1) An academic paragraph (75-105 words) with at least 4 sentences.
         2) The paragraph should use TOEFL-like academic tone and topics.
         3) Replace exactly \(request.blanksPerQuestion) COMPLETE WORDS (not partial letters) with placeholders like {{1}}, {{2}}, ... {{\(request.blanksPerQuestion)}} in order of appearance.
-        4) Do not place placeholders in the first or last sentence. Place every placeholder in the middle sentences.
-        5) Choose \(request.blanksPerQuestion) unique answer words that are 2-10 letters long and contain ASCII letters only.
-        6) Choose exactly 2-4 short function words from this list: as, at, by, if, in, of, on, or, so, to, up, yet, and, but, for, nor, the, with, from. Use content words for the remaining blanks.
+        4) Do not place any placeholder in the first sentence. The first sentence must stay complete so the reader has context.
+        5) Choose \(request.blanksPerQuestion) unique answer words that are 2-12 letters long and contain ASCII letters only.
+        6) Choose 1-4 short function words from this list: as, at, by, if, in, of, on, or, so, to, up, yet, and, but, for, nor, the, with, from. Use content words for the remaining blanks.
         7) Provide the full original paragraph (without placeholders).
         8) Provide a blanks array with id, the correct COMPLETE WORD as answer, and revealCount.
-        9) Choose revealCount by answer length: 2-3 letters => 1; 4-6 letters => 2-3; 7-10 letters => 2-4. Always leave at least one letter editable.
+        9) Choose revealCount by answer length: 2-3 letters => 1; 4-6 letters => 2-3; 7-12 letters => 2-4. Always leave at least one letter editable.
         \(vocabBlock)\(topicBlock)
         DIVERSITY REQUIREMENTS (CRITICAL — different from previous sessions):
         - Vary sentence openings, syntactic patterns, and rhetorical structures.

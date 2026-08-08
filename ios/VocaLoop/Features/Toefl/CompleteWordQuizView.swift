@@ -57,12 +57,21 @@ struct CompleteWordQuizView: View {
                 .font(.system(size: 20, weight: .black))
                 .tracking(-0.5)
                 .foregroundStyle(DS.Surface.level900)
-            Text("학술적 문단을 준비하고 있어요. 잠시만 기다려주세요.")
+            Text("학술적 문단을 준비하고 있어요. 30초쯤 걸립니다.")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(DS.Surface.level500)
                 .multilineTextAlignment(.center)
+
+            // 규격을 못 맞추면 자동으로 다시 요청한다. 기다림이 길어지는 이유를 알려준다.
+            if session.attempt > 1 {
+                Text("규격에 맞지 않아 다시 만드는 중 (\(session.attempt)/\(CompleteWordService.maxAttempts))")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(DS.BrandText.warning)
+                    .padding(.top, 4)
+            }
         }
         .padding(40)
+        .animation(.smooth(duration: 0.2), value: session.attempt)
     }
 
     private func failedState(_ message: String) -> some View {

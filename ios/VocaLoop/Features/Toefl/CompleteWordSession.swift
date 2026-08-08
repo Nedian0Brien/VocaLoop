@@ -13,6 +13,8 @@ final class CompleteWordSession {
     }
 
     private(set) var phase: Phase = .generating
+    /// 몇 번째 생성 시도인지. 규격을 못 맞추면 재시도하므로 사용자에게 알려준다.
+    private(set) var attempt = 1
     private(set) var questions: [PreparedCompleteQuestion] = []
     private(set) var index = 0
     /// [문항][빈칸][글자] 사용자가 채운 글자.
@@ -60,8 +62,11 @@ final class CompleteWordSession {
 
     func load() async {
         phase = .generating
+        attempt = 1
         do {
-            let generated = try await service.generate(request)
+            let generated = try await service.generate(request) { [weak self] attempt in
+                Task { @MainActor in self?.attempt = attempt }
+            }
             questions = generated
             input = generated.map { question in
                 question.blanks.map { blank in

@@ -93,15 +93,15 @@ export const generateCompleteTheWordSet = async ({
 You are creating a TOEFL academic reading practice set.
 ${getToeflDifficultyPrompt(targetScore)}
 Create ${questionCount} questions. Each question must include:
-1) An academic paragraph (70-100 words) with at least 4 sentences.
+1) An academic paragraph (75-105 words) with at least 4 sentences.
 2) The paragraph should use TOEFL-like academic tone and topics.
 3) Replace exactly ${blanksPerQuestion} COMPLETE WORDS (not partial letters) with placeholders like {{1}}, {{2}}, ... {{${blanksPerQuestion}}} in order of appearance.
-4) Do not place placeholders in the first or last sentence. Place every placeholder in the middle sentences.
-5) Choose ${blanksPerQuestion} unique answer words that are 2-10 letters long and contain ASCII letters only.
-6) Choose exactly 2-4 short function words from this list: as, at, by, if, in, of, on, or, so, to, up, yet, and, but, for, nor, the, with, from. Use content words for the remaining blanks.
+4) Do not place any placeholder in the first sentence. The first sentence must stay complete so the reader has context.
+5) Choose ${blanksPerQuestion} unique answer words that are 2-12 letters long and contain ASCII letters only.
+6) Choose 1-4 short function words from this list: as, at, by, if, in, of, on, or, so, to, up, yet, and, but, for, nor, the, with, from. Use content words for the remaining blanks.
 7) Provide the full original paragraph (without placeholders).
 8) Provide a blanks array with id, the correct COMPLETE WORD as answer, and revealCount.
-9) Choose revealCount by answer length: 2-3 letters => 1; 4-6 letters => 2-3; 7-10 letters => 2-4. Always leave at least one letter editable.
+9) Choose revealCount by answer length: 2-3 letters => 1; 4-6 letters => 2-3; 7-12 letters => 2-4. Always leave at least one letter editable.
 ${vocabBlock}${topicBlock}
 DIVERSITY REQUIREMENTS (CRITICAL — different from previous sessions):
 - Vary sentence openings, syntactic patterns, and rhetorical structures.

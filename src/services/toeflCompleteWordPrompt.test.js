@@ -32,11 +32,11 @@ describe('generateCompleteTheWordSet prompt contract', () => {
     });
 
     const [prompt] = promptUtils.requestAiJson.mock.calls[0];
-    expect(prompt).toContain('70-100 words');
+    expect(prompt).toContain('75-105 words');
     expect(prompt).toContain('at least 4 sentences');
-    expect(prompt).toContain('Do not place placeholders in the first or last sentence');
-    expect(prompt).toContain('2-10 letters long');
-    expect(prompt).toContain('2-4 short function words');
+    expect(prompt).toContain('Do not place any placeholder in the first sentence');
+    expect(prompt).toContain('2-12 letters long');
+    expect(prompt).toContain('1-4 short function words');
     expect(prompt).toContain('as, at, by, if, in, of, on, or, so, to, up, yet, and, but, for, nor, the, with, from');
     expect(prompt).toContain('"revealCount"');
   });

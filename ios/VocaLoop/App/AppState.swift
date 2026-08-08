@@ -53,6 +53,13 @@ final class AppState {
             signInWithMockData()
             return
         }
+
+        // 실제 서버로 붙어 AI 생성까지 확인할 때 쓴다. 로그인 화면을 건너뛴다.
+        //   -VocaLoopAPIBaseURL "http://localhost:3050" -VocaLoopSessionToken "<token>"
+        if let token = UserDefaults.standard.string(forKey: "VocaLoopSessionToken"),
+           !token.isEmpty {
+            await auth.sessionStore.save(token)
+        }
         #endif
 
         if let user = await auth.restoreSession() {

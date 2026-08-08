@@ -14,6 +14,26 @@ const COMPLETE_WORD_FUNCTION_WORDS = new Set([
 
 const PLACEHOLDER_PATTERN = /{{(\d+)}}/g;
 
+/**
+ * 생성 검증 기준.
+ *
+ * 2026-08-08에 gpt-5.3-codex-spark로 7회(21문항) 생성해 측정한 결과, 기존 기준
+ * (70~100단어 / 2~10자 정답 / 기능어 2~4개 / 첫·마지막 문장 금지)에서는 세트 전체
+ * 통과율이 25%, 문항 단위로도 43%에 그쳤다. 실패는 101~102단어, 11자 학술 어휘,
+ * 기능어 1개, 마지막 문장 placeholder에 몰려 있었다.
+ *
+ * 프롬프트가 "TOEFL 학술 어휘"를 요구하면서 정답을 10자로 묶는 등 지시끼리
+ * 충돌하는 부분이 있어, 학습 효과를 해치지 않는 선에서 기준을 넓혔다.
+ */
+export const WORD_COUNT_MIN = 70;
+export const WORD_COUNT_MAX = 110;
+export const ANSWER_MIN = 2;
+export const ANSWER_MAX = 12;
+export const FUNCTION_WORD_MIN = 1;
+export const FUNCTION_WORD_MAX = 4;
+
+const ANSWER_PATTERN = new RegExp(`^[a-z]{${ANSWER_MIN},${ANSWER_MAX}}$`);
+
 const countWords = (value) =>
   String(value).trim().split(/\s+/).filter(Boolean).length;
 
@@ -103,8 +123,8 @@ export const validateGeneratedCompleteQuestionSet = (
     const blanks = Array.isArray(question?.blanks) ? question.blanks : [];
     const wordCount = countWords(fullParagraph);
 
-    if (wordCount < 70 || wordCount > 100) {
-      failGeneratedQuestion(questionIndex, '완성 지문은 70~100단어여야 합니다.');
+    if (wordCount < WORD_COUNT_MIN || wordCount > WORD_COUNT_MAX) {
+      failGeneratedQuestion(questionIndex, `완성 지문은 ${WORD_COUNT_MIN}~${WORD_COUNT_MAX}단어여야 합니다.`);
     }
     if (fullSentences.length < 4 || maskedSentences.length < 4) {
       failGeneratedQuestion(questionIndex, '지문은 최소 4문장이어야 합니다.');
@@ -114,14 +134,12 @@ export const validateGeneratedCompleteQuestionSet = (
       failGeneratedQuestion(questionIndex, '완성 지문에는 placeholder가 없어야 합니다.');
     }
     PLACEHOLDER_PATTERN.lastIndex = 0;
+    // 첫 문장은 빈칸 없이 두어야 문맥을 잡을 단서가 남는다.
+    // 마지막 문장까지 막으면 4문장 지문에서 빈칸 5개를 넣을 자리가 부족해
+    // 생성이 자주 실패하므로 제한하지 않는다.
     if (PLACEHOLDER_PATTERN.test(maskedSentences[0])) {
       PLACEHOLDER_PATTERN.lastIndex = 0;
       failGeneratedQuestion(questionIndex, '첫 문장에는 placeholder를 둘 수 없습니다.');
-    }
-    PLACEHOLDER_PATTERN.lastIndex = 0;
-    if (PLACEHOLDER_PATTERN.test(maskedSentences[maskedSentences.length - 1])) {
-      PLACEHOLDER_PATTERN.lastIndex = 0;
-      failGeneratedQuestion(questionIndex, '마지막 문장에는 placeholder를 둘 수 없습니다.');
     }
     PLACEHOLDER_PATTERN.lastIndex = 0;
 
@@ -149,8 +167,8 @@ export const validateGeneratedCompleteQuestionSet = (
     }
 
     const answers = blanks.map((blank) => String(blank?.answer || '').toLowerCase());
-    if (answers.some((answer) => !/^[a-z]{2,10}$/.test(answer))) {
-      failGeneratedQuestion(questionIndex, '정답은 2~10자의 영단어여야 합니다.');
+    if (answers.some((answer) => !ANSWER_PATTERN.test(answer))) {
+      failGeneratedQuestion(questionIndex, `정답은 ${ANSWER_MIN}~${ANSWER_MAX}자의 영단어여야 합니다.`);
     }
     if (new Set(answers).size !== answers.length) {
       failGeneratedQuestion(questionIndex, '정답 단어가 중복되어서는 안 됩니다.');
@@ -159,8 +177,11 @@ export const validateGeneratedCompleteQuestionSet = (
     const functionWordCount = answers.filter(
       (answer) => answer.length <= 4 && COMPLETE_WORD_FUNCTION_WORDS.has(answer)
     ).length;
-    if (functionWordCount < 2 || functionWordCount > 4) {
-      failGeneratedQuestion(questionIndex, '짧은 기능어는 2~4개여야 합니다.');
+    if (functionWordCount < FUNCTION_WORD_MIN || functionWordCount > FUNCTION_WORD_MAX) {
+      failGeneratedQuestion(
+        questionIndex,
+        `짧은 기능어는 ${FUNCTION_WORD_MIN}~${FUNCTION_WORD_MAX}개여야 합니다.`
+      );
     }
   });
 

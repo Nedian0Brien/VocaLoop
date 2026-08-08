@@ -35,6 +35,15 @@ const expectInvalidGeneratedQuestion = (mutate, errorPattern) => {
   })).toThrow(errorPattern);
 };
 
+const expectValidGeneratedQuestion = (mutate) => {
+  const questions = structuredClone([makeValidGeneratedQuestion()]);
+  mutate(questions[0]);
+  expect(() => completeWordEngine.validateGeneratedCompleteQuestionSet(questions, {
+    questionCount: 1,
+    blanksPerQuestion: 10,
+  })).not.toThrow();
+};
+
 describe('completeWordEngine', () => {
   test('accepts a generated set that matches the Santa-style structure', () => {
     const questions = [makeValidGeneratedQuestion()];
@@ -65,10 +74,17 @@ describe('completeWordEngine', () => {
     })).toThrow(/문항 수/);
   });
 
-  test.each([69, 101])('rejects a %i word generated paragraph', (wordCount) => {
+  test.each([69, 111])('rejects a %i word generated paragraph', (wordCount) => {
     expectInvalidGeneratedQuestion((question) => {
       question.fullParagraph = makeFullParagraph(wordCount);
-    }, /70~100단어/);
+    }, /70~110단어/);
+  });
+
+  // 모델이 상한을 아슬아슬하게 넘기는 일이 잦아 101~110은 허용한다.
+  test('accepts a 101 word generated paragraph', () => {
+    expectValidGeneratedQuestion((question) => {
+      question.fullParagraph = makeFullParagraph(101);
+    });
   });
 
   test('rejects a generated paragraph with fewer than four sentences', () => {
@@ -85,12 +101,14 @@ describe('completeWordEngine', () => {
     }, /첫 문장/);
   });
 
-  test('rejects a placeholder in the last sentence', () => {
-    expectInvalidGeneratedQuestion((question) => {
+  // 4문장 지문에 빈칸 5개를 중간에만 넣기는 어려워 마지막 문장은 허용한다.
+  // 첫 문장만 비워두면 문맥을 잡을 단서는 남는다.
+  test('accepts a placeholder in the last sentence', () => {
+    expectValidGeneratedQuestion((question) => {
       question.paragraph = question.paragraph
         .replace('{{10}} more lifelike portraits', 'and more lifelike portraits')
         .replace('Later movements', 'Later {{10}} movements');
-    }, /마지막 문장/);
+    });
   });
 
   test('rejects the wrong blank count', () => {
@@ -111,10 +129,17 @@ describe('completeWordEngine', () => {
     }, /placeholder/);
   });
 
-  test.each(['a', 'counterpoint'])('rejects the out-of-range answer %s', (answer) => {
+  test.each(['a', 'counterpoints'])('rejects the out-of-range answer %s', (answer) => {
     expectInvalidGeneratedQuestion((question) => {
       question.blanks[0].answer = answer;
-    }, /2~10자/);
+    }, /2~12자/);
+  });
+
+  // 학술 어휘는 10자를 넘기 쉬워 12자까지 받는다.
+  test('accepts a 12 letter answer', () => {
+    expectValidGeneratedQuestion((question) => {
+      question.blanks[0].answer = 'counterpoint';
+    });
   });
 
   test('rejects duplicate answers', () => {
@@ -123,7 +148,7 @@ describe('completeWordEngine', () => {
     }, /정답 단어가 중복/);
   });
 
-  test('rejects fewer than two short function words', () => {
+  test('rejects a set with no short function words', () => {
     expectInvalidGeneratedQuestion((question) => {
       const replacements = {
         on: 'beyond',
@@ -136,13 +161,13 @@ describe('completeWordEngine', () => {
           ? { ...blank, answer: replacements[blank.answer] }
           : blank
       ));
-    }, /기능어는 2~4개/);
+    }, /기능어는 1~4개/);
   });
 
   test('rejects more than four short function words', () => {
     expectInvalidGeneratedQuestion((question) => {
       question.blanks[0].answer = 'for';
-    }, /기능어는 2~4개/);
+    }, /기능어는 1~4개/);
   });
 
   test('keeps TOEFL default prefix reveal behavior', () => {
