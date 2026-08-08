@@ -4,13 +4,19 @@ import SwiftUI
 /// 태그·유의어 칩처럼 개수가 가변인 짧은 항목에 쓴다.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
+    /// 줄 사이 간격. 지정하지 않으면 `spacing`과 같다.
+    ///
+    /// 본문처럼 가로 간격(공백 한 칸)과 세로 간격(줄 높이)이 다른 곳에 쓴다.
+    var lineSpacing: CGFloat?
+
+    private var rowGap: CGFloat { lineSpacing ?? spacing }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
         let rows = layout(subviews: subviews, maxWidth: maxWidth)
 
         let height = rows.reduce(into: CGFloat.zero) { total, row in
-            total += row.height + (total == 0 ? 0 : spacing)
+            total += row.height + (total == 0 ? 0 : rowGap)
         }
         let width = rows.map(\.width).max() ?? 0
 
@@ -37,7 +43,7 @@ struct FlowLayout: Layout {
                 )
                 x += size.width + spacing
             }
-            y += row.height + spacing
+            y += row.height + rowGap
         }
     }
 

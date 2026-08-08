@@ -33,10 +33,26 @@ final class ReadingTaskSession {
 
     private let service: ReadingTaskService
     private let request: ReadingTaskService.Request
+    private let assets: ToeflAssetService?
+    /// 저장해 둔 세트를 다시 열 때 쓴다. 있으면 AI를 부르지 않는다.
+    private let restored: ReadingTaskSet?
+    private var assetID: Int?
+    /// 생성 작업을 세션이 들고 있는다. 뷰의 `.task`에 매달아 두면 화면이 다시
+    /// 그려질 때 취소돼, 서버는 정상 응답했는데 앱만 "취소됨"으로 죽는다.
+    private var loadTask: Task<Void, Never>?
 
-    init(service: ReadingTaskService, request: ReadingTaskService.Request) {
+    init(
+        service: ReadingTaskService,
+        request: ReadingTaskService.Request,
+        assets: ToeflAssetService? = nil,
+        restoring: ReadingTaskSet? = nil,
+        assetID: Int? = nil
+    ) {
         self.service = service
         self.request = request
+        self.assets = assets
+        restored = restoring
+        self.assetID = assetID
         taskType = request.taskType
         difficulty = request.difficulty
         vocabularySampleCount = request.vocabularyWords.count
@@ -76,20 +92,60 @@ final class ReadingTaskSession {
 
     // MARK: - 조작
 
-    func load() async {
+    /// 화면 진입 시 한 번만 부른다. 이미 만들고 있거나 만들어 뒀으면 아무것도 하지 않는다.
+    func loadIfNeeded() {
+        guard loadTask == nil else { return }
+        loadTask = Task { await load() }
+    }
+
+    /// 실패 후 다시 시도.
+    func reload() {
+        loadTask?.cancel()
+        loadTask = Task { await load() }
+    }
+
+    private func load() async {
+        // 이미 만들어 둔 세트가 있으면 그대로 연다. 다시 만들면 20~40초를 또 쓴다.
+        if let restored {
+            apply(restored)
+            return
+        }
+
         phase = .generating
         do {
             let generated = try await service.generate(request)
-            taskSet = generated
-            index = 0
-            selections = Array(repeating: nil, count: generated.questions.count)
-            report = nil
-            phase = .solving
+            apply(generated)
+            await saveAsset(generated)
         } catch {
             phase = .failed(
                 (error as? APIError)?.errorDescription ?? error.localizedDescription
             )
         }
+    }
+
+    private func apply(_ set: ReadingTaskSet) {
+        taskSet = set
+        index = 0
+        selections = Array(repeating: nil, count: set.questions.count)
+        report = nil
+        phase = .solving
+    }
+
+    /// 만든 세트를 서버에 남겨 나중에 다시 열 수 있게 한다.
+    private func saveAsset(_ set: ReadingTaskSet) async {
+        guard let assets else { return }
+        let saved = await assets.save(
+            mode: taskType.modeID,
+            taskType: taskType.rawValue,
+            title: set.title,
+            payload: StoredReadingTaskSet(set),
+            metadata: ToeflAssetMetadata(
+                difficulty: difficulty,
+                questionCount: set.questions.count,
+                vocabSampleCount: vocabularySampleCount
+            )
+        )
+        assetID = saved?.id
     }
 
     func select(_ optionIndex: Int) {
@@ -115,6 +171,20 @@ final class ReadingTaskSession {
 
     func showReport() {
         guard isChecked else { return }
+
+        if let assets, let assetID {
+            let correct = correctCount
+            let total = total
+            Task {
+                await assets.recordAttempt(
+                    assetID: assetID,
+                    correctCount: correct,
+                    totalCount: total,
+                    score: ["accuracy": Double(total > 0 ? correct * 100 / total : 0)]
+                )
+            }
+        }
+
         report = ToeflReadingReport.build(
             questions: questions,
             answers: answers,

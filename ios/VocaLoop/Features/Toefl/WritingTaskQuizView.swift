@@ -24,7 +24,7 @@ struct WritingTaskQuizView: View {
                 case let .failed(message):
                     ToeflFailedState(
                         message: message,
-                        onRetry: { Task { await session.load() } },
+                        onRetry: { session.reload() },
                         onExit: { dismiss() }
                     )
                 case .writing, .grading:
@@ -48,7 +48,7 @@ struct WritingTaskQuizView: View {
                 }
             }
         }
-        .task { await session.load() }
+        .onAppear { session.loadIfNeeded() }
     }
 
     // MARK: - 작성 화면

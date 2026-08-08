@@ -26,7 +26,7 @@ struct ReadingMockQuizView: View {
                 case let .failed(message):
                     ToeflFailedState(
                         message: message,
-                        onRetry: { Task { await session.retry() } },
+                        onRetry: { session.retryModule() },
                         onExit: { dismiss() }
                     )
                 case .solving, .checked:
@@ -53,7 +53,7 @@ struct ReadingMockQuizView: View {
                 }
             }
         }
-        .task { await session.start() }
+        .onAppear { session.loadIfNeeded() }
     }
 
     private var reportSubtitle: String {
@@ -132,12 +132,12 @@ struct ReadingMockQuizView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
 
-            Text(item.stimulus)
-                .font(.system(size: 16, weight: .semibold))
-                .lineSpacing(16)
-                .foregroundStyle(DS.Surface.level700)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
+            // 지문의 단어를 눌러 그 자리에서 단어장에 넣을 수 있다.
+            VocabularyCaptureText(
+                text: item.stimulus,
+                sourceLabel: "TOEFL Reading Mock Test",
+                canExplain: session.phase == .checked
+            )
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

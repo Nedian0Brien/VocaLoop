@@ -82,7 +82,24 @@ final class WritingMockSession {
 
     // MARK: - 조작
 
-    func load() async {
+
+    /// 생성 작업을 세션이 들고 있는다. 뷰의 `.task`에 매달아 두면 화면이 다시
+    /// 그려질 때 취소돼, 서버는 정상 응답했는데 앱만 "취소됨"으로 죽는다.
+    private var loadTask: Task<Void, Never>?
+
+    /// 화면 진입 시 한 번만 부른다. 이미 만들고 있으면 아무것도 하지 않는다.
+    func loadIfNeeded() {
+        guard loadTask == nil else { return }
+        loadTask = Task { await load() }
+    }
+
+    /// 실패 후 다시 시도.
+    func reload() {
+        loadTask?.cancel()
+        loadTask = Task { await load() }
+    }
+
+    private func load() async {
         phase = .generating
         do {
             let generated = try await service.generateSection(request)

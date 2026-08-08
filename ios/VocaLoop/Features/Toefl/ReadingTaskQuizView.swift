@@ -23,7 +23,7 @@ struct ReadingTaskQuizView: View {
                 case let .failed(message):
                     ToeflFailedState(
                         message: message,
-                        onRetry: { Task { await session.load() } },
+                        onRetry: { session.reload() },
                         onExit: { dismiss() }
                     )
                 case .solving, .checked:
@@ -48,7 +48,7 @@ struct ReadingTaskQuizView: View {
                 }
             }
         }
-        .task { await session.load() }
+        .onAppear { session.loadIfNeeded() }
     }
 
     // MARK: - 푸는 화면
@@ -130,12 +130,13 @@ struct ReadingTaskQuizView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
 
-            Text(session.taskSet?.stimulus ?? "")
-                .font(.system(size: 16, weight: .semibold))
-                .lineSpacing(16)
-                .foregroundStyle(DS.Surface.level700)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
+            // 지문의 단어를 눌러 그 자리에서 단어장에 넣을 수 있다.
+            VocabularyCaptureText(
+                text: session.taskSet?.stimulus ?? "",
+                sourceLabel: session.taskType.title,
+                // 웹과 같이 정답을 확인한 뒤에만 "뜻 설명"을 연다.
+                canExplain: session.isChecked
+            )
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

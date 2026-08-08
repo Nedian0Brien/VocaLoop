@@ -253,3 +253,69 @@ struct ReadingQuestion: Identifiable, Sendable {
         saveableWords = raw.saveableWords ?? []
     }
 }
+
+// MARK: - 저장용 표현
+
+/// 서버에 남기는 형태. 정규화된 값을 그대로 담아, 다시 열 때 AI를 부르지 않는다.
+struct StoredReadingTaskSet: Codable, Sendable {
+    var taskType: String
+    var title: String
+    var stimulusLabel: String
+    var stimulus: String
+    var topicTags: [String]
+    var questions: [StoredReadingQuestion]
+
+    init(_ set: ReadingTaskSet) {
+        taskType = set.taskType.rawValue
+        title = set.title
+        stimulusLabel = set.stimulusLabel
+        stimulus = set.stimulus
+        topicTags = set.topicTags
+        questions = set.questions.map(StoredReadingQuestion.init)
+    }
+
+    /// 저장본을 화면이 쓰는 형태로 되돌린다.
+    var restored: ReadingTaskSet {
+        ReadingTaskSet(
+            RawReadingTaskSet(
+                taskType: taskType,
+                title: title,
+                stimulusLabel: stimulusLabel,
+                stimulus: stimulus,
+                topicTags: topicTags,
+                questions: questions.map(\.raw)
+            ),
+            taskType: ReadingTaskType(rawValue: taskType) ?? .dailyLife
+        )
+    }
+}
+
+struct StoredReadingQuestion: Codable, Sendable {
+    var id: Int
+    var prompt: String
+    var options: [String]
+    var answerIndex: Int
+    var skillTag: String
+    var explanationKo: String
+
+    init(_ question: ReadingQuestion) {
+        id = question.id
+        prompt = question.prompt
+        options = question.options
+        answerIndex = question.answerIndex
+        skillTag = question.skillTag
+        explanationKo = question.explanationKo
+    }
+
+    var raw: RawReadingQuestion {
+        RawReadingQuestion(
+            id: id,
+            prompt: prompt,
+            options: options,
+            answerIndex: answerIndex,
+            skillTag: skillTag,
+            explanationKo: explanationKo,
+            saveableWords: nil
+        )
+    }
+}

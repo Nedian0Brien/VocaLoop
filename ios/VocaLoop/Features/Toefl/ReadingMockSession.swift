@@ -72,7 +72,24 @@ final class ReadingMockSession {
 
     // MARK: - 조작
 
-    func start() async {
+
+    /// 생성 작업을 세션이 들고 있는다. 뷰의 `.task`에 매달아 두면 화면이 다시
+    /// 그려질 때 취소돼, 서버는 정상 응답했는데 앱만 "취소됨"으로 죽는다.
+    private var loadTask: Task<Void, Never>?
+
+    /// 화면 진입 시 한 번만 부른다. 이미 만들고 있으면 아무것도 하지 않는다.
+    func loadIfNeeded() {
+        guard loadTask == nil else { return }
+        loadTask = Task { await start() }
+    }
+
+    /// 실패 후 다시 시도.
+    func reload() {
+        loadTask?.cancel()
+        loadTask = Task { await start() }
+    }
+
+    private func start() async {
         await loadModule(
             stage: 1,
             difficulty: .router,
@@ -101,7 +118,12 @@ final class ReadingMockSession {
     }
 
     /// 실패 후 다시 시도. 이미 푼 문항이 있으면 그 단계부터 다시 만든다.
-    func retry() async {
+    func retryModule() {
+        loadTask?.cancel()
+        loadTask = Task { await retry() }
+    }
+
+    private func retry() async {
         if let stageTwoDifficulty {
             await loadModule(
                 stage: 2,

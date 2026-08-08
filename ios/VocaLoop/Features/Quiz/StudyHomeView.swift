@@ -18,6 +18,8 @@ struct StudyHomeView: View {
     @State private var runningModeTitle = ""
 
     @State private var history: [QuizPreferences.HistoryEntry] = []
+    /// 서버에 저장해 둔 TOEFL 세트. 눌러서 다시 연다.
+    @State private var savedSets: [ToeflAsset] = []
     @State private var rateTrend = 0
     @State private var weeklyGoal = QuizPreferences.weeklyGoal
     @State private var isEditingGoal = false
@@ -65,7 +67,7 @@ struct StudyHomeView: View {
             .fullScreenCover(item: $buildSentenceSession) { session in
                 BuildSentenceQuizView(session: session)
             }
-            .fullScreenCover(item: $readingTaskSession) { session in
+            .fullScreenCover(item: $readingTaskSession, onDismiss: refreshDashboard) { session in
                 ReadingTaskQuizView(session: session)
             }
             .fullScreenCover(item: $writingTaskSession) { session in
@@ -121,6 +123,7 @@ struct StudyHomeView: View {
 
     private func refreshDashboard() {
         history = QuizPreferences.history
+        Task { savedSets = (try? await ToeflAssetService(api: appState.api).list(limit: 10)) ?? [] }
         weeklyGoal = QuizPreferences.weeklyGoal
         if !words.isEmpty {
             rateTrend = QuizPreferences.recordMastery(averageMastery, on: Date())
@@ -306,7 +309,16 @@ struct StudyHomeView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 32)
 
-            if history.isEmpty {
+            if !savedSets.isEmpty {
+                VStack(spacing: 16) {
+                    ForEach(savedSets.prefix(5)) { asset in
+                        savedSetItem(asset)
+                    }
+                }
+                .padding(.bottom, history.isEmpty ? 0 : 16)
+            }
+
+            if history.isEmpty && savedSets.isEmpty {
                 Text("아직 활동 기록이 없습니다.\n첫 퀴즈를 시작해보세요!")
                     .font(.system(size: 14, weight: .bold))
                     .lineSpacing(8)
@@ -320,7 +332,7 @@ struct StudyHomeView: View {
                             style: StrokeStyle(lineWidth: 2, dash: [6, 6])
                         )
                     )
-            } else {
+            } else if !history.isEmpty {
                 VStack(spacing: 16) {
                     ForEach(history.prefix(5)) { entry in
                         historyItem(entry)
@@ -328,6 +340,86 @@ struct StudyHomeView: View {
                 }
             }
         }
+    }
+
+    /// 저장해 둔 TOEFL 세트 한 줄. 누르면 AI를 다시 부르지 않고 그대로 연다.
+    private func savedSetItem(_ asset: ToeflAsset) -> some View {
+        Button {
+            reopen(asset)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text(asset.createdAt.formatted(date: .numeric, time: .omitted))
+                        .font(.system(size: 10, weight: .black))
+                        .tracking(1)
+                        .foregroundStyle(DS.Surface.level400)
+
+                    Spacer(minLength: 8)
+
+                    DSBadge(text: "Saved Set", tone: .accent, style: .pill, size: .xs)
+                }
+                .padding(.bottom, 12)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(DS.BrandText.accent)
+                        .frame(width: 32, height: 32)
+                        .background(DS.Wash.accent, in: .rect(cornerRadius: DS.Radius.md))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(asset.title)
+                            .font(.system(size: 14, weight: .black))
+                            .foregroundStyle(DS.Surface.level700)
+                            .lineLimit(1)
+                        Text(asset.modeInfo?.title ?? asset.mode)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(DS.Surface.level400)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if canReopen(asset) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(DS.Surface.level300)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.xl))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.xl)
+                    .strokeBorder(DS.Surface.level100, lineWidth: 1)
+            )
+            .dsShadow(.card)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canReopen(asset))
+    }
+
+    /// 지금 다시 열 수 있는 모드인지. Reading task 두 종만 저장본으로 되살린다.
+    private func canReopen(_ asset: ToeflAsset) -> Bool {
+        asset.mode == "toefl-daily-life" || asset.mode == "toefl-academic-passage"
+    }
+
+    private func reopen(_ asset: ToeflAsset) {
+        guard canReopen(asset),
+              let stored = try? asset.decodePayload(as: StoredReadingTaskSet.self) else { return }
+
+        runningModeTitle = asset.modeInfo?.title ?? asset.title
+        readingTaskSession = ReadingTaskSession(
+            service: ReadingTaskService(api: appState.api),
+            request: ReadingTaskService.Request(
+                taskType: asset.mode == "toefl-academic-passage" ? .academicPassage : .dailyLife,
+                difficulty: QuizPreferences.targetScore
+            ),
+            assets: ToeflAssetService(api: appState.api),
+            restoring: stored.restored,
+            assetID: asset.id
+        )
     }
 
     private func historyItem(_ entry: QuizPreferences.HistoryEntry) -> some View {
@@ -633,7 +725,8 @@ struct StudyHomeView: View {
                     questionCount: launch.questionCount,
                     difficulty: launch.difficulty,
                     vocabularyWords: Array(launch.words.prefix(20))
-                )
+                ),
+                assets: ToeflAssetService(api: appState.api)
             )
         case "toefl-writing-email", "toefl-writing-discussion":
             writingTaskSession = WritingTaskSession(

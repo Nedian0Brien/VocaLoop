@@ -35,7 +35,7 @@ struct BuildSentenceQuizView: View {
                 }
             }
         }
-        .task { await session.load() }
+        .onAppear { session.loadIfNeeded() }
     }
 
     // MARK: - 상태별 화면
@@ -70,7 +70,7 @@ struct BuildSentenceQuizView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
-                Button("다시 시도") { Task { await session.load() } }
+                Button("다시 시도") { session.reload() }
                     .buttonStyle(.ds(.primary, size: .md))
                 Button("나가기") { dismiss() }
                     .buttonStyle(.ds(.secondary, size: .md))
