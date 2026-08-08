@@ -133,6 +133,7 @@ final class QuizSession {
 
         if index + 1 >= questions.count {
             isFinished = true
+            QuizSound.play(.complete)
         } else {
             index += 1
         }

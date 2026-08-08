@@ -326,6 +326,7 @@ struct ShortAnswerQuizView: View {
         // 로컬이 이미 정답이면 AI를 부르지 않는다. 웹도 그렇게 아낀다.
         guard usesAiGrading, !local.isCorrect, let grader else {
             result = local
+            QuizSound.play(local.isCorrect ? .success : .fail)
             return
         }
 
@@ -346,9 +347,11 @@ struct ShortAnswerQuizView: View {
                     matchedAnswers: local.matchedAnswers,
                     unmatchedAnswers: verdict.isCorrect ? [] : local.unmatchedAnswers
                 )
+                QuizSound.play(verdict.isCorrect ? .success : .fail)
             } catch {
                 // 웹과 같이 로컬 채점으로 되돌린다. 네트워크 때문에 퀴즈가 멈추면 안 된다.
                 result = local
+                QuizSound.play(local.isCorrect ? .success : .fail)
             }
         }
     }
@@ -381,6 +384,7 @@ struct ShortAnswerQuizView: View {
             )
 
             if verdict.isCorrect {
+                QuizSound.play(.success)
                 await onAcceptAnswer?(
                     input.trimmingCharacters(in: .whitespaces),
                     verdict.feedback

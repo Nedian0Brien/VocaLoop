@@ -121,6 +121,7 @@ final class CompleteWordSession {
         guard phase == .checked else { return }
         if index + 1 >= questions.count {
             phase = .finished
+            QuizSound.play(.complete)
         } else {
             index += 1
             phase = .solving

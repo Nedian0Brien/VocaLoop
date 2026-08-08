@@ -119,6 +119,7 @@ final class BuildSentenceSession {
         let isCorrect = BuildSentenceEngine.isCorrect(question, arrangement: arrangement)
         if isCorrect { correctCount += 1 }
         phase = .checked(isCorrect: isCorrect)
+        QuizSound.play(isCorrect ? .success : .fail)
     }
 
     func advance() {

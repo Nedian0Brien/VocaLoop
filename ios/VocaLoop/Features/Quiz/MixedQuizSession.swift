@@ -88,6 +88,7 @@ final class MixedQuizSession {
         }
 
         state = AdaptiveQuizEngine.resolve(state, isCorrect: isCorrect)
+        if state.isComplete { QuizSound.play(.complete) }
     }
 
     func startNextSet() {
@@ -97,6 +98,7 @@ final class MixedQuizSession {
 
     func finishNow() {
         stoppedEarly = true
+        QuizSound.play(.complete)
     }
 
     /// 서버에 반영된 학습률을 세트 요약에 되먹인다.

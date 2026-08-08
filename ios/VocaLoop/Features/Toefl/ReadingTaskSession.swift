@@ -166,6 +166,7 @@ final class ReadingTaskSession {
     func check() {
         guard phase == .solving, allAnswered else { return }
         phase = .checked
+        QuizSound.play(correctCount == total ? .success : .fail)
     }
 
     func showReport() {
@@ -184,6 +185,15 @@ final class ReadingTaskSession {
             }
         }
 
+        // 학습 탭의 "TOEFL Reading Mastery" 카드가 쌓는 통계.
+        ToeflReadingStats.record(
+            taskType: taskType.rawValue,
+            topicTags: taskSet?.topicTags ?? [],
+            results: answers.map {
+                ToeflReadingStats.Result(isCorrect: $0.correct, skillTag: $0.skillTag)
+            }
+        )
+
         report = ToeflReadingReport.build(
             questions: questions,
             answers: answers,
@@ -191,6 +201,7 @@ final class ReadingTaskSession {
             topicTags: taskSet?.topicTags ?? []
         )
         phase = .report
+        QuizSound.play(.complete)
     }
 
     private var answers: [ToeflReadingReport.Answer] {

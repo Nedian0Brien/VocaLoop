@@ -155,6 +155,7 @@ final class ReadingMockSession {
             )
         )
         phase = .checked
+        QuizSound.play(answers.last?.correct == true ? .success : .fail)
     }
 
     /// 다음 문항으로, 모듈이 끝났으면 Stage 2 또는 리포트로.
@@ -189,6 +190,8 @@ final class ReadingMockSession {
             total: totalAnswered,
             difficulty: routed
         )
+        recordStats()
+
         report = ToeflReadingReport.build(
             items: answeredItems.enumerated().map { index, item in
                 ToeflReadingReport.Item(
@@ -205,6 +208,31 @@ final class ReadingMockSession {
             difficulty: difficulty
         )
         phase = .report
+        QuizSound.play(.complete)
+    }
+
+    /// 웹 `groupResultsByTask` — 문항이 어느 task에서 왔는지로 나눠 따로 기록한다.
+    private func recordStats() {
+        var grouped: [String: (topics: Set<String>, results: [ToeflReadingStats.Result])] = [:]
+
+        for (index, item) in answeredItems.enumerated() {
+            guard let answer = answers[safe: index] else { continue }
+            let key = item.taskType.isEmpty ? "mock-test" : item.taskType
+            var group = grouped[key] ?? (topics: [], results: [])
+            group.topics.formUnion(item.topicTags)
+            group.results.append(
+                ToeflReadingStats.Result(isCorrect: answer.correct, skillTag: item.skillTag)
+            )
+            grouped[key] = group
+        }
+
+        for (taskType, group) in grouped {
+            ToeflReadingStats.record(
+                taskType: taskType,
+                topicTags: Array(group.topics),
+                results: group.results
+            )
+        }
     }
 }
 

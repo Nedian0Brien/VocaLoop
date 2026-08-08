@@ -20,6 +20,7 @@ struct StudyHomeView: View {
     @State private var history: [QuizPreferences.HistoryEntry] = []
     /// 서버에 저장해 둔 TOEFL 세트. 눌러서 다시 연다.
     @State private var savedSets: [ToeflAsset] = []
+    @State private var readingSummary = ToeflReadingStats.summarize()
     @State private var rateTrend = 0
     @State private var weeklyGoal = QuizPreferences.weeklyGoal
     @State private var isEditingGoal = false
@@ -125,6 +126,7 @@ struct StudyHomeView: View {
         history = QuizPreferences.history
         Task { savedSets = (try? await ToeflAssetService(api: appState.api).list(limit: 10)) ?? [] }
         weeklyGoal = QuizPreferences.weeklyGoal
+        readingSummary = ToeflReadingStats.summarize()
         if !words.isEmpty {
             rateTrend = QuizPreferences.recordMastery(averageMastery, on: Date())
         }
@@ -243,7 +245,9 @@ struct StudyHomeView: View {
                 subtitle: "2026 개정 Reading task와 실전 모의고사",
                 symbol: "sparkles",
                 tone: .brand,
-                modes: QuizModeRegistry.toeflReading
+                modes: QuizModeRegistry.toeflReading,
+                // 웹은 이 자리에 지금까지의 Reading 성적을 얹는다.
+                lead: { readingMasteryCard }
             )
             modeSection(
                 title: "TOEFL Writing",
@@ -260,7 +264,9 @@ struct StudyHomeView: View {
         subtitle: String,
         symbol: String,
         tone: DashboardSectionHeading.Tone,
-        modes: [QuizModeInfo]
+        modes: [QuizModeInfo],
+        /// 제목과 카드 사이에 끼워 넣을 것. 지금은 Reading 성적 카드만 쓴다.
+        @ViewBuilder lead: () -> some View = { EmptyView() }
     ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             DashboardSectionHeading(
@@ -272,12 +278,72 @@ struct StudyHomeView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 32)
 
+            lead()
+
             VStack(spacing: 32) {
                 ForEach(modes) { mode in
                     QuizModeCard(mode: mode, wordCount: words.count) { open(mode) }
                 }
             }
         }
+    }
+
+    /// 웹 QuizDashboard의 "TOEFL Reading Mastery" 카드.
+    /// 아직 푼 적이 없으면 웹과 같이 통째로 감춘다.
+    @ViewBuilder
+    private var readingMasteryCard: some View {
+        if readingSummary.hasData {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 12) {
+                    DSBadge(text: "TOEFL Reading Mastery", tone: .brand, style: .dot, size: .xs)
+
+                    HStack(alignment: .lastTextBaseline, spacing: 12) {
+                        Text("\(readingSummary.accuracy)%")
+                            .font(.system(size: 36, weight: .black))
+                            .tracking(-0.9)
+                            .foregroundStyle(DS.Surface.level900)
+                        Text("\(readingSummary.correct)/\(readingSummary.total)")
+                            .font(.system(size: 12, weight: .black))
+                            .tracking(1)
+                            .foregroundStyle(DS.Surface.level400)
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    weakestTile("Weakest Task", ToeflReadingStats.label(forTask: readingSummary.weakestTask?.id ?? ""))
+                    weakestTile("Weakest Topic", readingSummary.weakestTopic?.id ?? "-")
+                    weakestTile("Weakest Skill", readingSummary.weakestSkill?.id ?? "-")
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.card)
+                    .strokeBorder(DS.Surface.level200, lineWidth: 1)
+            )
+            .padding(.bottom, 32)
+        }
+    }
+
+    private func weakestTile(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .black))
+                .tracking(1)
+                .foregroundStyle(DS.Surface.level400)
+            Text(value.isEmpty ? "-" : value)
+                .font(.system(size: 14, weight: .black))
+                .foregroundStyle(DS.Surface.level800)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Surface.level50, in: .rect(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .strokeBorder(DS.Surface.level100, lineWidth: 1)
+        )
     }
 
     // MARK: - 사이드바 (최근 활동 + 주간 목표)
@@ -673,6 +739,7 @@ struct StudyHomeView: View {
 
     private func start(_ launch: QuizLaunch) {
         SpeechSynthesizer.shared.isEnabled = launch.soundEnabled
+        QuizSound.isEnabled = launch.soundEnabled
         runningModeTitle = launch.mode.title
 
         switch launch.mode.id {

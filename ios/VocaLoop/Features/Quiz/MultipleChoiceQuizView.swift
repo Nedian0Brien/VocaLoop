@@ -143,6 +143,7 @@ struct MultipleChoiceQuizView: View {
         guard !isAnswered, let selected else { return }
         isAnswered = true
         feedback = selected == answer
+        QuizSound.play(feedback == true ? .success : .fail)
     }
 }
 

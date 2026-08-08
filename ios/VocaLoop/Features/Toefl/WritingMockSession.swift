@@ -179,11 +179,13 @@ final class WritingMockSession {
                 difficulty: difficulty
             )
             phase = .report
+            QuizSound.play(.complete)
         } catch {
             // 쓴 글을 날리지 않는다. 마지막 단계로 되돌려 다시 낼 수 있게 한다.
             phase = .working
             gradingError = (error as? APIError)?.errorDescription
                 ?? "Writing 모의고사 채점 중 오류가 발생했습니다."
+            QuizSound.play(.fail)
         }
     }
 

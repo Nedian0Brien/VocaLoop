@@ -314,6 +314,7 @@ struct CompleteWordStageView: View {
         focusedIndex = nil
         isAnswered = true
         feedback = isCorrect
+        QuizSound.play(isCorrect ? .success : .fail)
     }
 }
 

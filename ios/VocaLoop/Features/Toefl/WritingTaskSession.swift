@@ -88,11 +88,13 @@ final class WritingTaskSession {
                 difficulty: difficulty
             )
             phase = .feedback
+            QuizSound.play(.complete)
         } catch {
             // 채점만 실패한 것이니 쓴 글은 남겨 두고 다시 시도할 수 있게 한다.
             phase = .writing
             gradingError = (error as? APIError)?.errorDescription
                 ?? "Writing 채점 중 오류가 발생했습니다."
+            QuizSound.play(.fail)
         }
     }
 
