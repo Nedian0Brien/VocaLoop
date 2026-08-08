@@ -111,16 +111,14 @@ enum QuizModeRegistry {
             title: "Write an Email",
             detail: "상황과 요구사항을 반영해 공손하고 목적이 분명한 이메일을 작성합니다.",
             symbolName: "envelope",
-            accent: .brand,
-            comingSoon: true
+            accent: .brand
         ),
         QuizModeInfo(
             id: "toefl-writing-discussion",
             title: "Write for an Academic Discussion",
             detail: "교수 질문과 학생 의견을 읽고 100단어 이상으로 학술 토론에 기여합니다.",
             symbolName: "text.quote",
-            accent: .accent,
-            comingSoon: true
+            accent: .accent
         ),
     ]
 

@@ -195,7 +195,7 @@ struct QuizModeRegistryTests {
         #expect(playable == [
             "mixed", "multiple", "short",
             "toefl-complete", "toefl-daily-life", "toefl-academic-passage",
-            "toefl-build",
+            "toefl-build", "toefl-writing-email", "toefl-writing-discussion",
         ])
     }
 

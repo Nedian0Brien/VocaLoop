@@ -11,6 +11,7 @@ struct StudyHomeView: View {
     @State private var completeWordSession: CompleteWordSession?
     @State private var buildSentenceSession: BuildSentenceSession?
     @State private var readingTaskSession: ReadingTaskSession?
+    @State private var writingTaskSession: WritingTaskSession?
     /// 최근 활동에 남길 모드 이름. 모드 카드의 제목을 그대로 쓴다.
     @State private var runningModeTitle = ""
 
@@ -64,6 +65,9 @@ struct StudyHomeView: View {
             }
             .fullScreenCover(item: $readingTaskSession) { session in
                 ReadingTaskQuizView(session: session)
+            }
+            .fullScreenCover(item: $writingTaskSession) { session in
+                WritingTaskQuizView(session: session)
             }
         }
     }
@@ -619,6 +623,17 @@ struct StudyHomeView: View {
                         ? .academicPassage
                         : .dailyLife,
                     questionCount: launch.questionCount,
+                    difficulty: launch.difficulty,
+                    vocabularyWords: Array(launch.words.prefix(20))
+                )
+            )
+        case "toefl-writing-email", "toefl-writing-discussion":
+            writingTaskSession = WritingTaskSession(
+                service: WritingTaskService(api: appState.api),
+                request: WritingTaskService.Request(
+                    taskType: launch.mode.id == "toefl-writing-email"
+                        ? .email
+                        : .academicDiscussion,
                     difficulty: launch.difficulty,
                     vocabularyWords: Array(launch.words.prefix(20))
                 )
