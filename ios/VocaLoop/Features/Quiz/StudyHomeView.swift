@@ -6,6 +6,10 @@ struct StudyHomeView: View {
     @Environment(AppState.self) private var appState
 
     @State private var questionCount = 10
+    /// 복합 퀴즈 설정. 웹 기본값과 같이 모든 단계를 켜고 세트는 5단어로 끊는다.
+    @State private var mixedStages = Set(AdaptiveStage.allCases)
+    @State private var studySetSize = AdaptiveQuizEngine.defaultSetSize
+    @State private var mixedSession: MixedQuizSession?
     @State private var session: QuizSession?
     @State private var completeWordSession: CompleteWordSession?
     @State private var buildSentenceSession: BuildSentenceSession?
@@ -49,6 +53,9 @@ struct StudyHomeView: View {
             .toolbarBackground(DS.Surface.level50, for: .navigationBar)
             .fullScreenCover(item: $session) { session in
                 QuizContainerView(session: session)
+            }
+            .fullScreenCover(item: $mixedSession) { session in
+                MixedQuizContainerView(session: session)
             }
             .fullScreenCover(item: $completeWordSession) { session in
                 CompleteWordQuizView(session: session)
@@ -171,6 +178,8 @@ struct StudyHomeView: View {
                 .foregroundStyle(DS.Surface.level500)
                 .padding(.bottom, 20)
 
+            mixedCard.padding(.bottom, 24)
+
             countPicker.padding(.bottom, 20)
 
             VStack(spacing: 16) {
@@ -180,6 +189,176 @@ struct StudyHomeView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - 복합 퀴즈
+
+    /// 웹 `AI 복합 퀴즈` 카드 + 설정(단계 구성 / 세트 크기)을 한 장으로 합친 것.
+    /// 카드 안에 토글이 들어가야 해서 카드 전체를 버튼으로 만들지 않는다.
+    private var mixedCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(DS.BrandText.base)
+                    .frame(width: 48, height: 48)
+                    .background(DS.Wash.brand, in: .rect(cornerRadius: 20))
+
+                Spacer(minLength: 0)
+
+                DSBadge(text: "Recommended", tone: .success, style: .pill)
+            }
+            .padding(.bottom, 16)
+
+            Text("AI 복합 퀴즈")
+                .font(.system(size: 20, weight: .black))
+                .tracking(-0.5)
+                .foregroundStyle(DS.Surface.level900)
+                .padding(.bottom, 8)
+
+            Text("객관식, 주관식, Complete word를 섞어 단어별 난이도를 단계적으로 올리고 오답은 다시 출제합니다.")
+                .font(.system(size: 12, weight: .bold))
+                .lineSpacing(6)
+                .foregroundStyle(DS.Surface.level500.opacity(0.8))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 24)
+
+            stageChips.padding(.bottom, 20)
+            setSizePicker.padding(.bottom, 24)
+
+            Button(canStartMixed ? "시작하기" : mixedBlockReason) {
+                mixedSession = MixedQuizSession(
+                    words: availableWords,
+                    stages: Array(mixedStages),
+                    setSize: studySetSize
+                )
+            }
+            .buttonStyle(.ds(.primary, size: .md, fullWidth: true))
+            .disabled(!canStartMixed)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card)
+                .strokeBorder(DS.Surface.level100, lineWidth: 2)
+        )
+    }
+
+    /// 웹 `MixedModeSection` — 켠 단계 순서대로 난이도가 올라간다.
+    private var stageChips: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("복합 단계 구성".uppercased())
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(1)
+                    .foregroundStyle(DS.Surface.level400)
+
+                Spacer(minLength: 8)
+
+                Text("\(mixedStages.count) Steps")
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(DS.BrandText.warning)
+            }
+
+            FlowLayout(spacing: 8) {
+                ForEach(AdaptiveStage.allCases) { stage in
+                    stageChip(stage)
+                }
+            }
+
+            Text("정답이면 다음 단계로 가고, 틀리면 뒤로 재출제됩니다. 같은 단계에서 연속으로 틀리면 한 단계 쉬운 문제로 돌아갑니다.")
+                .font(.system(size: 11, weight: .bold))
+                .lineSpacing(4)
+                .foregroundStyle(DS.Surface.level400)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func stageChip(_ stage: AdaptiveStage) -> some View {
+        let isOn = mixedStages.contains(stage)
+
+        return Button {
+            toggle(stage)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: stage.symbolName)
+                    .font(.system(size: 11, weight: .black))
+                Text(stage.title)
+                    .font(.system(size: 12, weight: .black))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .foregroundStyle(isOn ? .white : DS.Surface.level600)
+            .background(
+                isOn ? AnyShapeStyle(DS.Solid.brand) : AnyShapeStyle(DS.Surface.level50),
+                in: .rect(cornerRadius: DS.Radius.sm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.sm)
+                    .strokeBorder(isOn ? .clear : DS.Surface.level200, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(.smooth(duration: 0.2), value: isOn)
+    }
+
+    /// 웹은 복합 모드에서 문제 수 대신 학습 세트 크기를 고르게 한다.
+    private var setSizePicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("세트 크기".uppercased())
+                .font(.system(size: 10, weight: .black))
+                .tracking(1)
+                .foregroundStyle(DS.Surface.level400)
+
+            HStack(spacing: 8) {
+                ForEach([3, 5, 10], id: \.self) { size in
+                    Button {
+                        studySetSize = size
+                    } label: {
+                        Text("\(size)")
+                            .font(.system(size: 14, weight: .black))
+                            .monospacedDigit()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .foregroundStyle(studySetSize == size ? .white : DS.Surface.level600)
+                            .background(
+                                studySetSize == size
+                                    ? AnyShapeStyle(DS.Solid.brand)
+                                    : AnyShapeStyle(DS.Surface.level50),
+                                in: .rect(cornerRadius: DS.Radius.md)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.md).strokeBorder(
+                                    studySetSize == size ? .clear : DS.Surface.level200,
+                                    lineWidth: 1
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .animation(.smooth(duration: 0.2), value: studySetSize)
+        }
+    }
+
+    /// 마지막 한 단계까지 끄면 풀 문제가 없어지므로 남겨 둔다.
+    private func toggle(_ stage: AdaptiveStage) {
+        if mixedStages.contains(stage) {
+            guard mixedStages.count > 1 else { return }
+            mixedStages.remove(stage)
+        } else {
+            mixedStages.insert(stage)
+        }
+    }
+
+    private var canStartMixed: Bool {
+        !availableWords.isEmpty && !mixedStages.isEmpty
+    }
+
+    private var mixedBlockReason: String {
+        availableWords.isEmpty ? "뜻이 있는 단어가 없습니다" : "단계를 하나 이상 고르세요"
     }
 
     private var countPicker: some View {

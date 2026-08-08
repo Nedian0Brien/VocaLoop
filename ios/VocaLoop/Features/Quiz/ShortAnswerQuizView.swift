@@ -1,39 +1,70 @@
 import SwiftUI
 
 /// 웹 `src/components/ShortAnswerQuiz.jsx`의 이식.
-/// 기본 방향(en-ko)은 영어 단어를 보여주고 한국어 뜻을 입력받는다.
+///
+/// 기본 방향(en-ko)은 영어 단어를 보여주고 한국어 뜻을 입력받고,
+/// 반대 방향(ko-en)은 한국어 뜻을 보여주고 영어 단어를 입력받는다.
+/// 복합 퀴즈가 두 방향을 각각 한 단계로 쓴다.
 struct ShortAnswerQuizView: View {
     let word: Word
+    var direction: ShortAnswerDirection = .enToKo
     let onAnswer: (String, Bool) -> Void
 
     @State private var input = ""
     @State private var result: Bool?
     @FocusState private var isFocused: Bool
 
+    private var isKoToEn: Bool { direction == .koToEn }
+    private var answer: String { QuizSession.answer(for: word, direction: direction) }
+
     var body: some View {
-        QuizCard(word: word, modeLabel: "Short Answer", onSpeak: speak) {
-            QuizPromptLabel(text: "한국어 뜻을 입력하세요:")
-                .padding(.bottom, 24)
+        card
+            .sensoryFeedback(.success, trigger: result) { _, new in new == true }
+            .sensoryFeedback(.error, trigger: result) { _, new in new == false }
+            .onAppear { isFocused = true }
+            .animation(.smooth(duration: 0.25), value: result)
+    }
 
-            answerField
-                .padding(.bottom, result == nil ? 24 : 16)
-
-            if let result {
-                resultBanner(isCorrect: result)
-                    .padding(.bottom, 24)
+    @ViewBuilder
+    private var card: some View {
+        if isKoToEn {
+            // 영어 단어가 정답이므로 헤더에 단어를 세울 수 없다. 뜻을 크게 보여준다.
+            QuizCardShell {
+                QuizIntroHeader(
+                    modeLabel: "Short Answer",
+                    eyebrow: "Korean → English",
+                    title: word.primaryMeaning
+                )
+            } content: {
+                content
             }
-
-            submitButton
+        } else {
+            QuizCard(word: word, modeLabel: "Short Answer", onSpeak: speak) {
+                content
+            }
         }
-        .sensoryFeedback(.success, trigger: result) { _, new in new == true }
-        .sensoryFeedback(.error, trigger: result) { _, new in new == false }
-        .onAppear { isFocused = true }
-        .animation(.smooth(duration: 0.25), value: result)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        QuizPromptLabel(text: isKoToEn ? "영어 단어를 입력하세요:" : "한국어 뜻을 입력하세요:")
+            .padding(.bottom, 24)
+
+        answerField
+            .padding(.bottom, result == nil ? 24 : 16)
+
+        if let result {
+            resultBanner(isCorrect: result)
+                .padding(.bottom, 24)
+        }
+
+        submitButton
     }
 
     private var answerField: some View {
-        TextField("한국어 뜻 입력", text: $input)
+        TextField(isKoToEn ? "영어 단어 입력" : "한국어 뜻 입력", text: $input)
             .autocorrectionDisabled()
+            .textInputAutocapitalization(isKoToEn ? .never : .sentences)
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(DS.Surface.level900)
             .focused($isFocused)
@@ -59,7 +90,7 @@ struct ShortAnswerQuizView: View {
             HStack(spacing: 8) {
                 Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 18, weight: .bold))
-                Text(isCorrect ? "정답입니다" : "정답: \(word.primaryMeaning)")
+                Text(isCorrect ? "정답입니다" : "정답: \(answer)")
                     .font(.system(size: 16, weight: .bold))
                 Spacer(minLength: 0)
             }
@@ -110,6 +141,8 @@ struct ShortAnswerQuizView: View {
     }
 
     private func speak() {
+        // ko-en에서는 발음을 들려주면 정답을 알려주는 셈이라 웹도 막아 둔다.
+        guard !isKoToEn else { return }
         SpeechSynthesizer.shared.speak(word.word)
     }
 
@@ -118,7 +151,7 @@ struct ShortAnswerQuizView: View {
               !input.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
         isFocused = false
-        result = QuizSession.isShortAnswerCorrect(input, for: word)
+        result = QuizSession.isShortAnswerCorrect(input, for: word, direction: direction)
     }
 }
 

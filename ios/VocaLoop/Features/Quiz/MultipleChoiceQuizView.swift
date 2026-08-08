@@ -8,10 +8,13 @@ struct MultipleChoiceQuizView: View {
     let onAnswer: (String, Bool) -> Void
 
     @State private var selected: String?
+    /// 보기를 고른 것만으로는 정답이 드러나지 않는다. 웹처럼 "정답 확인"을
+    /// 눌러야 채점되며, 그전까지는 고른 보기만 브랜드색으로 표시한다.
+    @State private var isAnswered = false
     @State private var feedback: Bool?
 
     private var answer: String { word.primaryMeaning }
-    private var isAnswered: Bool { selected != nil }
+    private var isCorrect: Bool { selected == answer }
 
     var body: some View {
         QuizCard(word: word, modeLabel: "Multiple Choice", onSpeak: speak) {
@@ -30,35 +33,65 @@ struct MultipleChoiceQuizView: View {
             }
             .padding(.bottom, 24)
 
+            if isAnswered {
+                QuizVerdictBanner(
+                    isCorrect: isCorrect,
+                    title: isCorrect ? "Correct Answer! 🎉" : "Study More 📚",
+                    detail: isCorrect ? "잘 맞췄어요!" : "정답은 \(answer) 입니다."
+                )
+                .padding(.bottom, 24)
+            }
+
             submitButton
         }
         .sensoryFeedback(.success, trigger: feedback) { _, new in new == true }
         .sensoryFeedback(.error, trigger: feedback) { _, new in new == false }
+        .animation(.smooth(duration: 0.25), value: isAnswered)
         .onAppear(perform: speak)
     }
 
     private var submitButton: some View {
-        Button {
-            if let selected { finish(selected) }
-        } label: {
-            Text(isAnswered ? "다음 문제" : "뜻을 선택하세요")
+        Button(action: primaryAction) {
+            Text(buttonTitle)
                 .font(.system(size: 18, weight: .black))
                 .tracking(-0.45)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
-                .background(
-                    isAnswered ? DS.Surface.level800 : DS.Surface.level100,
-                    in: .rect(cornerRadius: 24)
-                )
-                .foregroundStyle(isAnswered ? Color.white : DS.Surface.level400)
+                .background(buttonBackground, in: .rect(cornerRadius: 24))
+                .foregroundStyle(canProceed ? Color.white : DS.Surface.level400)
         }
         .buttonStyle(.plain)
-        .disabled(!isAnswered)
-        .animation(.smooth(duration: 0.2), value: isAnswered)
+        .disabled(!canProceed)
+        .animation(.smooth(duration: 0.2), value: canProceed)
+    }
+
+    /// 채점 전에는 보기를 골라야 진행할 수 있다.
+    private var canProceed: Bool { isAnswered || selected != nil }
+
+    private var buttonTitle: String {
+        if isAnswered { return "다음 문제" }
+        return selected == nil ? "뜻을 선택하세요" : "정답 확인"
+    }
+
+    private var buttonBackground: Color {
+        if isAnswered { return DS.Surface.level800 }
+        // 웹은 채점 버튼만 브랜드색으로 세워 둔다.
+        return selected == nil ? DS.Surface.level100 : DS.Solid.brand
+    }
+
+    private func primaryAction() {
+        if isAnswered {
+            guard let selected else { return }
+            onAnswer(selected, selected == answer)
+        } else {
+            check()
+        }
     }
 
     private func state(for choice: String) -> ChoiceButton.State {
-        guard let selected else { return .idle }
+        guard isAnswered else {
+            return choice == selected ? .selected : .idle
+        }
         if choice == answer { return .correct }
         if choice == selected { return .wrong }
         return .dimmed
@@ -69,20 +102,25 @@ struct MultipleChoiceQuizView: View {
     }
 
     private func select(_ choice: String) {
-        guard selected == nil else { return }
+        guard !isAnswered else { return }
         selected = choice
-        feedback = choice == answer
     }
 
-    private func finish(_ choice: String) {
-        onAnswer(choice, choice == answer)
+    private func check() {
+        guard !isAnswered, let selected else { return }
+        isAnswered = true
+        feedback = selected == answer
     }
 }
 
 /// 웹의 보기 버튼 — 번호 원형 + 뜻 + 배경에 깔리는 고스트 숫자.
 struct ChoiceButton: View {
     enum State {
-        case idle, correct, wrong, dimmed
+        /// 고르기 전.
+        case idle
+        /// 골랐지만 아직 채점 전 — 브랜드색으로 세워만 둔다.
+        case selected
+        case correct, wrong, dimmed
     }
 
     let index: Int
@@ -142,7 +180,7 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return "checkmark.circle.fill"
         case .wrong: return "xmark.circle.fill"
-        case .idle, .dimmed: return nil
+        case .idle, .selected, .dimmed: return nil
         }
     }
 
@@ -154,6 +192,8 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return DS.Wash.success
         case .wrong: return DS.Wash.danger
+        // 웹은 고른 보기에 brand-50을 30%만 깔아 아주 옅게 표시한다.
+        case .selected: return DS.Wash.brand.opacity(0.3)
         case .idle, .dimmed: return DS.Surface.level0
         }
     }
@@ -163,6 +203,7 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return DS.Solid.success
         case .wrong: return DS.Solid.danger
+        case .selected: return DS.Solid.brand
         case .idle, .dimmed: return DS.Surface.level50
         }
     }
@@ -171,6 +212,7 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return DS.BrandText.success
         case .wrong: return DS.BrandText.danger
+        case .selected: return DS.BrandText.base
         case .idle, .dimmed: return DS.Surface.level700
         }
     }
@@ -179,6 +221,7 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return DS.Solid.success
         case .wrong: return DS.Solid.danger
+        case .selected: return DS.Solid.brand
         case .idle, .dimmed: return DS.Surface.level50
         }
     }
@@ -187,15 +230,57 @@ struct ChoiceButton: View {
         switch state {
         case .correct: return DS.Solid.success
         case .wrong: return DS.Solid.danger
+        case .selected: return DS.Solid.brand
         case .idle, .dimmed: return DS.Surface.level100
         }
     }
 
     private var badgeForeground: Color {
         switch state {
-        case .correct, .wrong: return .white
+        case .correct, .wrong, .selected: return .white
         case .idle, .dimmed: return DS.Surface.level400
         }
+    }
+}
+
+/// 채점 결과 배너 — 웹 객관식/단어 완성 화면이 함께 쓰는 형태.
+/// 아이콘 사각형 + 제목 + 부연 한 줄.
+struct QuizVerdictBanner: View {
+    let isCorrect: Bool
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: isCorrect ? "checkmark" : "exclamationmark.triangle.fill")
+                .font(.system(size: 22, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(
+                    isCorrect ? DS.Solid.success : DS.Solid.danger,
+                    in: .rect(cornerRadius: 20)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 20, weight: .black))
+                    .tracking(-0.5)
+                Text(detail)
+                    .font(.system(size: 15, weight: .bold))
+                    .opacity(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(isCorrect ? DS.BrandText.success : DS.BrandText.danger)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            isCorrect ? DS.Wash.success : DS.Wash.danger,
+            in: .rect(cornerRadius: 24)
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.97)))
     }
 }
 

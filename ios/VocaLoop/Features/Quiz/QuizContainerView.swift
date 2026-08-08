@@ -13,7 +13,13 @@ struct QuizContainerView: View {
                 DS.Surface.level50.ignoresSafeArea()
 
                 if session.isFinished {
-                    QuizResultView(session: session) { dismiss() }
+                    QuizResultView(
+                        accuracy: session.accuracy,
+                        total: session.questions.count,
+                        correct: session.correctCount,
+                        wrong: session.answers.count - session.correctCount,
+                        onDone: { dismiss() }
+                    )
                 } else {
                     ScrollView {
                         VStack(spacing: QuizChrome.headerBottomGap) {
@@ -83,7 +89,7 @@ struct QuizContainerView: View {
             await appState.vocabulary?.recordQuizResult(
                 for: word,
                 wasCorrect: isCorrect,
-                mode: session.mode
+                stage: session.mode.stage
             )
         }
     }

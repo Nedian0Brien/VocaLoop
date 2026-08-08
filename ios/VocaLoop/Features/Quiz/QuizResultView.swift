@@ -2,12 +2,17 @@ import SwiftUI
 
 /// 웹 `src/components/QuizResult.jsx`의 이식.
 /// 수치는 웹을 375pt로 렌더링해 측정한 값이다.
+/// 단독 퀴즈와 복합 퀴즈가 함께 쓰므로 세션이 아니라 숫자만 받는다.
 struct QuizResultView: View {
-    let session: QuizSession
+    let accuracy: Int
+    /// 푼 문제 수. 복합 퀴즈에서는 단어 수가 아니라 단계 수다.
+    let total: Int
+    let correct: Int
+    let wrong: Int
     let onDone: () -> Void
     var onRestart: (() -> Void)?
 
-    private var grade: ResultGrade { ResultGrade(accuracy: session.accuracy) }
+    private var grade: ResultGrade { ResultGrade(accuracy: accuracy) }
 
     var body: some View {
         ScrollView {
@@ -45,14 +50,14 @@ struct QuizResultView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("\(session.accuracy)%")
+                    Text("\(accuracy)%")
                         .font(.system(size: 96, weight: .black))
                         .tracking(-4.8)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                         // 웹은 같은 숫자를 blur 사본으로 한 겹 더 깔아 빛나 보이게 한다.
                         .background {
-                            Text("\(session.accuracy)%")
+                            Text("\(accuracy)%")
                                 .font(.system(size: 96, weight: .black))
                                 .tracking(-4.8)
                                 .monospacedDigit()
@@ -114,7 +119,7 @@ struct QuizResultView: View {
         VStack(spacing: 24) {
             ResultStatCard(
                 eyebrow: "Total Questions",
-                value: "\(session.questions.count)",
+                value: "\(total)",
                 subValue: "Answered",
                 symbol: "chart.bar",
                 tint: DS.Surface.level600,
@@ -122,7 +127,7 @@ struct QuizResultView: View {
             )
             ResultStatCard(
                 eyebrow: "Correct Items",
-                value: "\(session.correctCount)",
+                value: "\(correct)",
                 subValue: "Great job!",
                 symbol: "checkmark.circle",
                 tint: DS.BrandText.success,
@@ -130,7 +135,7 @@ struct QuizResultView: View {
             )
             ResultStatCard(
                 eyebrow: "Wrong Items",
-                value: "\(session.answers.count - session.correctCount)",
+                value: "\(wrong)",
                 subValue: "Needs review",
                 symbol: "xmark.circle",
                 tint: DS.BrandText.danger,
@@ -285,13 +290,10 @@ struct ResultStatCard: View {
 #if DEBUG
 #Preview("결과") {
     QuizResultView(
-        session: {
-            let s = QuizSession(mode: .multipleChoice, words: PreviewData.words, questionCount: 10)
-            for (index, _) in s.questions.enumerated() {
-                s.submit("x", isCorrect: index % 10 != 3)
-            }
-            return s
-        }(),
+        accuracy: 90,
+        total: 10,
+        correct: 9,
+        wrong: 1,
         onDone: {},
         onRestart: {}
     )

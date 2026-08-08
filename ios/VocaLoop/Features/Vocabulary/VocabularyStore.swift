@@ -85,13 +85,13 @@ final class VocabularyStore {
     /// 학습률 계산은 웹 `quizAnswerFlow.js`와 같은 공식을 쓴다.
     /// 웹은 `status` 필드를 건드리지 않으므로 여기서도 보내지 않는다.
     /// 화면에 보이는 상태는 학습률에서 파생되기 때문에 그것만으로 충분하다.
-    func recordQuizResult(for word: Word, wasCorrect: Bool, mode: QuizMode) async {
+    func recordQuizResult(for word: Word, wasCorrect: Bool, stage: AdaptiveStage) async {
         var stats = word.stats
         stats.reviewCount += 1
 
         let nextRate: Int
         if wasCorrect {
-            nextRate = LearningRate.rateAfterCorrect(currentRate: word.learningRate, mode: mode)
+            nextRate = LearningRate.rateAfterCorrect(currentRate: word.learningRate, stage: stage)
         } else {
             nextRate = LearningRate.rateAfterWrong(
                 currentRate: word.learningRate,

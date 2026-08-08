@@ -30,6 +30,24 @@ enum QuizMode: String, CaseIterable, Identifiable, Sendable {
         case .flashcard: return "rectangle.on.rectangle"
         }
     }
+
+    /// 학습률 가중치는 복합 퀴즈의 단계 기준으로만 정의돼 있다.
+    /// 단독 모드도 같은 표를 쓰도록 대응하는 단계로 옮긴다.
+    var stage: AdaptiveStage {
+        switch self {
+        case .multipleChoice: return .multiple
+        case .shortAnswer: return .shortEnKo
+        case .flashcard: return .flashcard
+        }
+    }
+}
+
+/// 주관식 출제 방향. 웹 `ShortAnswerQuiz`의 `direction` prop과 같다.
+enum ShortAnswerDirection: Sendable {
+    /// 영어 단어를 보여주고 한국어 뜻을 받는다 (기본).
+    case enToKo
+    /// 한국어 뜻을 보여주고 영어 단어를 받는다.
+    case koToEn
 }
 
 /// 객관식 한 문제.
@@ -69,7 +87,7 @@ final class QuizSession {
         self.questions = Array(pool.shuffled().prefix(max(1, questionCount)))
 
         if mode == .multipleChoice {
-            choices = Self.buildChoices(for: questions, pool: pool)
+            choices = QuizChoiceBuilder.build(for: questions, pool: pool)
         }
     }
 
@@ -117,13 +135,25 @@ final class QuizSession {
     ///
     /// 웹 기본 방향(en-ko)과 같이 **한국어 뜻**을 정답으로 본다.
     /// 정규화·쉼표 후보·오타 허용 규칙은 `ShortAnswerGrading`이 웹과 동일하게 처리한다.
-    nonisolated static func isShortAnswerCorrect(_ given: String, for word: Word) -> Bool {
-        ShortAnswerGrading.grade(given, against: word.primaryMeaning).isCorrect
+    nonisolated static func isShortAnswerCorrect(
+        _ given: String,
+        for word: Word,
+        direction: ShortAnswerDirection = .enToKo
+    ) -> Bool {
+        ShortAnswerGrading.grade(given, against: answer(for: word, direction: direction)).isCorrect
     }
 
+    /// 방향에 따른 정답 문자열.
+    nonisolated static func answer(for word: Word, direction: ShortAnswerDirection) -> String {
+        direction == .koToEn ? word.word : word.primaryMeaning
+    }
+}
+
+/// 객관식 보기 만들기. 단독 객관식과 복합 퀴즈의 객관식 단계가 함께 쓴다.
+enum QuizChoiceBuilder {
     /// 오답 보기는 같은 단어장 안의 다른 뜻에서 뽑는다. 후보가 모자라면
     /// 가능한 만큼만 넣어 문제 자체가 사라지지 않게 한다.
-    private nonisolated static func buildChoices(for questions: [Word], pool: [Word]) -> [Int: [String]] {
+    static func build(for questions: [Word], pool: [Word]) -> [Int: [String]] {
         var result: [Int: [String]] = [:]
 
         for word in questions {

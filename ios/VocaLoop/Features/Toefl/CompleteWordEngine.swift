@@ -147,7 +147,11 @@ enum CompleteWordEngine {
     /// 사용자가 채운 결과를 단어 형태로 복원한다 (오답 리뷰에 쓴다).
     /// 비워둔 칸은 밑줄로 표시해 어디를 못 채웠는지 보이게 한다.
     static func userAnswer(blank: PreparedBlank, input: [String]) -> String {
-        blank.segments.map { segment in
+        userAnswer(segments: blank.segments, input: input)
+    }
+
+    static func userAnswer(segments: [BlankSegment], input: [String]) -> String {
+        segments.map { segment in
             switch segment {
             case let .fixed(char):
                 return String(char)

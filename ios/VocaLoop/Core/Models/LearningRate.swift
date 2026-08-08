@@ -104,18 +104,25 @@ enum LearningRate {
     private static let repeatedWrongPenalty = -10.0
     private static let maxWrongMultiplier = 3
 
-    /// 퀴즈 유형별 보상 가중치.
-    static func weight(for mode: QuizMode) -> Double {
-        switch mode {
-        case .flashcard: return 0.5   // 가벼운 확인
-        case .multipleChoice: return 1.0
-        case .shortAnswer: return 1.4 // 40% 더 높은 보상
+    /// 퀴즈 유형별 보상 가중치. 웹 `QUIZ_TYPE_WEIGHT`와 값이 같아야 한다.
+    static func weight(for stage: AdaptiveStage) -> Double {
+        switch stage {
+        case .flashcard: return 0.5      // 가벼운 확인
+        case .multiple: return 1.0
+        case .shortEnKo, .shortKoEn: return 1.4 // 40% 더 높은 보상
+        case .completeWord: return 1.8   // 80% 더 높은 보상
         }
     }
 
+    static func weight(for mode: QuizMode) -> Double { weight(for: mode.stage) }
+
     /// 정답 시 새 학습률.
+    static func rateAfterCorrect(currentRate: Int, stage: AdaptiveStage) -> Int {
+        clamp(Double(currentRate) + baseCorrectGain * weight(for: stage))
+    }
+
     static func rateAfterCorrect(currentRate: Int, mode: QuizMode) -> Int {
-        clamp(Double(currentRate) + baseCorrectGain * weight(for: mode))
+        rateAfterCorrect(currentRate: currentRate, stage: mode.stage)
     }
 
     /// 오답 시 새 학습률. 반복해서 틀릴수록 더 크게 깎인다.
