@@ -185,14 +185,15 @@ enum ToeflDifficulty: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// 웹 `getToeflDifficultyPrompt`. 문구를 바꾸면 같은 난이도라도 다른 지문이 나온다.
     var promptLine: String {
         switch self {
         case .beginner:
-            return "Target TOEFL score band 60-79. Use accessible academic vocabulary and shorter sentences."
+            return "Difficulty level: beginner. Use clear, short contexts, direct wording, and mostly literal questions."
         case .intermediate:
-            return "Target TOEFL score band 80-99. Use standard academic vocabulary and moderate sentence complexity."
+            return "Difficulty level: intermediate. Use standard TOEFL-like contexts with moderate vocabulary and a balanced mix of detail and inference."
         case .advanced:
-            return "Target TOEFL score band 100-120. Use sophisticated academic vocabulary and complex sentence structures."
+            return "Difficulty level: advanced. Use denser language and harder inference, rhetoric, and vocabulary-in-context questions without making the task convoluted."
         }
     }
 }

@@ -77,16 +77,14 @@ enum QuizModeRegistry {
             title: "Read in Daily Life",
             detail: "이메일, 공지, 일정표 등 실생활 텍스트에서 목적과 세부 정보를 빠르게 파악합니다.",
             symbolName: "book",
-            accent: .brand,
-            comingSoon: true
+            accent: .brand
         ),
         QuizModeInfo(
             id: "toefl-academic-passage",
             title: "Read an Academic Passage",
             detail: "학술 지문을 읽고 중심 생각, 추론, 어휘 맥락, 수사적 관계를 풉니다.",
             symbolName: "bolt.fill",
-            accent: .accent,
-            comingSoon: true
+            accent: .accent
         ),
     ]
 

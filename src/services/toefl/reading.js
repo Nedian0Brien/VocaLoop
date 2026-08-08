@@ -197,6 +197,9 @@ Create one ${spec.stimulus} (${spec.length}) and ${generatedQuestionCount} multi
 Question types to cover: ${spec.questionTypes}.
 The "questions" array must contain exactly ${generatedQuestionCount} items, all answerable from that one stimulus.
 ${taskType === 'academic-passage' ? ACADEMIC_PASSAGE_BLUEPRINT : ''}
+ANSWER KEY REQUIREMENTS:
+- Spread the correct answers across different option positions. Do not put the correct option at the same index in every question.
+
 ${vocabBlock}${topicBlock}
 PERSONALIZATION:
 - If learner vocabulary is provided, weave several words naturally into the text or answer explanations.

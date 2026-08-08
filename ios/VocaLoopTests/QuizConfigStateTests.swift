@@ -192,7 +192,11 @@ struct QuizModeRegistryTests {
     @Test("퀴즈 화면이 있는 모드만 열린다")
     func onlyImplementedModesOpen() {
         let playable = QuizModeRegistry.all.filter { !$0.comingSoon }.map(\.id)
-        #expect(playable == ["mixed", "multiple", "short", "toefl-complete", "toefl-build"])
+        #expect(playable == [
+            "mixed", "multiple", "short",
+            "toefl-complete", "toefl-daily-life", "toefl-academic-passage",
+            "toefl-build",
+        ])
     }
 
     @Test("제목으로 모드를 되찾을 수 있다 (최근 활동 재실행)")
