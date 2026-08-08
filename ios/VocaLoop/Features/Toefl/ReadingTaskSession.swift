@@ -148,19 +148,18 @@ final class ReadingTaskSession {
         assetID = saved?.id
     }
 
-    func select(_ optionIndex: Int) {
-        guard phase == .solving, selections.indices.contains(index) else { return }
-        selections[index] = optionIndex
+    /// 보기를 고른다.
+    ///
+    /// 좌우로 넘기는 화면에서는 살짝 걸쳐 보이는 옆 문항도 누를 수 있어서, 어느
+    /// 문항에 대한 선택인지 명시로 받는다.
+    func select(_ optionIndex: Int, at questionIndex: Int) {
+        guard phase == .solving, selections.indices.contains(questionIndex) else { return }
+        selections[questionIndex] = optionIndex
     }
 
     func navigate(to next: Int) {
         guard questions.indices.contains(next) else { return }
         index = next
-    }
-
-    func goToNextQuestion() {
-        guard currentSelection != nil else { return }
-        navigate(to: index + 1)
     }
 
     /// 모든 문항을 푼 뒤에만 채점할 수 있다.

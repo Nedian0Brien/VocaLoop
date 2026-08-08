@@ -53,30 +53,27 @@ struct ReadingTaskQuizView: View {
 
     // MARK: - 푸는 화면
 
+    /// 지문과 문항을 좌우 쪽으로 나눈다. 지문은 하나뿐이라 문항을 넘겨도 그대로 둔다.
     private var solvingState: some View {
-        ScrollView {
+        ToeflReadingPager(
+            questionCount: session.total,
+            questionIndex: Binding(
+                get: { session.index },
+                set: { session.navigate(to: $0) }
+            ),
+            answered: { session.selections[safe: $0].flatMap { $0 } != nil },
+            result: { session.result(at: $0) }
+        ) {
             VStack(alignment: .leading, spacing: 24) {
                 headerRow
                 stimulusCard
-
-                ToeflQuestionNavigator(
-                    total: session.total,
-                    currentIndex: session.index,
-                    answered: { session.selections.indices.contains($0) && session.selections[$0] != nil },
-                    result: { session.result(at: $0) },
-                    isChecked: session.isChecked,
-                    onNavigate: { session.navigate(to: $0) }
-                )
-
-                if let question = session.currentQuestion {
-                    questionSection(question)
-                }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
+        } question: { index in
+            // 문항 진행은 맨 위 칩 줄이 대신하므로 여기서는 문항만 보여준다.
+            if let question = session.questions[safe: index] {
+                questionSection(question, at: index)
+            }
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 
     private var headerRow: some View {
@@ -149,7 +146,7 @@ struct ReadingTaskQuizView: View {
 
     // MARK: - 문항
 
-    private func questionSection(_ question: ReadingQuestion) -> some View {
+    private func questionSection(_ question: ReadingQuestion, at index: Int) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(question.skillTag.uppercased())
@@ -166,30 +163,40 @@ struct ReadingTaskQuizView: View {
             }
 
             VStack(spacing: 12) {
-                ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
-                    optionButton(question: question, index: index, text: option)
+                ForEach(Array(question.options.enumerated()), id: \.offset) { optionIndex, option in
+                    optionButton(
+                        question: question,
+                        questionIndex: index,
+                        optionIndex: optionIndex,
+                        text: option
+                    )
                 }
             }
 
             if session.isChecked {
-                explanationCard(question)
+                explanationCard(question, at: index)
             }
 
-            footer
+            footer(at: index)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func optionButton(question: ReadingQuestion, index: Int, text: String) -> some View {
-        let selected = session.currentSelection == index
-        let isAnswer = session.isChecked && index == question.answerIndex
+    private func optionButton(
+        question: ReadingQuestion,
+        questionIndex: Int,
+        optionIndex: Int,
+        text: String
+    ) -> some View {
+        let selected = session.selections[safe: questionIndex].flatMap { $0 } == optionIndex
+        let isAnswer = session.isChecked && optionIndex == question.answerIndex
         let isWrong = session.isChecked && selected && !isAnswer
 
         return Button {
-            session.select(index)
+            session.select(optionIndex, at: questionIndex)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                Text(ToeflReadingReport.optionLabels[safe: index] ?? "\(index + 1)")
+                Text(ToeflReadingReport.optionLabels[safe: optionIndex] ?? "\(optionIndex + 1)")
                     .font(.system(size: 12, weight: .black))
                     .frame(width: 24, height: 24)
                     .background(labelBackground(isAnswer: isAnswer, isWrong: isWrong, selected: selected), in: .circle)
@@ -248,8 +255,8 @@ struct ReadingTaskQuizView: View {
         return selected ? DS.Solid.brand : DS.Surface.level100
     }
 
-    private func explanationCard(_ question: ReadingQuestion) -> some View {
-        let correct = session.result(at: session.index) == true
+    private func explanationCard(_ question: ReadingQuestion, at index: Int) -> some View {
+        let correct = session.result(at: index) == true
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -278,7 +285,7 @@ struct ReadingTaskQuizView: View {
     }
 
     /// 안내 문구와 진행 버튼. 웹과 같은 문장을 쓴다.
-    private var footer: some View {
+    private func footer(at index: Int) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(footerHint)
                 .font(.system(size: 14, weight: .bold))
@@ -289,10 +296,10 @@ struct ReadingTaskQuizView: View {
             if session.isChecked {
                 Button("리포트 보기") { session.showReport() }
                     .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
-            } else if session.index < session.total - 1 {
-                Button("다음 문항") { session.goToNextQuestion() }
+            } else if index < session.total - 1 {
+                Button("다음 문항") { session.navigate(to: index + 1) }
                     .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))
-                    .disabled(session.currentSelection == nil)
+                    .disabled(session.selections[safe: index].flatMap { $0 } == nil)
             } else {
                 Button("정답 확인") { session.check() }
                     .buttonStyle(.ds(.primary, size: .lg, fullWidth: true))

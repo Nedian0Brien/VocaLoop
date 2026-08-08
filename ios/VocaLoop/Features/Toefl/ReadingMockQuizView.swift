@@ -63,21 +63,27 @@ struct ReadingMockQuizView: View {
 
     // MARK: - 푸는 화면
 
+    /// 지문과 문항을 좌우로 나눈다. 문항마다 지문이 다르므로 다음 문항으로 넘어가면
+    /// 새 지문부터 다시 보여준다.
     private var solvingState: some View {
-        ScrollView {
+        ToeflReadingPager(
+            questionCount: 1,
+            // 모의고사는 한 문항씩 바로 채점하므로 좌우로 넘길 문항이 없다.
+            questionIndex: .constant(0),
+            passageResetID: AnyHashable("\(session.stage)-\(session.index)")
+        ) {
             VStack(alignment: .leading, spacing: 24) {
                 headerRow
 
                 if let item = session.currentItem {
                     stimulusCard(item)
-                    questionSection(item)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
+        } question: { _ in
+            if let item = session.currentItem {
+                questionSection(item)
+            }
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 
     private var headerRow: some View {
