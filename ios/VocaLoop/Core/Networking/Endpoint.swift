@@ -15,6 +15,16 @@ struct Endpoint: Sendable {
     var queryItems: [URLQueryItem] = []
     var body: Data?
 
+    /// 요청 타임아웃(초). 기본은 URLSession 기본값과 같은 60초다.
+    ///
+    /// AI 생성은 서버에서 Codex CLI를 돌리느라 오래 걸린다. 백엔드는
+    /// `CODEX_CLI_TIMEOUT_SECONDS`(운영 180초)까지 기다리므로, 앱이 60초에
+    /// 끊으면 서버가 정상 작업 중인데도 실패로 보인다.
+    var timeout: TimeInterval = 60
+
+    /// AI 생성용 타임아웃. 백엔드 상한(180초)보다 조금 여유를 둔다.
+    static let aiTimeout: TimeInterval = 200
+
     func url(relativeTo baseURL: URL) -> URL {
         var components = URLComponents(
             url: baseURL.appending(path: path),
@@ -32,13 +42,15 @@ struct Endpoint: Sendable {
         _ path: String,
         method: Method,
         body: some Encodable,
-        queryItems: [URLQueryItem] = []
+        queryItems: [URLQueryItem] = [],
+        timeout: TimeInterval = 60
     ) throws -> Endpoint {
         Endpoint(
             path: path,
             method: method,
             queryItems: queryItems,
-            body: try JSONCoding.encoder.encode(body)
+            body: try JSONCoding.encoder.encode(body),
+            timeout: timeout
         )
     }
 }

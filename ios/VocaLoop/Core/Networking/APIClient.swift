@@ -40,6 +40,7 @@ actor APIClient {
     private func perform(_ endpoint: Endpoint) async throws -> Data {
         var request = URLRequest(url: endpoint.url(relativeTo: baseURL))
         request.httpMethod = endpoint.method.rawValue
+        request.timeoutInterval = endpoint.timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(
             AppEnvironment.clientHeaderValue,

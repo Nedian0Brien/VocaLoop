@@ -38,7 +38,9 @@ struct CompleteWordService: Sendable {
                 model: WordAnalysisService.defaultModel,
                 prompt: prompt(for: request),
                 jsonOutput: true
-            )
+            ),
+            // AI 생성은 서버에서 Codex CLI를 돌려 오래 걸린다.
+            timeout: Endpoint.aiTimeout
         )
 
         let response = try await api.send(endpoint, as: GenerateResponse.self)
