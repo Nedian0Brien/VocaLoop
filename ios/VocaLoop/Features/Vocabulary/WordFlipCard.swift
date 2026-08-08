@@ -65,10 +65,11 @@ struct WordFlipCard: View {
     }
 
     var body: some View {
-        ZStack {
-            if isFlipped { back } else { front }
+        FlipFaces(angle: isFlipped ? 180 : 0) {
+            front
+        } back: {
+            back
         }
-        .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .contentShape(.rect(cornerRadius: Metrics.radius))
         .onTapGesture {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
@@ -233,8 +234,6 @@ struct WordFlipCard: View {
                 .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
         )
         .dsShadow(.soft)
-        // 카드가 뒤집히면 내용도 반전되므로 되돌려 글자를 바로 세운다.
-        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
     }
 
     private var backHeader: some View {
@@ -398,6 +397,38 @@ struct WordFlipCard: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// 앞뒤를 3D로 뒤집는다. 각도를 직접 애니메이션해서 90도를 넘는 순간 면이 바뀐다.
+///
+/// `if isFlipped { back } else { front }`에 애니메이션을 걸면 SwiftUI가 두 면을
+/// 겹쳐 두고 한쪽을 서서히 지운다. 그 구간에서는 양쪽 다 반투명이라 카드 너머
+/// 배경이 비쳐 보인다. 각도로 잘라야 그런 구간이 아예 생기지 않는다.
+///
+/// 앞뒤 높이가 다르므로 두 면을 동시에 두지 않는다. 동시에 두면 카드가 늘 더 큰
+/// 쪽 높이가 된다.
+private struct FlipFaces<Front: View, Back: View>: View, Animatable {
+    var angle: Double
+    @ViewBuilder let front: () -> Front
+    @ViewBuilder let back: () -> Back
+
+    nonisolated var animatableData: Double {
+        get { angle }
+        set { angle = newValue }
+    }
+
+    var body: some View {
+        ZStack {
+            if angle < 90 {
+                front().rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0))
+            } else {
+                // 뒷면은 반 바퀴 돌아온 상태에서 시작해야 글자가 바로 선다.
+                back().rotation3DEffect(.degrees(angle - 180), axis: (x: 0, y: 1, z: 0))
+            }
+        }
+        // 면이 바뀌는 순간은 즉시여야 한다. 페이드가 끼면 다시 비친다.
+        .transaction { $0.animation = nil }
     }
 }
 

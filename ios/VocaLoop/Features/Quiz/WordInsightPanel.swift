@@ -32,20 +32,31 @@ struct WordInsightPanel: View {
                 emptyNote("No definitions.")
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(word.definitions.enumerated()), id: \.offset) { _, definition in
-                        Text(definition)
-                            .font(.system(size: 16, weight: .bold))
-                            .lineSpacing(6)
-                            .foregroundStyle(DS.Surface.level700)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.leading, 12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            // 웹은 왼쪽에 brand-200 2px 선을 세운다.
-                            .overlay(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.adaptive(light: 0xBFDBFE, dark: 0x2563EB, darkAlpha: 0.5))
-                                    .frame(width: 2)
+                    ForEach(Array(word.definitions.enumerated()), id: \.offset) { index, definition in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(definition)
+                                .font(.system(size: 16, weight: .bold))
+                                .lineSpacing(6)
+                                .foregroundStyle(DS.Surface.level700)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            // 영어 정의만 있으면 읽다 말게 된다. 같은 순서의 한국어 해석을 붙인다.
+                            if let korean = word.definitionsKo[safe: index], !korean.isEmpty {
+                                Text(korean)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .lineSpacing(4)
+                                    .foregroundStyle(DS.Surface.level500)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
+                        }
+                        .padding(.leading, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // 웹은 왼쪽에 brand-200 2px 선을 세운다.
+                        .overlay(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.adaptive(light: 0xBFDBFE, dark: 0x2563EB, darkAlpha: 0.5))
+                                .frame(width: 2)
+                        }
                     }
                 }
             }
