@@ -72,6 +72,8 @@ final class QuizSession {
     }
 
     let mode: QuizMode
+    /// 설정에서 AI 모드를 켰는지. 문제 화면이 AI 채점·AI 보기를 쓸지 정한다.
+    let aiMode: Bool
     private(set) var questions: [Word]
     private(set) var index = 0
     private(set) var answers: [Answer] = []
@@ -81,8 +83,9 @@ final class QuizSession {
     /// 흔들리므로 세션 생성 시 한 번만 만들어 고정한다.
     private(set) var choices: [Int: [String]] = [:]
 
-    init(mode: QuizMode, words: [Word], questionCount: Int) {
+    init(mode: QuizMode, words: [Word], questionCount: Int, aiMode: Bool = false) {
         self.mode = mode
+        self.aiMode = aiMode
         let pool = words.filter { !$0.primaryMeaning.isEmpty }
         // 웹 `startQuiz`와 같이 학습률이 낮은 단어부터 채운다. 무작위로 뽑으면
         // 약한 단어가 빠져 학습 효과가 떨어진다.
@@ -144,7 +147,11 @@ final class QuizSession {
         for word: Word,
         direction: ShortAnswerDirection = .enToKo
     ) -> Bool {
-        ShortAnswerGrading.grade(given, against: answer(for: word, direction: direction)).isCorrect
+        ShortAnswerGrading.grade(
+            given,
+            against: answer(for: word, direction: direction),
+            direction: direction
+        ).isCorrect
     }
 
     /// 방향에 따른 정답 문자열.

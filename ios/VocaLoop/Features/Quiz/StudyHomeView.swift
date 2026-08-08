@@ -411,7 +411,7 @@ struct StudyHomeView: View {
 
             Text(
                 goalProgress >= 100
-                    ? "이번 주 목표를 달성했어요! 🎉"
+                    ? "이번 주 목표를 달성했어요!"
                     : "이번 주 목표의 \(Int(goalProgress.rounded()))%를 달성했습니다. 조금만 더 힘내세요."
             )
             .font(.system(size: 10, weight: .bold))
@@ -572,19 +572,22 @@ struct StudyHomeView: View {
             mixedSession = MixedQuizSession(
                 words: launch.words,
                 stages: launch.stages,
-                setSize: launch.studySetSize
+                setSize: launch.studySetSize,
+                aiMode: launch.aiMode
             )
         case "multiple":
             session = QuizSession(
                 mode: .multipleChoice,
                 words: launch.words,
-                questionCount: launch.questionCount
+                questionCount: launch.questionCount,
+                aiMode: launch.aiMode
             )
         case "short":
             session = QuizSession(
                 mode: .shortAnswer,
                 words: launch.words,
-                questionCount: launch.questionCount
+                questionCount: launch.questionCount,
+                aiMode: launch.aiMode
             )
         case "toefl-complete":
             completeWordSession = CompleteWordSession(

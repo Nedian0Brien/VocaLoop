@@ -180,10 +180,10 @@ enum ResultGrade {
 
     var message: String {
         switch self {
-        case .excellent: return "완벽한 마스터! 🎉"
-        case .great: return "훌륭한 실력이에요! 👏"
-        case .good: return "잘 해내셨어요! 💪"
-        case .practice: return "좋은 시도였어요! 🔥"
+        case .excellent: return "완벽한 마스터!"
+        case .great: return "훌륭한 실력이에요!"
+        case .good: return "잘 해내셨어요!"
+        case .practice: return "좋은 시도였어요!"
         }
     }
 

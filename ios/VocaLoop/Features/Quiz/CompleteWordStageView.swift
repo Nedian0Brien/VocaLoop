@@ -46,8 +46,8 @@ struct CompleteWordStageView: View {
             if isAnswered {
                 QuizVerdictBanner(
                     isCorrect: isCorrect,
-                    title: isCorrect ? "Correct! 🎉" : "Try Again Soon 📚",
-                    detail: isCorrect ? "가장 어려운 단계를 통과했어요." : "정답은 \(answer) 입니다."
+                    title: isCorrect ? "Correct!" : "Try Again Soon",
+                    detail: verdictDetail
                 )
                 .padding(.bottom, 24)
 
@@ -191,6 +191,20 @@ struct CompleteWordStageView: View {
     }
 
     // MARK: - 채점 후 정보
+
+    private var verdictDetail: Text {
+        if isCorrect {
+            return Text("가장 어려운 단계를 통과했어요.")
+                .foregroundStyle(DS.BrandText.success.opacity(0.75))
+        }
+        return Text("정답은 ")
+            .foregroundStyle(DS.BrandText.danger.opacity(0.75))
+            + Text(answer)
+            .font(.system(size: 16, weight: .black))
+            .foregroundStyle(DS.BrandText.danger)
+            + Text(" 입니다.")
+            .foregroundStyle(DS.BrandText.danger.opacity(0.75))
+    }
 
     private var answerDetail: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -31,7 +31,11 @@ final class MixedQuizSession {
     /// 오답 보기 후보. 전체 단어에서 뽑아야 보기가 빈약해지지 않는다.
     private let pool: [Word]
 
-    init(words: [Word], stages: [AdaptiveStage], setSize: Int) {
+    /// 설정에서 AI 모드를 켰는지.
+    let aiMode: Bool
+
+    init(words: [Word], stages: [AdaptiveStage], setSize: Int, aiMode: Bool = false) {
+        self.aiMode = aiMode
         let usable = words.filter { !$0.primaryMeaning.isEmpty }
         // 웹 `startQuiz`와 같이 학습률이 낮은 단어부터 내보낸다.
         let ordered = LearningRate.sortedByRate(usable)

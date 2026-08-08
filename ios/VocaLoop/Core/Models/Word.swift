@@ -15,6 +15,11 @@ struct Word: Identifiable, Codable, Hashable, Sendable {
     var nuance: String?
     var isFlagged: Bool
     var folderIds: [Int]
+    /// AI 재검토로 인정받은 표현. 다음 채점부터 정답 후보로 쓴다.
+    ///
+    /// 옵셔널인 이유는 Swift가 합성하는 `init(from:)`이 기본값을 무시하고 키를 반드시
+    /// 찾기 때문이다. 이 필드가 없던 시절의 응답도 읽을 수 있어야 한다.
+    var acceptedAnswers: [AcceptedAnswer]?
     var learningRate: Int
     var status: ServerStatus
     var stats: WordStats
@@ -66,5 +71,11 @@ extension Word {
 
     var hasPronunciation: Bool {
         !(pronunciation ?? "").isEmpty
+    }
+
+    /// 주어진 주관식 방향에서 정답으로 인정된 표현들.
+    func acceptedAnswers(for direction: ShortAnswerDirection) -> [String] {
+        let mode = AcceptedAnswer.mode(for: direction)
+        return (acceptedAnswers ?? []).filter { $0.mode == mode }.map(\.answer)
     }
 }

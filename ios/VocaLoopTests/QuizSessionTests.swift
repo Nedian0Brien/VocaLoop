@@ -86,6 +86,62 @@ struct ShortAnswerGradingTests {
         #expect(!ShortAnswerGrading.grade("행운", against: "뜻밖의 행운").isCorrect)
     }
 
+    @Test("한→영은 철자가 정확해야 정답이다")
+    func koToEnRequiresExactSpelling() {
+        // 철자를 묻는 문제라 웹은 유사도를 허용하지 않는다.
+        #expect(QuizSession.isShortAnswerCorrect("Serendipity", for: word, direction: .koToEn))
+        #expect(QuizSession.isShortAnswerCorrect("serendipity", for: word, direction: .koToEn))
+        #expect(!QuizSession.isShortAnswerCorrect("serendipty", for: word, direction: .koToEn))
+        #expect(!QuizSession.isShortAnswerCorrect("뜻밖의 행운", for: word, direction: .koToEn))
+    }
+
+    @Test("영→한은 오타를 감안해 유사도로 본다")
+    func enToKoAllowsTypos() {
+        // 같은 오타를 한→영에서는 받아주지 않는다.
+        #expect(ShortAnswerGrading.grade("뜻밖의 행복", against: "뜻밖의 행운").isCorrect)
+        #expect(
+            !ShortAnswerGrading.grade(
+                "뜻밖의 행복",
+                against: "뜻밖의 행운",
+                direction: .koToEn
+            ).isCorrect
+        )
+    }
+
+    @Test("여러 개를 적으면 인정되지 않은 조각을 돌려준다")
+    func reportsUnmatchedAnswers() {
+        let result = ShortAnswerGrading.grade(
+            "우연한 발견, 완전히 다른 뜻",
+            against: "뜻밖의 행운, 우연한 발견"
+        )
+
+        #expect(result.isCorrect, "하나라도 맞으면 정답이다")
+        #expect(result.matchedAnswers == ["우연한 발견"])
+        #expect(result.unmatchedAnswers == ["완전히 다른 뜻"])
+    }
+
+    @Test("전부 틀리면 적은 조각이 모두 남는다")
+    func reportsAllUnmatchedWhenWrong() {
+        let result = ShortAnswerGrading.grade("사과, 바나나", against: "뜻밖의 행운")
+
+        #expect(!result.isCorrect)
+        #expect(result.matchedAnswers.isEmpty)
+        #expect(result.unmatchedAnswers == ["사과", "바나나"])
+    }
+
+    @Test("AI 재검토로 인정된 표현은 다음 채점부터 정답이다")
+    func honorsAcceptedAnswers() {
+        let plain = ShortAnswerGrading.grade("행운", against: "뜻밖의 행운")
+        #expect(!plain.isCorrect)
+
+        let accepted = ShortAnswerGrading.grade(
+            "행운",
+            against: "뜻밖의 행운",
+            acceptedAnswers: ["행운"]
+        )
+        #expect(accepted.isCorrect)
+    }
+
     @Test("Levenshtein 거리 계산이 맞다")
     func computesLevenshtein() {
         #expect(ShortAnswerGrading.levenshteinDistance("kitten", "sitting") == 3)

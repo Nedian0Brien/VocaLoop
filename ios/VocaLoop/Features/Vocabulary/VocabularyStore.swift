@@ -106,6 +106,74 @@ final class VocabularyStore {
         ])
     }
 
+    /// AI 재검토로 인정된 답을 단어에 저장한다 (웹 `buildAcceptedAnswerPatch`).
+    ///
+    /// 영→한이면 뜻 목록에도 덧붙인다. 그래야 다음부터는 AI 없이 로컬 채점만으로도
+    /// 같은 답이 정답으로 인정된다.
+    func saveAcceptedAnswer(
+        for word: Word,
+        answer: String,
+        direction: ShortAnswerDirection,
+        feedback: String?
+    ) async {
+        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let mode = AcceptedAnswer.mode(for: direction)
+        let existingAnswers = word.acceptedAnswers ?? []
+        let alreadySaved = existingAnswers.contains {
+            $0.mode == mode && $0.answer.caseInsensitiveCompare(trimmed) == .orderedSame
+        }
+
+        let nextMeaning = meaningAdding(trimmed, to: word, direction: direction)
+        let shouldUpdateMeaning = nextMeaning != (word.meaningKo ?? "")
+
+        guard !alreadySaved || shouldUpdateMeaning else { return }
+
+        var body: [String: Any] = [:]
+        if shouldUpdateMeaning {
+            body["meaning_ko"] = nextMeaning
+        }
+        if !alreadySaved {
+            let existing = existingAnswers.map {
+                [
+                    "mode": $0.mode,
+                    "answer": $0.answer,
+                    "source": $0.source,
+                    "feedback": $0.feedback as Any,
+                ] as [String: Any]
+            }
+            body["accepted_answers"] = existing + [[
+                "mode": mode,
+                "answer": trimmed,
+                "source": "ai-review",
+                "feedback": feedback as Any,
+            ] as [String: Any]]
+        }
+
+        await patch(word, body: body)
+    }
+
+    /// 영→한에서만 뜻 목록에 덧붙인다. 한→영은 정답이 영어 단어라 뜻을 건드리면 안 된다.
+    private func meaningAdding(
+        _ answer: String,
+        to word: Word,
+        direction: ShortAnswerDirection
+    ) -> String {
+        let current = word.meaningKo ?? ""
+        guard direction == .enToKo else { return current }
+
+        let items = current
+            .split(whereSeparator: { $0 == "," || $0 == "，" })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !items.contains(where: { $0.caseInsensitiveCompare(answer) == .orderedSame }) else {
+            return current.isEmpty ? answer : current
+        }
+        return (items + [answer]).joined(separator: ", ")
+    }
+
     private func patch(_ word: Word, body: [String: Any]) async {
         do {
             let data = try JSONSerialization.data(withJSONObject: body)

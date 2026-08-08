@@ -62,10 +62,25 @@ struct QuizContainerView: View {
                     MultipleChoiceQuizView(
                         word: word,
                         choices: session.currentChoices,
+                        aiMode: session.aiMode,
+                        grader: AiQuizGrader(api: appState.api),
                         onAnswer: record
                     )
                 case .shortAnswer:
-                    ShortAnswerQuizView(word: word, onAnswer: record)
+                    ShortAnswerQuizView(
+                        word: word,
+                        aiMode: session.aiMode,
+                        grader: AiQuizGrader(api: appState.api),
+                        onAcceptAnswer: { accepted, feedback in
+                            await appState.vocabulary?.saveAcceptedAnswer(
+                                for: word,
+                                answer: accepted,
+                                direction: .enToKo,
+                                feedback: feedback
+                            )
+                        },
+                        onAnswer: record
+                    )
                 case .flashcard:
                     FlashcardQuizView(word: word, onAnswer: record)
                 }

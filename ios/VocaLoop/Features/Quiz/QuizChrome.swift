@@ -182,7 +182,12 @@ struct QuizIntroHeader: View {
 struct QuizWordHeader: View {
     let word: Word
     let modeLabel: String
+    /// 한→영처럼 단어 대신 **뜻**을 세워야 할 때 쓴다.
+    /// 웹과 같이 세리프를 쓰지 않고 발음과 발음 버튼도 숨긴다 — 정답을 알려주는 셈이라서다.
+    var promptOverride: String?
     var onSpeak: () -> Void
+
+    private var showsWord: Bool { promptOverride == nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -191,34 +196,44 @@ struct QuizWordHeader: View {
             Spacer(minLength: 12)
 
             HStack(alignment: .center, spacing: 12) {
-                Text(word.word)
-                    .font(.merriweather(size: 36, weight: .black))
-                    .tracking(-0.9)
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
+                if let promptOverride {
+                    Text(promptOverride)
+                        .font(.system(size: 30, weight: .black))
+                        .tracking(-0.75)
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(word.word)
+                        .font(.merriweather(size: 36, weight: .black))
+                        .tracking(-0.9)
+                        .foregroundStyle(.white)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                }
 
                 Spacer(minLength: 0)
 
-                Button(action: onSpeak) {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(.white.opacity(0.05), in: .rect(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
-                        )
+                if showsWord {
+                    Button(action: onSpeak) {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.white.opacity(0.05), in: .rect(cornerRadius: 16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(word.word) 발음 듣기")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(word.word) 발음 듣기")
             }
 
             Spacer(minLength: 12)
 
             HStack(spacing: 12) {
-                if word.hasPronunciation {
+                if showsWord, word.hasPronunciation {
                     Text(word.pronunciation ?? "")
                         .font(.merriweatherItalic(size: 18))
                         // 측정: brand-200 50%
@@ -308,14 +323,68 @@ struct QuizCardShell<Header: View, Content: View>: View {
 struct QuizCard<Content: View>: View {
     let word: Word
     let modeLabel: String
+    var promptOverride: String?
     var onSpeak: () -> Void
     @ViewBuilder var content: Content
 
     var body: some View {
         QuizCardShell {
-            QuizWordHeader(word: word, modeLabel: modeLabel, onSpeak: onSpeak)
+            QuizWordHeader(
+                word: word,
+                modeLabel: modeLabel,
+                promptOverride: promptOverride,
+                onSpeak: onSpeak
+            )
         } content: {
             content
         }
+    }
+}
+
+/// 채점 결과 배너 — 아이콘 사각형(56) + 제목 + 부연 한 줄.
+/// 객관식·주관식·단어 완성이 함께 쓴다.
+struct QuizVerdictBanner: View {
+    let isCorrect: Bool
+    let title: String
+    /// 부연은 정답 단어를 굵게 강조해야 해서 밖에서 만들어 넘긴다.
+    let detail: Text
+
+    var body: some View {
+        HStack(spacing: 20) {
+            Image(systemName: isCorrect ? "checkmark" : "xmark")
+                .font(.system(size: 24, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(
+                    isCorrect ? DS.Solid.success : DS.Solid.danger,
+                    in: .rect(cornerRadius: DS.Radius.lg)
+                )
+                .dsShadow(.card)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 20, weight: .black))
+                    .tracking(-0.5)
+                detail
+                    .font(.system(size: 16, weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(isCorrect ? DS.BrandText.success : DS.BrandText.danger)
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            isCorrect ? DS.Wash.success : DS.Wash.danger,
+            in: .rect(cornerRadius: DS.Radius.xl)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.xl).strokeBorder(
+                (isCorrect ? DS.Solid.success : DS.Solid.danger).opacity(0.25),
+                lineWidth: 2
+            )
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.97)))
     }
 }

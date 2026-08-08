@@ -97,12 +97,26 @@ struct MixedQuizContainerView: View {
                     MultipleChoiceQuizView(
                         word: word,
                         choices: session.currentChoices,
+                        aiMode: session.aiMode,
+                        grader: AiQuizGrader(api: appState.api),
                         onAnswer: record
                     )
-                case .shortEnKo:
-                    ShortAnswerQuizView(word: word, direction: .enToKo, onAnswer: record)
-                case .shortKoEn:
-                    ShortAnswerQuizView(word: word, direction: .koToEn, onAnswer: record)
+                case .shortEnKo, .shortKoEn:
+                    ShortAnswerQuizView(
+                        word: word,
+                        direction: stage == .shortKoEn ? .koToEn : .enToKo,
+                        aiMode: session.aiMode,
+                        grader: AiQuizGrader(api: appState.api),
+                        onAcceptAnswer: { accepted, feedback in
+                            await appState.vocabulary?.saveAcceptedAnswer(
+                                for: word,
+                                answer: accepted,
+                                direction: stage == .shortKoEn ? .koToEn : .enToKo,
+                                feedback: feedback
+                            )
+                        },
+                        onAnswer: record
+                    )
                 case .completeWord:
                     CompleteWordStageView(word: word, onAnswer: record)
                 }
