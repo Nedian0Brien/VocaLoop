@@ -136,7 +136,7 @@ struct WordDetailView: View {
                 ForEach(Array(current.examples.enumerated()), id: \.offset) { _, example in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(example.en)
-                            .font(.system(size: 16, weight: .medium, design: .serif))
+                            .font(.merriweather(size: 16, weight: .medium))
                             .foregroundStyle(DS.Surface.level800)
                         Text(example.ko)
                             .font(DS.Font.meta)

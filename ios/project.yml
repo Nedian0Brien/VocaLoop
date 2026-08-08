@@ -27,6 +27,12 @@ targets:
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         ITSAppUsesNonExemptEncryption: false
+        # 웹이 단어 표시에 쓰는 서체. SIL OFL 1.1 (Resources/Fonts/OFL.txt)
+        # 리소스가 번들 루트로 평탄화되어 복사되므로 파일명만 적는다.
+        UIAppFonts:
+          - Merriweather-Regular.ttf
+          - Merriweather-Bold.ttf
+          - Merriweather-Italic.ttf
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:

@@ -5,9 +5,7 @@ import SwiftUI
 /// 아래 수치는 눈대중이 아니라 실제 웹을 375pt 뷰포트로 렌더링해
 /// `getComputedStyle`/`getBoundingClientRect`로 측정한 값이다.
 /// 값을 바꾸려면 웹을 먼저 바꾸고 다시 측정할 것.
-///
-/// 딱 하나 다른 것: 웹은 단어에 Merriweather를 쓰고 앱은 시스템 serif(New York)를 쓴다.
-/// 폰트 파일을 번들하지 않기 위한 선택이며, 크기·굵기·행간은 측정값 그대로 맞췄다.
+/// 단어에 쓰는 서체도 웹과 같은 Merriweather를 번들해 쓴다 (`SerifFont.swift`).
 struct WordFlipCard: View {
     let word: Word
     var folderName: String?
@@ -98,7 +96,7 @@ struct WordFlipCard: View {
                 }
 
                 Text(word.word)
-                    .font(.system(size: Metrics.wordSize, weight: .bold, design: .serif))
+                    .font(.merriweather(size: Metrics.wordSize, weight: .bold))
                     .lineSpacing(Metrics.wordLineHeight - Metrics.wordSize)
                     .foregroundStyle(DS.Surface.level900)
                     .minimumScaleFactor(0.5)
@@ -109,8 +107,7 @@ struct WordFlipCard: View {
                     if word.hasPronunciation {
                         Button(action: onSpeak) {
                             Text(word.pronunciation ?? "")
-                                .font(.system(size: Metrics.pronSize, design: .serif))
-                                .italic()
+                                .font(.merriweatherItalic(size: Metrics.pronSize))
                                 .foregroundStyle(DS.Surface.level500)
                         }
                         .buttonStyle(.plain)
@@ -244,7 +241,7 @@ struct WordFlipCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text(word.word)
-                    .font(.system(size: Metrics.backWordSize, weight: .bold, design: .serif))
+                    .font(.merriweather(size: Metrics.backWordSize, weight: .bold))
                     .lineSpacing(Metrics.backWordLineHeight - Metrics.backWordSize)
                     .foregroundStyle(DS.Surface.level900)
 

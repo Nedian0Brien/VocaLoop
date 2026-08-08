@@ -192,7 +192,7 @@ struct QuizWordHeader: View {
 
             HStack(alignment: .center, spacing: 12) {
                 Text(word.word)
-                    .font(.system(size: 36, weight: .black, design: .serif))
+                    .font(.merriweather(size: 36, weight: .black))
                     .tracking(-0.9)
                     .foregroundStyle(.white)
                     .minimumScaleFactor(0.5)
@@ -220,8 +220,7 @@ struct QuizWordHeader: View {
             HStack(spacing: 12) {
                 if word.hasPronunciation {
                     Text(word.pronunciation ?? "")
-                        .font(.system(size: 18, design: .serif))
-                        .italic()
+                        .font(.merriweatherItalic(size: 18))
                         // 측정: brand-200 50%
                         .foregroundStyle(Color(hex: 0xBFDBFE).opacity(0.5))
                 }

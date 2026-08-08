@@ -119,7 +119,7 @@ struct ReviewView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(word.word)
-                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .font(.merriweather(size: 16, weight: .bold))
                         .foregroundStyle(DS.Surface.level900)
                     Text(word.primaryMeaning)
                         .font(DS.Font.caption)
