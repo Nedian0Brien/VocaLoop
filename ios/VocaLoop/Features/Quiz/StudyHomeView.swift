@@ -8,6 +8,7 @@ struct StudyHomeView: View {
     @State private var questionCount = 10
     @State private var session: QuizSession?
     @State private var completeWordSession: CompleteWordSession?
+    @State private var buildSentenceSession: BuildSentenceSession?
     @State private var toeflDifficulty: ToeflDifficulty = .intermediate
 
     private var words: [Word] { appState.vocabulary?.words ?? [] }
@@ -51,6 +52,9 @@ struct StudyHomeView: View {
             }
             .fullScreenCover(item: $completeWordSession) { session in
                 CompleteWordQuizView(session: session)
+            }
+            .fullScreenCover(item: $buildSentenceSession) { session in
+                BuildSentenceQuizView(session: session)
             }
         }
     }
@@ -297,7 +301,10 @@ struct StudyHomeView: View {
 
             difficultyPicker.padding(.bottom, 20)
 
-            completeWordCard
+            VStack(spacing: 16) {
+                completeWordCard
+                buildSentenceCard
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -342,7 +349,11 @@ struct StudyHomeView: View {
     }
 
     private var completeWordCard: some View {
-        Button {
+        toeflCard(
+            symbol: "text.word.spacing",
+            title: "Complete the Words",
+            detail: "AI가 만든 학술 지문의 빈칸을 한 글자씩 채웁니다. 앞 글자만 보여주므로 철자까지 익힐 수 있습니다."
+        ) {
             completeWordSession = CompleteWordSession(
                 service: CompleteWordService(api: appState.api),
                 request: CompleteWordService.Request(
@@ -351,10 +362,36 @@ struct StudyHomeView: View {
                     vocabularyWords: Array(availableWords.prefix(20).map(\.word))
                 )
             )
-        } label: {
+        }
+    }
+
+    private var buildSentenceCard: some View {
+        toeflCard(
+            symbol: "arrow.left.arrow.right.square",
+            title: "Build a Sentence",
+            detail: "흩어진 조각을 순서대로 놓아 문장을 완성합니다. 어순과 문법 감각을 기르는 데 좋습니다."
+        ) {
+            buildSentenceSession = BuildSentenceSession(
+                service: BuildSentenceService(api: appState.api),
+                request: BuildSentenceService.Request(
+                    difficulty: toeflDifficulty,
+                    vocabularyWords: Array(availableWords.prefix(20).map(\.word))
+                )
+            )
+        }
+    }
+
+    /// TOEFL 모드 카드. 아이콘·제목·설명만 다르고 나머지는 같다.
+    private func toeflCard(
+        symbol: String,
+        title: String,
+        detail: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Image(systemName: "text.word.spacing")
+                    Image(systemName: symbol)
                         .font(.system(size: 22, weight: .medium))
                         .foregroundStyle(DS.BrandText.accent)
                         .frame(width: 48, height: 48)
@@ -366,13 +403,13 @@ struct StudyHomeView: View {
                 }
                 .padding(.bottom, 16)
 
-                Text("Complete the Words")
+                Text(title)
                     .font(.system(size: 20, weight: .black))
                     .tracking(-0.5)
                     .foregroundStyle(DS.Surface.level900)
                     .padding(.bottom, 8)
 
-                Text("AI가 만든 학술 지문의 빈칸을 한 글자씩 채웁니다. 앞 글자만 보여주므로 철자까지 익힐 수 있습니다.")
+                Text(detail)
                     .font(.system(size: 12, weight: .bold))
                     .lineSpacing(6)
                     .foregroundStyle(DS.Surface.level500.opacity(0.8))

@@ -66,6 +66,25 @@ enum PreviewData {
         stats: WordStats(wrongCount: 2, reviewCount: 8)
     )
 
+    static let buildSentenceQuestions: [BuildSentenceQuestion] = [
+        BuildSentenceQuestion(
+            id: 1,
+            context: "I'm planning a trip to Europe this summer.",
+            sentenceFrame: "_____ _____ book your _____ _____ ?",
+            target: "Did you book your flight yet?",
+            words: ["flight", "Did", "already", "yet", "you"],
+            answer: ["Did", "you", "flight", "yet"]
+        ),
+        BuildSentenceQuestion(
+            id: 2,
+            context: "My roommate asked about the reading assignment.",
+            sentenceFrame: "I haven't _____ _____ yet.",
+            target: "I haven't finished the last chapter yet.",
+            words: ["the last chapter", "finished", "started", "reading"],
+            answer: ["finished", "the last chapter"]
+        ),
+    ]
+
     static let folders: [Folder] = [
         Folder(id: 1, name: "TOEFL", color: "purple", icon: "trophy", order: 0, createdAt: .distantPast, updatedAt: .distantPast),
         Folder(id: 2, name: "수능 필수", color: "green", icon: "book", order: 1, createdAt: .distantPast, updatedAt: .distantPast),
