@@ -57,13 +57,43 @@ struct DSBadge: View {
         case dot
     }
 
+    /// 웹 Badge의 size 스케일. 높이·좌우 패딩·글자 크기가 함께 움직인다.
+    enum Size {
+        case xs, sm, md
+
+        var height: CGFloat {
+            switch self {
+            case .xs: return 20
+            case .sm: return 24
+            case .md: return 28
+            }
+        }
+
+        var horizontalPadding: CGFloat {
+            switch self {
+            case .xs: return 8
+            case .sm: return 10
+            case .md: return 12
+            }
+        }
+
+        var fontSize: CGFloat {
+            self == .md ? 12 : 10
+        }
+
+        var gap: CGFloat {
+            self == .xs ? 4 : 6
+        }
+    }
+
     let text: String
     var tone: Tone = .brand
     var style: Style = .pill
+    var size: Size = .sm
     var systemImage: String?
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: size.gap) {
             if style == .dot {
                 Circle()
                     .fill(tone.dot)
@@ -71,14 +101,15 @@ struct DSBadge: View {
             }
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 9, weight: .black))
+                    .font(.system(size: size.fontSize - 1, weight: .black))
             }
             Text(style == .pill ? text.uppercased() : text)
-                .font(style == .pill ? DS.Font.eyebrow : DS.Font.caption)
-                .tracking(style == .pill ? DS.Tracking.widest : 0)
+                .font(.system(size: size.fontSize, weight: .black))
+                // 웹은 pill에만 tracking-widest(0.1em)를 준다.
+                .tracking(style == .pill ? size.fontSize * 0.1 : 0)
         }
-        .padding(.horizontal, style == .pill ? 9 : 10)
-        .padding(.vertical, 5)
+        .padding(.horizontal, size.horizontalPadding)
+        .frame(height: size.height)
         .background(tone.background, in: .capsule)
         .foregroundStyle(tone.foreground)
         .accessibilityLabel(text)

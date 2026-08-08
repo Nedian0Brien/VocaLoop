@@ -8,6 +8,8 @@ struct MixedQuizContainerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let session: MixedQuizSession
+    /// 최근 활동에 남길 이름. 학습 홈의 모드 카드 제목을 그대로 쓴다.
+    var modeTitle: String = ""
 
     var body: some View {
         NavigationStack {
@@ -22,6 +24,16 @@ struct MixedQuizContainerView: View {
                         wrong: session.wrongCount,
                         onDone: { dismiss() }
                     )
+                    // 웹은 결과 화면에서 기록을 남긴다. 여러 번 남지 않게 화면 진입에만 건다.
+                    .task {
+                        guard !modeTitle.isEmpty else { return }
+                        QuizPreferences.recordQuizResult(
+                            mode: modeTitle,
+                            correct: session.correctCount,
+                            total: session.answeredCount,
+                            at: Date()
+                        )
+                    }
                 } else if session.isAtSetBreak {
                     ScrollView {
                         StudySetBreakCard(

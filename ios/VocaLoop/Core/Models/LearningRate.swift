@@ -138,6 +138,20 @@ enum LearningRate {
         max(0, min(100, Int(rate.rounded())))
     }
 
+    /// 웹 `sortByLearningRate(words, 'asc')` — 학습률이 낮은 단어부터.
+    ///
+    /// 자바스크립트 `sort`는 안정 정렬이라 학습률이 같으면 원래 순서를 지킨다.
+    /// Swift의 `sorted`는 그렇지 않아 색인을 함께 비교해 순서를 고정한다.
+    static func sortedByRate(_ words: [Word]) -> [Word] {
+        words.enumerated()
+            .sorted {
+                $0.element.learningRate == $1.element.learningRate
+                    ? $0.offset < $1.offset
+                    : $0.element.learningRate < $1.element.learningRate
+            }
+            .map(\.element)
+    }
+
     static func interpolate(_ from: UInt32, _ to: UInt32, _ t: Double) -> Color {
         let t = max(0, min(1, t))
         let channel = { (shift: UInt32) -> CGFloat in

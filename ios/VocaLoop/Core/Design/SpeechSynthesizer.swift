@@ -8,6 +8,9 @@ import AVFoundation
 final class SpeechSynthesizer {
     static let shared = SpeechSynthesizer()
 
+    /// 퀴즈 설정의 사운드 스위치. 꺼두면 발음을 읽지 않는다.
+    var isEnabled = true
+
     private let synthesizer = AVSpeechSynthesizer()
 
     private init() {
@@ -16,7 +19,7 @@ final class SpeechSynthesizer {
     }
 
     func speak(_ text: String, language: String = "en-US") {
-        guard !text.isEmpty else { return }
+        guard isEnabled, !text.isEmpty else { return }
 
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)

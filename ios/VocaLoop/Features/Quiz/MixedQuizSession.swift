@@ -34,15 +34,7 @@ final class MixedQuizSession {
     init(words: [Word], stages: [AdaptiveStage], setSize: Int) {
         let usable = words.filter { !$0.primaryMeaning.isEmpty }
         // 웹 `startQuiz`와 같이 학습률이 낮은 단어부터 내보낸다.
-        // 자바스크립트 `sort`는 안정 정렬이라 학습률이 같으면 원래 순서를 지킨다.
-        // Swift의 `sorted`는 그렇지 않아 색인을 함께 비교해 순서를 고정한다.
-        let ordered = usable.enumerated()
-            .sorted {
-                $0.element.learningRate == $1.element.learningRate
-                    ? $0.offset < $1.offset
-                    : $0.element.learningRate < $1.element.learningRate
-            }
-            .map(\.element)
+        let ordered = LearningRate.sortedByRate(usable)
 
         pool = usable
         state = AdaptiveQuizEngine.create(words: ordered, stages: stages, setSize: setSize)

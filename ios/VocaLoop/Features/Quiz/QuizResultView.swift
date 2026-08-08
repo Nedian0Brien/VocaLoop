@@ -239,19 +239,20 @@ struct ResultStatCard: View {
                 Spacer(minLength: 0)
 
                 if let trend {
-                    HStack(spacing: 2) {
-                        Image(systemName: trend >= 0 ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 9, weight: .black))
-                        Text("\(abs(trend))%")
-                            .font(.system(size: 10, weight: .black))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        trend >= 0 ? DS.Wash.success : DS.Wash.danger,
-                        in: .capsule
-                    )
-                    .foregroundStyle(trend >= 0 ? DS.BrandText.success : DS.BrandText.danger)
+                    // 웹 `TrendBadge` — 0이면 "Stable", 부호에 따라 화살표를 붙인다.
+                    Text(trend > 0 ? "↑ \(trend)%" : trend < 0 ? "↓ \(abs(trend))%" : "Stable")
+                        .font(.system(size: 10, weight: .black))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            trend > 0 ? DS.Wash.success
+                                : trend < 0 ? DS.Wash.danger : DS.Surface.level100,
+                            in: .rect(cornerRadius: DS.Radius.md)
+                        )
+                        .foregroundStyle(
+                            trend > 0 ? DS.BrandText.success
+                                : trend < 0 ? DS.BrandText.danger : DS.Surface.level400
+                        )
                 }
             }
             .padding(.bottom, 20)

@@ -84,7 +84,11 @@ final class QuizSession {
     init(mode: QuizMode, words: [Word], questionCount: Int) {
         self.mode = mode
         let pool = words.filter { !$0.primaryMeaning.isEmpty }
-        self.questions = Array(pool.shuffled().prefix(max(1, questionCount)))
+        // 웹 `startQuiz`와 같이 학습률이 낮은 단어부터 채운다. 무작위로 뽑으면
+        // 약한 단어가 빠져 학습 효과가 떨어진다.
+        self.questions = Array(
+            LearningRate.sortedByRate(pool).prefix(max(1, questionCount))
+        )
 
         if mode == .multipleChoice {
             choices = QuizChoiceBuilder.build(for: questions, pool: pool)
@@ -147,6 +151,10 @@ final class QuizSession {
     nonisolated static func answer(for word: Word, direction: ShortAnswerDirection) -> String {
         direction == .koToEn ? word.word : word.primaryMeaning
     }
+}
+
+extension QuizSession: Identifiable {
+    nonisolated var id: ObjectIdentifier { ObjectIdentifier(self) }
 }
 
 /// 객관식 보기 만들기. 단독 객관식과 복합 퀴즈의 객관식 단계가 함께 쓴다.

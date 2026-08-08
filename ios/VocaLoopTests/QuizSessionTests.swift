@@ -121,6 +121,19 @@ struct QuizSessionTests {
         #expect(!session.questions.contains { $0.id == 99 })
     }
 
+    @Test("학습률이 낮은 단어부터 출제한다")
+    func picksWeakestWordsFirst() {
+        let words = [
+            makeWord(id: 1, word: "high", meaning: "높음", learningRate: 90),
+            makeWord(id: 2, word: "low", meaning: "낮음", learningRate: 10),
+            makeWord(id: 3, word: "mid", meaning: "중간", learningRate: 50),
+        ]
+        let session = QuizSession(mode: .shortAnswer, words: words, questionCount: 2)
+
+        // 웹 `sortByLearningRate(asc)` 후 앞에서 자른 것과 같아야 한다.
+        #expect(session.questions.map(\.id) == [2, 3])
+    }
+
     @Test("객관식 보기에는 정답이 항상 들어 있다")
     func choicesAlwaysContainAnswer() {
         let session = QuizSession(mode: .multipleChoice, words: pool(8), questionCount: 5)

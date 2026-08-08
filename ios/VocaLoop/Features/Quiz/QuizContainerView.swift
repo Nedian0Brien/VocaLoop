@@ -6,6 +6,8 @@ struct QuizContainerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let session: QuizSession
+    /// 최근 활동에 남길 이름. 학습 홈의 모드 카드 제목을 그대로 쓴다.
+    var modeTitle: String = ""
 
     var body: some View {
         NavigationStack {
@@ -82,6 +84,16 @@ struct QuizContainerView: View {
 
         withAnimation(.smooth(duration: 0.3)) {
             session.submit(given, isCorrect: isCorrect)
+        }
+
+        // 웹은 결과 화면에서 기록을 남긴다. 최근 활동 목록이 이걸 읽는다.
+        if session.isFinished, !modeTitle.isEmpty {
+            QuizPreferences.recordQuizResult(
+                mode: modeTitle,
+                correct: session.correctCount,
+                total: session.answers.count,
+                at: Date()
+            )
         }
 
         // 서버 반영은 화면 진행을 막지 않는다.

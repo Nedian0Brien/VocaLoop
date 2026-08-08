@@ -167,11 +167,21 @@ enum ToeflDifficulty: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// 웹 `TOEFL_DIFFICULTY_LEVELS`의 label. 영어 그대로 쓴다.
     var label: String {
         switch self {
-        case .beginner: return "기초"
-        case .intermediate: return "중급"
-        case .advanced: return "고급"
+        case .beginner: return "Beginner"
+        case .intermediate: return "Intermediate"
+        case .advanced: return "Advanced"
+        }
+    }
+
+    /// 웹의 caption.
+    var caption: String {
+        switch self {
+        case .beginner: return "짧고 명확한 지문"
+        case .intermediate: return "표준 연습 난이도"
+        case .advanced: return "추론과 밀도 강화"
         }
     }
 
