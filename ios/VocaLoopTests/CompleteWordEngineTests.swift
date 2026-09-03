@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 
 @testable import VocaLoop
 
@@ -71,6 +72,45 @@ struct BlankSegmentTests {
     func allFixedWithoutLetters() {
         let segments = CompleteWordEngine.segments(for: "123")
         #expect(CompleteWordEngine.editableIndices(segments).isEmpty)
+    }
+
+    @Test("고정 글자를 건너뛰어 앞뒤 입력 칸을 찾는다")
+    func navigatesEditableIndices() {
+        let segments = CompleteWordEngine.segments(for: "well-known", prefixRevealCount: 2)
+
+        #expect(CompleteWordEngine.nextEditableIndex(after: 3, in: segments) == 5)
+        #expect(CompleteWordEngine.previousEditableIndex(before: 5, in: segments) == 3)
+        #expect(CompleteWordEngine.previousEditableIndex(before: 2, in: segments) == nil)
+    }
+}
+
+@Suite("단일 글자 입력")
+@MainActor
+struct QuizLetterInputTests {
+    @Test("빈 입력 칸의 Backspace를 전달한다")
+    func reportsBackspaceWhenEmpty() {
+        let field = BackspaceTextField()
+        var deleteCount = 0
+        field.onDeleteWhenEmpty = { deleteCount += 1 }
+
+        field.text = ""
+        field.deleteBackward()
+
+        #expect(deleteCount == 1)
+    }
+
+    @Test("채워진 입력 칸의 첫 Backspace는 이전 이동으로 전달하지 않는다")
+    func keepsFocusWhileDeletingLetter() {
+        let field = BackspaceTextField()
+        var deleteCount = 0
+        field.onDeleteWhenEmpty = { deleteCount += 1 }
+
+        field.text = "a"
+        field.deleteBackward()
+
+        // 글자 자체를 지우는 것은 편집 세션 안에서 UIKit이 한다.
+        // 여기서는 우리가 덧붙인 신호가 새지 않는지만 본다.
+        #expect(deleteCount == 0)
     }
 }
 

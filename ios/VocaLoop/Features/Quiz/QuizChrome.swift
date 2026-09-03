@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 퀴즈 화면의 공통 구조. 수치는 웹을 375pt로 렌더링해 측정한 값이다.
 enum QuizChrome {
@@ -386,5 +387,100 @@ struct QuizVerdictBanner: View {
             )
         )
         .transition(.opacity.combined(with: .scale(scale: 0.97)))
+    }
+}
+
+/// 한 글자 입력과 소프트웨어 키보드의 빈 칸 삭제를 전달하는 공용 필드.
+///
+/// SwiftUI `TextField`의 문자열 바인딩은 이미 비어 있는 칸에서 Backspace를
+/// 눌러도 바뀌지 않는다. `UITextField.deleteBackward()`를 직접 관찰해 웹과
+/// 같은 이전/다음 칸 포커스 이동을 구현한다.
+struct QuizLetterInput: UIViewRepresentable {
+    @Binding var text: String
+
+    let isFocused: Bool
+    var isEnabled = true
+    var font = UIFont.systemFont(ofSize: 16, weight: .medium)
+    var textColor = UIColor.label
+    var onFocus: () -> Void
+    var onInsert: () -> Void
+    var onDeleteWhenEmpty: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> BackspaceTextField {
+        let field = BackspaceTextField()
+        field.delegate = context.coordinator
+        field.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.textDidChange(_:)),
+            for: .editingChanged
+        )
+        field.onDeleteWhenEmpty = context.coordinator.deleteWhenEmpty
+        field.autocapitalizationType = .none
+        field.autocorrectionType = .no
+        field.keyboardType = .asciiCapable
+        field.spellCheckingType = .no
+        field.textAlignment = .center
+        field.borderStyle = .none
+        field.backgroundColor = .clear
+        return field
+    }
+
+    func updateUIView(_ field: BackspaceTextField, context: Context) {
+        context.coordinator.parent = self
+        field.onDeleteWhenEmpty = context.coordinator.deleteWhenEmpty
+        field.isEnabled = isEnabled
+        field.font = font
+        field.textColor = textColor
+
+        if field.text != text {
+            field.text = text
+        }
+
+        if isFocused, isEnabled {
+            if !field.isFirstResponder { field.becomeFirstResponder() }
+        } else if !isEnabled, field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: QuizLetterInput
+
+        init(parent: QuizLetterInput) {
+            self.parent = parent
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.onFocus()
+        }
+
+        @objc func textDidChange(_ field: UITextField) {
+            let sanitized = String(
+                (field.text ?? "").filter { $0.isASCII && $0.isLetter }.suffix(1)
+            )
+            if field.text != sanitized { field.text = sanitized }
+            parent.text = sanitized
+            if !sanitized.isEmpty { parent.onInsert() }
+        }
+
+        func deleteWhenEmpty() {
+            parent.onDeleteWhenEmpty()
+        }
+    }
+}
+
+@MainActor
+final class BackspaceTextField: UITextField {
+    var onDeleteWhenEmpty: (() -> Void)?
+
+    override func deleteBackward() {
+        let wasEmpty = text?.isEmpty ?? true
+        super.deleteBackward()
+        if wasEmpty { onDeleteWhenEmpty?() }
     }
 }

@@ -141,7 +141,7 @@ struct CompleteWordStageView: View {
                 .overlay(alignment: .trailing) { divider(isLast) }
 
         case let .editable(index):
-            LetterField(
+            QuizLetterInput(
                 text: Binding(
                     get: {
                         // 틀렸으면 정답 철자를 보여준다 (웹과 같은 처리).
@@ -150,10 +150,16 @@ struct CompleteWordStageView: View {
                     },
                     set: { setLetter($0, at: index) }
                 ),
-                tint: cellTint
+                isFocused: focusedIndex == index,
+                isEnabled: !isAnswered,
+                font: .systemFont(ofSize: 17, weight: .bold),
+                textColor: UIColor(cellTint),
+                onFocus: { focusedIndex = index },
+                onInsert: { focusNext(after: index) },
+                onDeleteWhenEmpty: { focusPrevious(before: index) }
             )
-            .disabled(isAnswered)
-            .focused($focusedIndex, equals: index)
+            .frame(width: 22, height: 32)
+            .background(DS.Surface.level0)
             .overlay(alignment: .trailing) { divider(isLast) }
         }
     }
@@ -295,8 +301,15 @@ struct CompleteWordStageView: View {
         let sanitized = String(value.filter { $0.isASCII && $0.isLetter }.suffix(1))
         typed[index] = sanitized
 
-        if !sanitized.isEmpty, let next = editableIndices.first(where: { $0 > index }) {
-            focusedIndex = next
+    }
+
+    private func focusNext(after index: Int) {
+        focusedIndex = CompleteWordEngine.nextEditableIndex(after: index, in: segments)
+    }
+
+    private func focusPrevious(before index: Int) {
+        if let previous = CompleteWordEngine.previousEditableIndex(before: index, in: segments) {
+            focusedIndex = previous
         }
     }
 
@@ -339,24 +352,6 @@ extension CompleteWordStageView {
         }
 
         return "The passage uses {{1}} as the missing vocabulary word."
-    }
-}
-
-/// 한 글자만 받는 입력 칸.
-private struct LetterField: View {
-    @Binding var text: String
-    var tint: Color
-
-    var body: some View {
-        TextField("", text: $text)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(.asciiCapable)
-            .multilineTextAlignment(.center)
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(tint)
-            .frame(width: 22, height: 32)
-            .background(DS.Surface.level0)
     }
 }
 

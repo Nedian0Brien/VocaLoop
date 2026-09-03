@@ -102,6 +102,14 @@ enum CompleteWordEngine {
         segments.compactMap(\.inputIndex)
     }
 
+    static func nextEditableIndex(after inputIndex: Int, in segments: [BlankSegment]) -> Int? {
+        editableIndices(segments).first { $0 > inputIndex }
+    }
+
+    static func previousEditableIndex(before inputIndex: Int, in segments: [BlankSegment]) -> Int? {
+        editableIndices(segments).last { $0 < inputIndex }
+    }
+
     /// 빈칸 하나가 전부 맞았는지. 대소문자는 무시한다.
     static func isBlankCorrect(
         answer: String,

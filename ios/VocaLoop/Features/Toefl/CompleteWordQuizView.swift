@@ -273,7 +273,8 @@ struct CompleteWordQuizView: View {
                 }
 
         case let .editable(inputIndex):
-            LetterCell(
+            let cellID = CellID(blankIndex: blankIndex, inputIndex: inputIndex)
+            QuizLetterInput(
                 text: Binding(
                     get: {
                         let typed = blankIndex < session.currentInput.count
@@ -282,14 +283,17 @@ struct CompleteWordQuizView: View {
                     },
                     set: { newValue in
                         session.setLetter(newValue, blankIndex: blankIndex, inputIndex: inputIndex)
-                        // 한 글자를 넣으면 다음 칸으로 자동 이동한다.
-                        if !newValue.isEmpty {
-                            focusNext(after: CellID(blankIndex: blankIndex, inputIndex: inputIndex))
-                        }
                     }
-                )
+                ),
+                isFocused: focusedCell == cellID,
+                isEnabled: session.phase == .solving,
+                textColor: UIColor(DS.Surface.level900),
+                onFocus: { focusedCell = cellID },
+                onInsert: { focusNext(after: cellID) },
+                onDeleteWhenEmpty: { focusPrevious(before: cellID) }
             )
-            .focused($focusedCell, equals: CellID(blankIndex: blankIndex, inputIndex: inputIndex))
+            .frame(width: 20, height: 30)
+            .background(DS.Surface.level0)
             .overlay(alignment: .trailing) {
                 if !isLast {
                     Rectangle().fill(DS.Surface.level200).frame(width: 1)
@@ -302,21 +306,39 @@ struct CompleteWordQuizView: View {
     private func focusNext(after cell: CellID) {
         guard let question = session.currentQuestion else { return }
 
-        let indices = CompleteWordEngine.editableIndices(
-            question.blanks[cell.blankIndex].segments
-        )
-        if let position = indices.firstIndex(of: cell.inputIndex),
-           position + 1 < indices.count {
-            focusedCell = CellID(blankIndex: cell.blankIndex, inputIndex: indices[position + 1])
+        let segments = question.blanks[cell.blankIndex].segments
+        if let next = CompleteWordEngine.nextEditableIndex(after: cell.inputIndex, in: segments) {
+            focusedCell = CellID(blankIndex: cell.blankIndex, inputIndex: next)
             return
         }
 
-        let nextBlank = cell.blankIndex + 1
-        if nextBlank < question.blanks.count,
-           let first = CompleteWordEngine.editableIndices(question.blanks[nextBlank].segments).first {
-            focusedCell = CellID(blankIndex: nextBlank, inputIndex: first)
-        } else {
-            focusedCell = nil
+        for blankIndex in question.blanks.indices where blankIndex > cell.blankIndex {
+            if let first = CompleteWordEngine.editableIndices(question.blanks[blankIndex].segments).first {
+                focusedCell = CellID(blankIndex: blankIndex, inputIndex: first)
+                return
+            }
+        }
+        focusedCell = nil
+    }
+
+    /// 같은 빈칸의 이전 입력 칸, 없으면 앞 빈칸의 마지막 칸으로 옮긴다.
+    private func focusPrevious(before cell: CellID) {
+        guard let question = session.currentQuestion else { return }
+
+        let segments = question.blanks[cell.blankIndex].segments
+        if let previous = CompleteWordEngine.previousEditableIndex(
+            before: cell.inputIndex,
+            in: segments
+        ) {
+            focusedCell = CellID(blankIndex: cell.blankIndex, inputIndex: previous)
+            return
+        }
+
+        for blankIndex in question.blanks.indices.reversed() where blankIndex < cell.blankIndex {
+            if let last = CompleteWordEngine.editableIndices(question.blanks[blankIndex].segments).last {
+                focusedCell = CellID(blankIndex: blankIndex, inputIndex: last)
+                return
+            }
         }
     }
 
@@ -396,22 +418,5 @@ struct CompleteWordQuizView: View {
         let filled = session.filledCount
         let total = question.blanks.count
         return filled == total ? "정답 확인" : "빈칸 \(total - filled)개 남음"
-    }
-}
-
-/// 한 글자만 받는 입력 칸.
-private struct LetterCell: View {
-    @Binding var text: String
-
-    var body: some View {
-        TextField("", text: $text)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(.asciiCapable)
-            .multilineTextAlignment(.center)
-            .font(.system(size: 16, weight: .medium))
-            .foregroundStyle(DS.Surface.level900)
-            .frame(width: 20, height: 30)
-            .background(DS.Surface.level0)
     }
 }
