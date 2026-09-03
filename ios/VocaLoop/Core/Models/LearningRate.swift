@@ -29,10 +29,14 @@ enum LearningStatus: String, CaseIterable, Sendable {
     }
 
     /// 목록 그룹 머리의 타일 기호.
+    ///
+    /// 셋이 한 흐름으로 읽혀야 한다 — 아직 모름 → 오르는 중 → 끝.
+    /// 탭바가 쓰는 기호(book.closed·brain·arrow.trianglehead.clockwise·gearshape)는
+    /// 뜻이 겹치므로 피한다.
     var symbolName: String {
         switch self {
-        case .difficult: return "exclamationmark"
-        case .learning: return "arrow.trianglehead.clockwise"
+        case .difficult: return "questionmark"
+        case .learning: return "arrow.up.right"
         case .memorized: return "checkmark"
         }
     }
