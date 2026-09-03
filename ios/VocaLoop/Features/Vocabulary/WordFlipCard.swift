@@ -15,6 +15,9 @@ struct WordFlipCard: View {
     var onFlipChange: ((Bool) -> Void)?
 
     @State private var isFlipped = false
+    /// 뒷면의 실제 높이. 카드가 늘어나는 동안 아래 카드들이 함께 밀리도록
+    /// 미리 재 둔다. 웹도 같은 값을 ref로 재서 컨테이너 높이에 넣는다.
+    @State private var backHeight: CGFloat = Metrics.frontHeight
 
     // MARK: - 측정값
 
@@ -65,20 +68,30 @@ struct WordFlipCard: View {
     }
 
     var body: some View {
-        FlipFaces(angle: isFlipped ? 180 : 0) {
+        FlipFaces(
+            angle: isFlipped ? 180 : 0,
+            frontHeight: Metrics.frontHeight,
+            backHeight: backHeight
+        ) {
             front
         } back: {
             back
         }
+        .background(alignment: .top) { backHeightProbe }
         .contentShape(.rect(cornerRadius: Metrics.radius))
-        .onTapGesture {
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
-                isFlipped.toggle()
-            }
-            onFlipChange?(isFlipped)
-        }
+        .onTapGesture { flip() }
         .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
         .accessibilityHint("두 번 탭하면 뒤집힙니다")
+        // 탭 제스처만으로는 보조 기술이 카드를 뒤집을 수 없다.
+        .accessibilityAction { flip() }
+    }
+
+    private func flip() {
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+            isFlipped.toggle()
+        }
+        onFlipChange?(isFlipped)
     }
 
     // MARK: - Front
@@ -151,7 +164,7 @@ struct WordFlipCard: View {
             }
             .padding(Metrics.cornerInset)
         }
-        .frame(height: Metrics.frontHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.Surface.level0, in: .rect(cornerRadius: Metrics.radius))
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.radius)
@@ -208,7 +221,8 @@ struct WordFlipCard: View {
             || !word.examples.isEmpty
     }
 
-    private var back: some View {
+    /// 뒷면 내용. 자기 높이를 그대로 가지므로 높이를 재는 데도 쓴다.
+    private var backContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             backHeader
                 .padding(.bottom, Metrics.headerBottomPadding)
@@ -228,12 +242,33 @@ struct WordFlipCard: View {
         }
         .padding(Metrics.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DS.Wash.brand, in: .rect(cornerRadius: Metrics.radius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Metrics.radius)
-                .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
-        )
-        .dsShadow(.soft)
+    }
+
+    /// 그리지 않고 높이만 재는 사본. 첫 뒤집기부터 제 높이를 알아야
+    /// 카드가 늘어나는 동안 아래 카드들이 같이 움직인다.
+    private var backHeightProbe: some View {
+        backContent
+            .fixedSize(horizontal: false, vertical: true)
+            .hidden()
+            .accessibilityHidden(true)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                backHeight = height
+            }
+    }
+
+    private var back: some View {
+        backContent
+            // 늘어나는 도중에는 내용이 카드 밖으로 비어져 나오므로 잘라낸다.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipShape(.rect(cornerRadius: Metrics.radius))
+            .background(DS.Wash.brand, in: .rect(cornerRadius: Metrics.radius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Metrics.radius)
+                    .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
+            )
+            .dsShadow(.soft)
     }
 
     private var backHeader: some View {
@@ -410,6 +445,9 @@ struct WordFlipCard: View {
 /// 쪽 높이가 된다.
 private struct FlipFaces<Front: View, Back: View>: View, Animatable {
     var angle: Double
+    /// 앞뒤 높이가 다르다. 회전 각도에 맞춰 그 사이를 이어 준다.
+    var frontHeight: CGFloat
+    var backHeight: CGFloat
     @ViewBuilder let front: () -> Front
     @ViewBuilder let back: () -> Back
 
@@ -427,8 +465,17 @@ private struct FlipFaces<Front: View, Back: View>: View, Animatable {
                 back().rotation3DEffect(.degrees(angle - 180), axis: (x: 0, y: 1, z: 0))
             }
         }
+        // 높이를 각도에서 직접 계산한다. 바깥에 `.frame`을 걸어 두면 상태가
+        // 바뀌는 순간 한 번에 튀어서, 아래 카드들이 미끄러지지 않고 순간이동한다.
+        .frame(height: height)
         // 면이 바뀌는 순간은 즉시여야 한다. 페이드가 끼면 다시 비친다.
         .transaction { $0.animation = nil }
+    }
+
+    /// 스프링이 180도를 넘겨 되돌아오는 구간까지 감안해 0~1로 자른다.
+    private var height: CGFloat {
+        let progress = min(max(angle / 180, 0), 1)
+        return frontHeight + (backHeight - frontHeight) * progress
     }
 }
 
