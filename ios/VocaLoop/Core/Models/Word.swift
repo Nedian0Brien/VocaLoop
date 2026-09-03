@@ -79,3 +79,35 @@ extension Word {
         return (acceptedAnswers ?? []).filter { $0.mode == mode }.map(\.answer)
     }
 }
+
+// MARK: - 목록 정렬
+
+/// 단어 목록을 늘어놓는 방식. 웹 `VocabularyDashboard`의 `sortMode`를 옮긴 것이라
+/// `rawValue`와 라벨을 웹 `<select>`의 값·문구와 같게 맞춰 뒀다.
+enum WordSortMode: String, CaseIterable, Identifiable, Sendable {
+    case newest
+    case learningRateAscending = "learning-rate-asc"
+    case learningRateDescending = "learning-rate-desc"
+    case statusGroup = "status-group"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .newest: return "최신순"
+        case .learningRateAscending: return "학습률 낮은 순"
+        case .learningRateDescending: return "학습률 높은 순"
+        case .statusGroup: return "상태별 그룹"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .newest: return "clock"
+        case .learningRateAscending: return "arrow.up"
+        case .learningRateDescending: return "arrow.down"
+        // 웹은 이 모드의 토글 버튼에 2x2 격자 아이콘을 쓴다.
+        case .statusGroup: return "square.grid.2x2"
+        }
+    }
+}

@@ -27,6 +27,11 @@ struct VocabularyListView: View {
                     Button("폴더", systemImage: "folder") { isManagingFolders = true }
                         .tint(DS.BrandText.base)
                 }
+                if let store = appState.vocabulary {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        sortMenu(for: store)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("단어 추가", systemImage: "plus") { isAddingWord = true }
                         .tint(DS.BrandText.base)
@@ -71,13 +76,17 @@ struct VocabularyListView: View {
 
                         if store.visibleWords.isEmpty {
                             noMatchState
-                        } else {
-                            // 웹은 학습 상태별로 묶어 보여준다 (어려워요 → 학습 중 → 외웠어요).
+                        } else if store.sortMode == .statusGroup {
+                            // 웹은 이 모드에서만 학습 상태로 묶는다 (어려워요 → 학습 중 → 외웠어요).
                             ForEach(LearningStatus.allCases, id: \.self) { status in
                                 let group = store.visibleWords.filter { $0.learningStatus == status }
                                 if !group.isEmpty {
                                     statusGroup(status, words: group, store: store)
                                 }
+                            }
+                        } else {
+                            ForEach(store.visibleWords) { word in
+                                wordCard(word, store: store)
                             }
                         }
                     }
@@ -120,21 +129,42 @@ struct VocabularyListView: View {
             .padding(.horizontal, 4)
 
             ForEach(words) { word in
-                WordFlipCard(
-                    word: word,
-                    folderName: word.folderIds.first.flatMap { store.folder(withID: $0)?.name },
-                    onToggleFlag: { Task { await store.toggleFlag(word) } },
-                    onSpeak: { SpeechSynthesizer.shared.speak(word.word) }
-                )
-                .contextMenu {
-                    Button("상세 보기", systemImage: "info.circle") { selectedWord = word }
-                    Button("폴더 이동", systemImage: "folder") { wordToMove = word }
-                    Button("삭제", systemImage: "trash", role: .destructive) {
-                        Task { await store.delete(word) }
-                    }
-                }
+                wordCard(word, store: store)
             }
         }
+    }
+
+    private func wordCard(_ word: Word, store: VocabularyStore) -> some View {
+        WordFlipCard(
+            word: word,
+            folderName: word.folderIds.first.flatMap { store.folder(withID: $0)?.name },
+            onToggleFlag: { Task { await store.toggleFlag(word) } },
+            onSpeak: { SpeechSynthesizer.shared.speak(word.word) }
+        )
+        .contextMenu {
+            Button("상세 보기", systemImage: "info.circle") { selectedWord = word }
+            Button("폴더 이동", systemImage: "folder") { wordToMove = word }
+            Button("삭제", systemImage: "trash", role: .destructive) {
+                Task { await store.delete(word) }
+            }
+        }
+    }
+
+    /// 정렬 방식 고르기. 웹은 목록 위 `<select>`지만, 앱은 세로 공간을 아끼려고
+    /// 툴바 메뉴로 둔다. 고른 값에는 체크가 붙는다.
+    private func sortMenu(for store: VocabularyStore) -> some View {
+        @Bindable var store = store
+
+        return Menu {
+            Picker("정렬 방식", selection: $store.sortMode) {
+                ForEach(WordSortMode.allCases) { mode in
+                    Label(mode.label, systemImage: mode.systemImage).tag(mode)
+                }
+            }
+        } label: {
+            Label("정렬 방식", systemImage: "arrow.up.arrow.down")
+        }
+        .tint(DS.BrandText.base)
     }
 
     private var emptyState: some View {

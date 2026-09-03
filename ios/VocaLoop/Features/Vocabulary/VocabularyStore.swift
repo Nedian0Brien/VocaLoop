@@ -20,6 +20,14 @@ final class VocabularyStore {
         didSet { recomputeVisibleWords() }
     }
 
+    /// 목록을 늘어놓는 방식. 고른 값은 기기에 남는다.
+    var sortMode: WordSortMode = VocabularyPreferences.sortMode {
+        didSet {
+            VocabularyPreferences.sortMode = sortMode
+            recomputeVisibleWords()
+        }
+    }
+
     /// 파생값을 저장 프로퍼티로 캐시한다. computed로 두면 `words` 전체에
     /// 의존성이 걸려 무관한 변경에도 목록이 다시 그려진다.
     private(set) var visibleWords: [Word] = []
@@ -332,7 +340,35 @@ final class VocabularyStore {
             }
         }
 
-        visibleWords = result
+        visibleWords = sorted(result)
+    }
+
+    /// 웹 `VocabularyDashboard`의 `filteredWords`와 같은 순서를 만든다.
+    ///
+    /// 학습률이 같을 때의 순서는 웹이 정해 두지 않았다. Swift의 `sorted(by:)`는
+    /// 안정 정렬이 아니라 같은 값끼리 순서가 흔들릴 수 있으므로, 최근에 넣은
+    /// 단어가 앞에 오도록 기준을 하나 더 둔다.
+    private func sorted(_ words: [Word]) -> [Word] {
+        switch sortMode {
+        case .newest:
+            return words.sorted { $0.createdAt > $1.createdAt }
+        case .learningRateAscending, .statusGroup:
+            // 웹은 상태별 그룹도 학습률 오름차순으로 정렬한 뒤 묶는다.
+            return words.sorted(by: learningRateFirst(ascending: true))
+        case .learningRateDescending:
+            return words.sorted(by: learningRateFirst(ascending: false))
+        }
+    }
+
+    private func learningRateFirst(ascending: Bool) -> (Word, Word) -> Bool {
+        { first, second in
+            if first.learningRate != second.learningRate {
+                return ascending
+                    ? first.learningRate < second.learningRate
+                    : first.learningRate > second.learningRate
+            }
+            return first.createdAt > second.createdAt
+        }
     }
 
     func folder(withID id: Folder.ID) -> Folder? {
@@ -345,5 +381,25 @@ final class VocabularyStore {
         case .flagged: return words.count(where: \.isFlagged)
         case let .folder(id): return words.count { $0.folderIds.contains(id) }
         }
+    }
+}
+
+/// 단어장 화면이 기기에 남기는 값.
+///
+/// 웹은 이 선택을 `useState`로만 들고 있어 새로고침하면 초기화된다. 앱은 탭을
+/// 오갈 때마다 다시 고르게 하면 번거로워서 저장한다. 첫 실행 기본값은 웹과 같다.
+enum VocabularyPreferences {
+    /// `UserDefaults`는 Sendable로 표시돼 있지 않지만 내부적으로 스레드 안전하다.
+    private nonisolated(unsafe) static let defaults = UserDefaults.standard
+
+    private static let sortModeKey = "vocaloop_words_sort_mode"
+
+    static var sortMode: WordSortMode {
+        get {
+            guard let raw = defaults.string(forKey: sortModeKey),
+                  let mode = WordSortMode(rawValue: raw) else { return .newest }
+            return mode
+        }
+        set { defaults.set(newValue.rawValue, forKey: sortModeKey) }
     }
 }
