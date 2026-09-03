@@ -22,6 +22,8 @@ struct ShortAnswerQuizView: View {
     @State private var isReviewing = false
     @State private var reviewError: String?
     @State private var showHint = false
+    /// 답을 적지 않고 정답을 바로 확인했는지.
+    @State private var didGiveUp = false
     @FocusState private var isFocused: Bool
 
     private var isKoToEn: Bool { direction == .koToEn }
@@ -33,7 +35,7 @@ struct ShortAnswerQuizView: View {
 
     /// 틀렸을 때만 재검토를 권한다. 맞은 답을 다시 물을 이유가 없다.
     private var canRequestReview: Bool {
-        grader != nil && result?.isCorrect == false && !isReviewing
+        grader != nil && result?.isCorrect == false && !isReviewing && !didGiveUp
     }
 
     var body: some View {
@@ -50,6 +52,7 @@ struct ShortAnswerQuizView: View {
                 resultSection(result)
             } else {
                 submitButton
+                giveUpButton.padding(.top, 12)
             }
         }
         .sensoryFeedback(.success, trigger: result) { _, new in new?.isCorrect == true }
@@ -136,6 +139,26 @@ struct ShortAnswerQuizView: View {
         .buttonStyle(.plain)
         .disabled(!canSubmit)
         .animation(.smooth(duration: 0.2), value: canSubmit)
+    }
+
+    /// 답이 떠오르지 않을 때. 정답을 바로 펼치고 오답으로 기록한다.
+    private var giveUpButton: some View {
+        Button(action: giveUp) {
+            Text("모르겠어요")
+                .font(.system(size: 15, weight: .black))
+                .tracking(-0.3)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(DS.Surface.level50, in: .rect(cornerRadius: DS.Radius.xl))
+                .foregroundStyle(DS.Surface.level500)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.xl)
+                        .strokeBorder(DS.Surface.level200, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isGrading)
+        .opacity(isGrading ? 0.4 : 1)
     }
 
     private var canSubmit: Bool {
@@ -283,13 +306,7 @@ struct ShortAnswerQuizView: View {
                     .foregroundStyle(DS.BrandText.base)
             }
 
-            Text(
-                aiFeedback ?? (
-                    result.isCorrect
-                        ? "정답입니다!"
-                        : "유사도: \(Int((result.similarity * 100).rounded()))%"
-                )
-            )
+            Text(aiFeedback ?? localFeedback(result))
             .font(.system(size: 14, weight: .bold))
             .foregroundStyle(DS.Surface.level600)
             .fixedSize(horizontal: false, vertical: true)
@@ -310,6 +327,27 @@ struct ShortAnswerQuizView: View {
         // 한→영에서는 발음을 들려주면 정답을 알려주는 셈이라 웹도 막아 둔다.
         guard !isKoToEn else { return }
         SpeechSynthesizer.shared.speak(word.word)
+    }
+
+    /// 유사도는 적은 답이 있을 때만 뜻이 있다.
+    private func localFeedback(_ result: ShortAnswerGrading.Result) -> String {
+        if didGiveUp {
+            return "정답을 확인했습니다. 오답으로 기록됩니다."
+        }
+        if result.isCorrect {
+            return "정답입니다!"
+        }
+        return "유사도: \(Int((result.similarity * 100).rounded()))%"
+    }
+
+    /// 채점은 오답과 같게 매긴다. 넘어가면 학습률도 오답만큼 깎인다.
+    private func giveUp() {
+        guard result == nil, !isGrading else { return }
+
+        isFocused = false
+        didGiveUp = true
+        result = ShortAnswerGrading.Result(isCorrect: false, similarity: 0)
+        QuizSound.play(.fail)
     }
 
     private func check() {
