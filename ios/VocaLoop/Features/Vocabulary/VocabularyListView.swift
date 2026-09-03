@@ -112,25 +112,20 @@ struct VocabularyListView: View {
         store: VocabularyStore
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 학습 홈의 섹션 머리와 같은 규칙: 색 타일 + 제목 + 개수.
-            HStack(spacing: 10) {
-                Image(systemName: status.symbolName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 30, height: 30)
-                    .background(status.dotColor.gradient, in: .rect(cornerRadius: 9, style: .continuous))
-                    .shadow(color: status.dotColor.opacity(0.3), radius: 8, y: 4)
-
+            // 목록에서 구분선은 물러나야 한다. 카드마다 학습률 도넛이 이미
+            // 상태 색을 말하고 있어서, 머리까지 색을 크게 쓰면 같은 사실을
+            // 두 번 외치는 셈이다. 색은 개수 배지에만 옅게 남긴다.
+            HStack(spacing: 8) {
                 Text(status.label)
                     .font(.title3.bold())
 
                 Text("\(words.count)")
                     .font(.footnote.weight(.bold))
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(status.textColor)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(.quaternary, in: .capsule)
+                    .background(status.dotColor.opacity(0.14), in: .capsule)
 
                 Spacer(minLength: 0)
             }
