@@ -112,21 +112,30 @@ struct VocabularyListView: View {
         store: VocabularyStore
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 웹의 그룹 헤더: 색 점 + 대문자 black 라벨 + 개수
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(status.dotColor)
-                    .frame(width: 10, height: 10)
-                Text(status.label.uppercased())
-                    .font(.system(size: 14, weight: .black))
-                    .tracking(0.7)
-                    .foregroundStyle(status.textColor)
-                Text("\(words.count)개")
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Surface.level400)
+            // 학습 홈의 섹션 머리와 같은 규칙: 색 타일 + 제목 + 개수.
+            HStack(spacing: 10) {
+                Image(systemName: status.symbolName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(status.dotColor.gradient, in: .rect(cornerRadius: 9, style: .continuous))
+                    .shadow(color: status.dotColor.opacity(0.3), radius: 8, y: 4)
+
+                Text(status.label)
+                    .font(.title3.bold())
+
+                Text("\(words.count)")
+                    .font(.footnote.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(.quaternary, in: .capsule)
+
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 2)
+            .padding(.top, 8)
 
             ForEach(words) { word in
                 wordCard(word, store: store)
@@ -172,10 +181,9 @@ struct VocabularyListView: View {
             VStack(alignment: .leading, spacing: 12) {
                 DSBadge(text: "Start here", tone: .onDark, style: .pill)
                 Text("첫 단어를 추가해 보세요")
-                    .font(DS.Font.sectionTitle)
-                    .dsTightTracking(24)
+                    .font(.title2.bold())
                 Text("단어만 입력하면 AI가 뜻·발음·예문·유의어를 채웁니다.")
-                    .font(DS.Font.meta)
+                    .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.85))
 
                 Button("단어 추가") { isAddingWord = true }
@@ -187,16 +195,12 @@ struct VocabularyListView: View {
     }
 
     private var noMatchState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(DS.Surface.level300)
-            Text("조건에 맞는 단어가 없습니다")
-                .font(DS.Font.meta)
-                .foregroundStyle(DS.Surface.level500)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+        ContentUnavailableView(
+            "조건에 맞는 단어가 없습니다",
+            systemImage: "magnifyingglass",
+            description: Text("검색어나 폴더 필터를 바꿔 보세요.")
+        )
+        .padding(.vertical, 32)
     }
 }
 
@@ -232,11 +236,11 @@ private struct FolderFilterRow: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .black))
+                    .font(.system(size: 11, weight: .bold))
                 Text(title)
-                    .font(DS.Font.caption)
+                    .font(.subheadline.weight(.semibold))
                 Text("\(store.count(for: selection))")
-                    .font(DS.Font.eyebrow)
+                    .font(.caption2.weight(.bold))
                     .monospacedDigit()
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
@@ -251,11 +255,16 @@ private struct FolderFilterRow: View {
             .frame(height: 34)
             .foregroundStyle(isSelected ? .white : DS.Surface.level600)
             .background(
-                isSelected ? AnyShapeStyle(DS.Solid.brand) : AnyShapeStyle(DS.Surface.level0),
+                isSelected ? AnyShapeStyle(DS.Gradient.cta) : AnyShapeStyle(DS.Surface.level0),
                 in: .capsule
             )
             .overlay(
                 Capsule().strokeBorder(isSelected ? .clear : DS.Surface.level200, lineWidth: 1)
+            )
+            .shadow(
+                color: DS.Solid.indigo.opacity(isSelected ? 0.3 : 0),
+                radius: 8,
+                y: 4
             )
         }
         .buttonStyle(.plain)
@@ -272,7 +281,7 @@ struct ErrorBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 13, weight: .bold))
-            Text(message).font(DS.Font.caption)
+            Text(message).font(.footnote.weight(.semibold))
             Spacer(minLength: 4)
             Button("닫기", systemImage: "xmark", action: dismiss)
                 .labelStyle(.iconOnly)
@@ -281,7 +290,9 @@ struct ErrorBanner: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .foregroundStyle(DS.BrandText.danger)
+        // wash는 틴트라 다크에서 알파가 낮다. 불투명 바탕을 먼저 깐다.
         .background(DS.Wash.danger, in: .rect(cornerRadius: DS.Radius.md))
+        .background(DS.Surface.level0, in: .rect(cornerRadius: DS.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.md)
                 .strokeBorder(DS.Solid.danger.opacity(0.3), lineWidth: 1)

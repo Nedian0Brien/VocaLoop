@@ -28,6 +28,15 @@ enum LearningStatus: String, CaseIterable, Sendable {
         }
     }
 
+    /// 목록 그룹 머리의 타일 기호.
+    var symbolName: String {
+        switch self {
+        case .difficult: return "exclamationmark"
+        case .learning: return "arrow.trianglehead.clockwise"
+        case .memorized: return "checkmark"
+        }
+    }
+
     // 웹은 같은 상태를 두 곳에서 서로 다른 팔레트로 그린다. 헷갈리기 쉬우니 나눠 둔다.
     //  - 목록 그룹 헤더(`LEARNING_STATUS_CONFIG`): Tailwind raw red/blue/green
     //  - 상태 배지(`LearningStatusBadge`): 디자인 토큰 danger/brand/success
