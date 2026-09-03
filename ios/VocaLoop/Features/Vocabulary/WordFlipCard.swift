@@ -65,6 +65,11 @@ struct WordFlipCard: View {
         /// 아이콘과 eyebrow 사이 (gap-1.5), eyebrow와 본문 사이 (mb-1)
         static let eyebrowIconGap: CGFloat = 6
         static let eyebrowBottomGap: CGFloat = 4
+
+        /// 뒤집기 곡선. 웹 `.card-inner`의 `transform 0.7s var(--ease-spring)`와
+        /// 같은 값이다 (`--ease-spring: cubic-bezier(0.16, 1, 0.3, 1)`, index.css).
+        /// 웹은 높이에도 같은 곡선·같은 길이를 걸어 회전과 함께 움직인다.
+        static let flipCurve = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.7)
     }
 
     var body: some View {
@@ -90,7 +95,7 @@ struct WordFlipCard: View {
     }
 
     private func flip() {
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+        withAnimation(Metrics.flipCurve) {
             isFlipped.toggle()
         }
         onFlipChange?(isFlipped)
@@ -474,13 +479,14 @@ private struct FlipFaces<Front: View, Back: View>: View, Animatable {
         .transaction { $0.animation = nil }
     }
 
-    /// 뒷면이 나오는 후반부(90~180도)에서만 늘어난다.
-    ///
-    /// 회전 내내 늘리면 앞면까지 매 프레임 다시 그려야 해서 시작이 끊긴다.
-    /// 앞면이 보이는 전반부는 높이를 건드리지 않는다.
+    /// 웹은 바깥 컨테이너 높이를 회전과 같은 곡선·같은 길이로 바꾼다.
+    /// 회전 진행도를 그대로 쓰면 두 값이 웹처럼 맞물려 움직인다.
+    private var progress: CGFloat {
+        min(max(CGFloat(angle) / 180, 0), 1)
+    }
+
     private var height: CGFloat {
-        let progress = min(max((angle - 90) / 90, 0), 1)
-        return frontHeight + (backHeight - frontHeight) * progress
+        frontHeight + (backHeight - frontHeight) * progress
     }
 }
 
