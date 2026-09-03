@@ -77,7 +77,9 @@ struct WordFlipCard: View {
         } back: {
             back
         }
-        .background(alignment: .top) { backHeightProbe }
+        // 높이를 재는 사본은 애니메이션 밖에 둔다. 카드 안에 넣으면 높이가
+        // 바뀔 때마다 사본까지 다시 재느라 첫 프레임이 밀린다.
+        .background(alignment: .top) { backHeightProbe.frame(height: 0) }
         .contentShape(.rect(cornerRadius: Metrics.radius))
         .onTapGesture { flip() }
         .accessibilityElement(children: .contain)
@@ -472,9 +474,12 @@ private struct FlipFaces<Front: View, Back: View>: View, Animatable {
         .transaction { $0.animation = nil }
     }
 
-    /// 스프링이 180도를 넘겨 되돌아오는 구간까지 감안해 0~1로 자른다.
+    /// 뒷면이 나오는 후반부(90~180도)에서만 늘어난다.
+    ///
+    /// 회전 내내 늘리면 앞면까지 매 프레임 다시 그려야 해서 시작이 끊긴다.
+    /// 앞면이 보이는 전반부는 높이를 건드리지 않는다.
     private var height: CGFloat {
-        let progress = min(max(angle / 180, 0), 1)
+        let progress = min(max((angle - 90) / 90, 0), 1)
         return frontHeight + (backHeight - frontHeight) * progress
     }
 }
