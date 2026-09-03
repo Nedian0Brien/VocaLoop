@@ -270,7 +270,10 @@ struct WordFlipCard: View {
             // 늘어나는 도중에는 내용이 카드 밖으로 비어져 나오므로 잘라낸다.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .clipShape(.rect(cornerRadius: Metrics.radius))
+            // wash는 바탕에 얹는 틴트다. 다크에서는 알파 0.12라 이것만 깔면
+            // 카드가 비쳐 보인다. 앞면과 같은 카드 면을 먼저 깔고 그 위에 얹는다.
             .background(DS.Wash.brand, in: .rect(cornerRadius: Metrics.radius))
+            .background(DS.Surface.level0, in: .rect(cornerRadius: Metrics.radius))
             .overlay(
                 RoundedRectangle(cornerRadius: Metrics.radius)
                     .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
