@@ -48,6 +48,15 @@ enum AdaptiveStage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// 주관식 카드 안의 방향 칩 문구.
+    var directionLabel: String {
+        switch self {
+        case .shortEnKo: return "영→한"
+        case .shortKoEn: return "한→영"
+        default: return title
+        }
+    }
+
     /// 퀴즈 카드 헤더에 찍히는 라벨.
     var cardLabel: String {
         switch self {

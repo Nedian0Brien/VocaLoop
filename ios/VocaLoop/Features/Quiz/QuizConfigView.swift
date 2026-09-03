@@ -264,8 +264,13 @@ struct QuizConfigView: View {
             }
 
             VStack(spacing: 12) {
-                ForEach(Array(AdaptiveStage.allCases.enumerated()), id: \.element) { index, stage in
-                    stageCard(stage, index: index)
+                ForEach(Array(stageRows.enumerated()), id: \.element.id) { index, row in
+                    switch row {
+                    case let .single(stage):
+                        stageCard(stage, index: index)
+                    case .shortAnswer:
+                        shortAnswerCard(index: index)
+                    }
                 }
             }
 
@@ -288,67 +293,175 @@ struct QuizConfigView: View {
         }
     }
 
+    /// 설정 화면에 보이는 카드 한 장. 주관식은 두 방향을 한 장에 담는다.
+    private enum StageRow: Identifiable {
+        case single(AdaptiveStage)
+        case shortAnswer
+
+        var id: String {
+            switch self {
+            case let .single(stage): return stage.rawValue
+            case .shortAnswer: return "short-answer"
+            }
+        }
+    }
+
+    private var stageRows: [StageRow] {
+        var rows: [StageRow] = []
+        for stage in AdaptiveStage.allCases {
+            switch stage {
+            case .shortEnKo: rows.append(.shortAnswer)
+            // 영→한 카드가 함께 들고 있다.
+            case .shortKoEn: continue
+            default: rows.append(.single(stage))
+            }
+        }
+        return rows
+    }
+
     private func stageCard(_ stage: AdaptiveStage, index: Int) -> some View {
         let selected = state.mixedStages.contains(stage)
 
         return Button {
             state.toggleStage(stage)
         } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Image(systemName: stage.symbolName)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(selected ? .white : DS.Surface.level500)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            selected ? DS.Solid.warning : DS.Surface.level100,
-                            in: .rect(cornerRadius: DS.Radius.lg)
-                        )
-
-                    Spacer(minLength: 0)
-
-                    DSBadge(
-                        text: "\(index + 1)",
-                        tone: selected ? .warning : .neutral,
-                        style: .pill,
-                        size: .xs
-                    )
-                }
-                .padding(.bottom, 16)
-
-                Text(stage.title)
-                    .font(.system(size: 14, weight: .black))
-                    .tracking(-0.35)
-                    .foregroundStyle(
-                        selected
-                            ? Color.adaptive(light: 0x78350F, dark: 0xFEF3C7)
-                            : DS.Surface.level700
-                    )
-                    .padding(.bottom, 4)
-
-                Text(stage.detail)
-                    .font(.system(size: 12, weight: .bold))
-                    .lineSpacing(7.5)
-                    .foregroundStyle(DS.Surface.level400)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+            stageCardBody(
+                symbolName: stage.symbolName,
+                index: index,
+                selected: selected,
+                title: stage.title,
+                detail: stage.detail
+            ) {
+                EmptyView()
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
-            .background(
-                selected ? DS.Wash.warning.opacity(0.6) : DS.Surface.level0,
-                in: .rect(cornerRadius: DS.Radius.card)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.card).strokeBorder(
-                    selected ? Color(hex: 0xFCD34D) : DS.Surface.level100,
-                    lineWidth: 2
-                )
-            )
-            .shadow(color: selected ? DS.Solid.warning.opacity(0.1) : .clear, radius: 12, y: 10)
         }
         .buttonStyle(.plain)
         .animation(.smooth(duration: 0.2), value: selected)
+    }
+
+    /// 주관식 카드. 두 방향을 카드 안에서 각각 켜고 끈다.
+    /// 카드 몸통을 누르면 통째로 켜고 꺼진다.
+    private func shortAnswerCard(index: Int) -> some View {
+        let selected = state.isShortAnswerSelected
+
+        return stageCardBody(
+            symbolName: AdaptiveStage.shortEnKo.symbolName,
+            index: index,
+            selected: selected,
+            title: "주관식",
+            detail: "단어와 뜻을 직접 입력합니다. 방향은 아래에서 고릅니다."
+        ) {
+            HStack(spacing: 8) {
+                ForEach(QuizConfigState.shortAnswerStages) { stage in
+                    directionChip(stage)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 12)
+        }
+        .contentShape(.rect(cornerRadius: DS.Radius.card))
+        .onTapGesture { state.toggleShortAnswerGroup() }
+        // 탭 제스처만 두면 보조 기술이 카드를 켜고 끌 수 없다.
+        // 방향 칩은 각자 버튼이라 그대로 읽힌다.
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: "주관식 단계 켜고 끄기") {
+            state.toggleShortAnswerGroup()
+        }
+        .animation(.smooth(duration: 0.2), value: selected)
+        .animation(.smooth(duration: 0.2), value: state.mixedStages)
+    }
+
+    private func directionChip(_ stage: AdaptiveStage) -> some View {
+        let on = state.mixedStages.contains(stage)
+
+        return Button {
+            state.toggleStage(stage)
+        } label: {
+            Text(stage.directionLabel)
+                .font(.system(size: 12, weight: .black))
+                .tracking(-0.3)
+                .foregroundStyle(on ? .white : DS.Surface.level500)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    on ? DS.Solid.warning : DS.Surface.level100,
+                    in: .capsule
+                )
+                .overlay(
+                    Capsule().strokeBorder(
+                        on ? Color(hex: 0xFCD34D) : DS.Surface.level200,
+                        lineWidth: 1
+                    )
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("주관식 \(stage.directionLabel)")
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// 두 카드가 같은 모양을 쓴다. `extra`는 카드 아래에 덧붙는 내용이다.
+    private func stageCardBody<Extra: View>(
+        symbolName: String,
+        index: Int,
+        selected: Bool,
+        title: String,
+        detail: String,
+        @ViewBuilder extra: () -> Extra
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Image(systemName: symbolName)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(selected ? .white : DS.Surface.level500)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        selected ? DS.Solid.warning : DS.Surface.level100,
+                        in: .rect(cornerRadius: DS.Radius.lg)
+                    )
+
+                Spacer(minLength: 0)
+
+                DSBadge(
+                    text: "\(index + 1)",
+                    tone: selected ? .warning : .neutral,
+                    style: .pill,
+                    size: .xs
+                )
+            }
+            .padding(.bottom, 16)
+
+            Text(title)
+                .font(.system(size: 14, weight: .black))
+                .tracking(-0.35)
+                .foregroundStyle(
+                    selected
+                        ? Color.adaptive(light: 0x78350F, dark: 0xFEF3C7)
+                        : DS.Surface.level700
+                )
+                .padding(.bottom, 4)
+
+            Text(detail)
+                .font(.system(size: 12, weight: .bold))
+                .lineSpacing(7.5)
+                .foregroundStyle(DS.Surface.level400)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            extra()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
+        .background(
+            selected ? DS.Wash.warning.opacity(0.6) : DS.Surface.level0,
+            in: .rect(cornerRadius: DS.Radius.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card).strokeBorder(
+                selected ? Color(hex: 0xFCD34D) : DS.Surface.level100,
+                lineWidth: 2
+            )
+        )
+        .shadow(color: selected ? DS.Solid.warning.opacity(0.1) : .clear, radius: 12, y: 10)
     }
 
     // MARK: - 문항 수

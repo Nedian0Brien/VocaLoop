@@ -132,6 +132,51 @@ struct QuizConfigStateTests {
         #expect(config.mixedStages == [.flashcard, .multiple], "웹 단계 순서로 정렬된다")
     }
 
+    @Test("주관식 카드를 켜면 사다리 앞쪽인 영→한부터 들어온다")
+    func turnsOnEasierDirectionFirst() {
+        let config = state("mixed")
+        config.mixedStages = [.multiple]
+
+        config.toggleShortAnswerGroup()
+
+        #expect(config.mixedStages == [.multiple, .shortEnKo])
+        #expect(config.isShortAnswerSelected)
+    }
+
+    @Test("주관식 카드를 끄면 두 방향이 함께 빠진다")
+    func turnsOffBothDirections() {
+        let config = state("mixed")
+        config.mixedStages = [.multiple, .shortEnKo, .shortKoEn]
+
+        config.toggleShortAnswerGroup()
+
+        #expect(config.mixedStages == [.multiple])
+        #expect(!config.isShortAnswerSelected)
+    }
+
+    @Test("주관식만 남았으면 카드를 끌 수 없다")
+    func keepsShortAnswerWhenItIsTheOnlyStage() {
+        let config = state("mixed")
+        config.mixedStages = [.shortEnKo, .shortKoEn]
+
+        config.toggleShortAnswerGroup()
+
+        #expect(config.mixedStages == [.shortEnKo, .shortKoEn])
+    }
+
+    @Test("카드 안의 방향 칩은 따로 켜고 끈다")
+    func togglesDirectionsIndependently() {
+        let config = state("mixed")
+        config.mixedStages = [.multiple, .shortEnKo]
+
+        config.toggleStage(.shortKoEn)
+        #expect(config.mixedStages == [.multiple, .shortEnKo, .shortKoEn], "웹 단계 순서로 정렬된다")
+
+        config.toggleStage(.shortEnKo)
+        #expect(config.mixedStages == [.multiple, .shortKoEn])
+        #expect(config.isShortAnswerSelected, "한 방향만 남아도 카드는 켜진 상태다")
+    }
+
     @Test("풀 단어가 없으면 시작할 수 없다")
     func disablesStartWithoutWords() {
         let config = QuizConfigState(

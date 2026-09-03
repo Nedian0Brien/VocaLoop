@@ -144,6 +144,27 @@ final class QuizConfigState {
     var isAllSelected: Bool { wordScope == .all && selectedFolderIDs.isEmpty }
     var isFlaggedSelected: Bool { wordScope == .flagged }
 
+    /// 설정 화면이 카드 한 장으로 묶어 보여주는 주관식 두 방향.
+    static let shortAnswerStages: [AdaptiveStage] = [.shortEnKo, .shortKoEn]
+
+    var isShortAnswerSelected: Bool {
+        mixedStages.contains { Self.shortAnswerStages.contains($0) }
+    }
+
+    /// 주관식 카드를 통째로 켜고 끈다.
+    /// 켤 때는 사다리에서 먼저 오는 영→한부터 넣는다.
+    func toggleShortAnswerGroup() {
+        guard isShortAnswerSelected else {
+            toggleStage(.shortEnKo)
+            return
+        }
+
+        // 주관식만 남아 있으면 끄지 않는다. 다 끄면 풀 문제가 없어진다.
+        let remaining = mixedStages.filter { !Self.shortAnswerStages.contains($0) }
+        guard !remaining.isEmpty else { return }
+        mixedStages = remaining
+    }
+
     /// 마지막 한 단계는 끌 수 없다. 다 끄면 풀 문제가 없어진다.
     func toggleStage(_ stage: AdaptiveStage) {
         if mixedStages.contains(stage) {
