@@ -12,7 +12,7 @@ struct SettingsView: View {
                 DS.Surface.level50.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 20) {
                         if let user = appState.currentUser {
                             profileCard(user)
                         }
@@ -20,7 +20,7 @@ struct SettingsView: View {
                         infoCard
                         signOutButton
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                     .padding(.top, 4)
                     .padding(.bottom, 32)
                 }
@@ -39,67 +39,68 @@ struct SettingsView: View {
         }
     }
 
+    /// 학습 홈 히어로와 같은 그라디언트. 화면마다 색을 가득 쓰는 자리는 하나뿐이다.
     private func profileCard(_ user: User) -> some View {
-        DSCard(variant: .dark, radius: DS.Radius.card, padding: .lg) {
-            HStack(spacing: 16) {
-                Text(user.initials)
-                    .font(DS.Font.sectionTitle)
+        HStack(spacing: 16) {
+            Text(user.initials)
+                .font(.system(.title2, design: .rounded, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 62, height: 62)
+                .background(.white.opacity(0.2), in: .circle)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(user.displayNameOrEmail)
+                    .font(.title3.bold())
                     .foregroundStyle(.white)
-                    .frame(width: 62, height: 62)
-                    .background(DS.Gradient.hero, in: .circle)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(user.displayNameOrEmail)
-                        .font(DS.Font.cardTitle)
-                        .dsTightTracking(20)
-                    Text(user.email)
-                        .font(DS.Font.caption)
-                        .foregroundStyle(.white.opacity(0.65))
-                }
-
-                Spacer(minLength: 0)
+                Text(user.email)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.7))
             }
+
+            Spacer(minLength: 0)
         }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Gradient.hero, in: .rect(cornerRadius: 26))
+        .shadow(color: DS.Solid.indigo.opacity(0.35), radius: 22, y: 12)
     }
 
     private var statsCard: some View {
-        DSCard(variant: .elevated, radius: DS.Radius.xl, padding: .md) {
+        card {
             VStack(alignment: .leading, spacing: 16) {
-                DSSectionHeading(
-                    title: "학습 통계",
-                    subtitle: "웹과 실시간으로 동기화됩니다",
-                    systemImage: "chart.bar.xaxis",
-                    tone: .brand
-                )
+                Text("학습 통계")
+                    .font(.subheadline.weight(.semibold))
 
-                HStack(spacing: 12) {
-                    DSStat(
-                        title: "전체 단어",
-                        value: "\(words.count)",
-                        systemImage: "square.stack.3d.up",
-                        tone: .brand
+                HStack(spacing: 0) {
+                    stat("전체 단어", "\(words.count)", tint: DS.Solid.brand500)
+                    Divider().frame(height: 44)
+                    stat(
+                        "외웠어요",
+                        "\(words.count { $0.learningStatus == .memorized })",
+                        tint: DS.Solid.success
                     )
-                    Divider().frame(height: 52)
-                    DSStat(
-                        title: "외웠어요",
-                        value: "\(words.count { $0.learningStatus == .memorized })",
-                        systemImage: "checkmark.seal.fill",
-                        tone: .success
-                    )
-                    Divider().frame(height: 52)
-                    DSStat(
-                        title: "즐겨찾기",
-                        value: "\(words.count(where: \.isFlagged))",
-                        systemImage: "star.fill",
-                        tone: .warning
-                    )
+                    Divider().frame(height: 44)
+                    stat("즐겨찾기", "\(words.count(where: \.isFlagged))", tint: DS.Solid.warning)
                 }
             }
         }
     }
 
+    private func stat(_ label: String, _ value: String, tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(.title2, design: .rounded, weight: .bold))
+                .foregroundStyle(tint)
+                .monospacedDigit()
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private var infoCard: some View {
-        DSCard(variant: .flat, radius: DS.Radius.xl, padding: .md) {
+        card {
             VStack(spacing: 0) {
                 infoRow("서버", AppEnvironment.apiBaseURL.host() ?? "-")
                 Divider().padding(.vertical, 12)
@@ -110,20 +111,31 @@ struct SettingsView: View {
 
     private func infoRow(_ title: String, _ value: String) -> some View {
         HStack {
-            Text(title)
-                .font(DS.Font.meta)
-                .foregroundStyle(DS.Surface.level600)
-            Spacer()
+            Text(title).font(.subheadline)
+            Spacer(minLength: 8)
             Text(value)
-                .font(DS.Font.caption)
-                .foregroundStyle(DS.Surface.level500)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 
+    /// 흰 카드 한 장. 학습 홈과 같은 브랜드 그림자를 쓴다.
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: 20))
+            .shadow(color: DS.Solid.brand500.opacity(0.1), radius: 14, y: 6)
+    }
+
     private var signOutButton: some View {
-        Button("로그아웃") { isConfirmingSignOut = true }
-            .buttonStyle(.ds(.secondary, size: .lg, fullWidth: true))
-            .foregroundStyle(DS.BrandText.danger)
+        Button("로그아웃", role: .destructive) { isConfirmingSignOut = true }
+            .font(.body.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: 20))
+            .shadow(color: DS.Solid.danger.opacity(0.1), radius: 14, y: 6)
+            .padding(.top, 4)
     }
 }
 
