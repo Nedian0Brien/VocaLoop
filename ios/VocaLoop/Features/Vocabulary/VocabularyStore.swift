@@ -289,6 +289,43 @@ final class VocabularyStore {
         }
     }
 
+    /// 이미 있는 단어에 폴더를 하나 더 얹는다. 대량 추가가 중복 단어를 만났을 때 쓴다.
+    /// `moveWord`와 달리 기존 폴더를 지우지 않는다.
+    func addFolder(_ folderID: Folder.ID, to word: Word) async {
+        guard !word.folderIds.contains(folderID) else { return }
+        await patch(word, body: ["folder_ids": word.folderIds + [folderID]])
+    }
+
+    /// 단어 하나를 만들고 목록에 넣는다. 실패하면 false.
+    @discardableResult
+    func createWord(
+        _ word: String,
+        analysis: WordAnalysis?,
+        folderID: Folder.ID?
+    ) async -> Bool {
+        let payload = WordCreatePayload(
+            word: analysis.map { $0.word.isEmpty ? word : $0.word } ?? word,
+            meaningKo: analysis?.meaningKo,
+            pronunciation: analysis?.pronunciation,
+            pos: analysis?.pos,
+            definitions: analysis?.definitions ?? [],
+            definitionsKo: analysis?.definitionsKo ?? [],
+            examples: analysis?.examples ?? [],
+            synonyms: analysis?.synonyms ?? [],
+            nuance: analysis?.nuance,
+            folderIds: folderID.map { [$0] } ?? []
+        )
+
+        do {
+            let endpoint = try Endpoint.json("/api/words", method: .post, body: payload)
+            insert(try await api.send(endpoint, as: Word.self))
+            return true
+        } catch {
+            report(error)
+            return false
+        }
+    }
+
     /// 단어를 폴더로 옮긴다. 웹은 단어당 폴더 하나를 쓰므로 통째로 교체한다.
     func moveWord(_ word: Word, to folderID: Folder.ID?) async {
         await patch(word, body: ["folder_ids": folderID.map { [$0] } ?? []])
@@ -402,4 +439,18 @@ enum VocabularyPreferences {
         }
         set { defaults.set(newValue.rawValue, forKey: sortModeKey) }
     }
+}
+
+/// 생성 요청 본문. `Word`를 그대로 보내면 서버가 받지 않는 id/타임스탬프까지 섞여 나간다.
+struct WordCreatePayload: Encodable {
+    var word: String
+    var meaningKo: String?
+    var pronunciation: String?
+    var pos: String?
+    var definitions: [String]
+    var definitionsKo: [String]
+    var examples: [WordExample]
+    var synonyms: [String]
+    var nuance: String?
+    var folderIds: [Int]
 }

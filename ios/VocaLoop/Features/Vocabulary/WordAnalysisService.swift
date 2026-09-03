@@ -80,6 +80,70 @@ struct WordAnalysisService: Sendable {
         }
     }
 
+    /// 여러 단어를 한 번에 분석한다. 웹 `generateBulkWordData`와 같은 프롬프트다.
+    ///
+    /// 모델이 일부 단어를 흘릴 수 있으므로 호출한 쪽이 요청 단어와 대조해야 한다.
+    func analyzeBatch(_ words: [String]) async throws -> [WordAnalysis] {
+        let requested = words
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !requested.isEmpty else { return [] }
+
+        let endpoint = try Endpoint.json(
+            "/api/ai/codex",
+            method: .post,
+            body: GenerateRequest(
+                model: Self.defaultModel,
+                prompt: Self.batchPrompt(for: requested),
+                jsonOutput: true
+            ),
+            timeout: Endpoint.aiTimeout
+        )
+
+        let response = try await api.send(endpoint, as: GenerateResponse.self)
+
+        guard let json = Self.extractJSONObject(from: response.text),
+              let data = json.data(using: .utf8) else {
+            throw APIError.decoding("AI 응답에서 JSON을 찾지 못했습니다.")
+        }
+
+        struct BatchResponse: Decodable {
+            let words: [WordAnalysis]
+        }
+
+        do {
+            return try JSONCoding.decoder.decode(BatchResponse.self, from: data).words
+        } catch {
+            throw APIError.decoding("AI 응답 형식이 예상과 다릅니다.")
+        }
+    }
+
+    private static func batchPrompt(for words: [String]) -> String {
+        let list = words.map { "\"\($0)\"" }.joined(separator: ", ")
+        return """
+        Analyze these English words: [\(list)].
+        Return a raw JSON object with a "words" array in the same order as the input words.
+        Each item in "words" must follow the same structure used for a single word:
+        {
+            "word": "word from the input list",
+            "meaning_ko": "Short Korean dictionary gloss (1-3 Korean terms, comma-separated if needed)",
+            "pronunciation": "IPA pronunciation (string)",
+            "pos": "Part of speech (e.g., Noun, Verb)",
+            "definitions": ["English definition 1", "English definition 2"],
+            "definitions_ko": ["Korean translation of definition 1", "Korean translation of definition 2"],
+            "examples": [
+                {"en": "English example sentence using the word", "ko": "Korean translation"}
+            ],
+            "synonyms": ["synonym1", "synonym2"],
+            "nuance": "Brief explanation of nuance or usage context in Korean"
+        }
+
+        IMPORTANT: The "meaning_ko" field is the card title and quiz answer. Keep it concise like a dictionary headword/gloss, not a definition.
+        IMPORTANT: The "definitions_ko" array must have the same length as "definitions".
+        Do not skip words. Do not include markdown formatting.
+        """
+    }
+
     /// 웹의 `generateWordData` 프롬프트를 그대로 옮긴 것.
     /// 두 클라이언트가 같은 형식의 데이터를 만들어야 하므로 문구를 임의로 바꾸지 않는다.
     private static func prompt(for word: String) -> String {

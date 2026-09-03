@@ -9,6 +9,7 @@ struct AddWordView: View {
     @State private var selectedFolderID: Folder.ID?
     @State private var phase: Phase = .idle
     @State private var errorMessage: String?
+    @State private var isAddingMany = false
     @FocusState private var isWordFieldFocused: Bool
 
     private enum Phase: Equatable {
@@ -47,6 +48,21 @@ struct AddWordView: View {
                     Text("AI 분석 없이 저장하면 단어만 등록됩니다. 나중에 다시 분석할 수 있습니다.")
                 }
 
+                Section {
+                    Button {
+                        isAddingMany = true
+                    } label: {
+                        Label("여러 단어 한꺼번에 추가", systemImage: "text.badge.plus")
+                    }
+                    Button {
+                        isAddingMany = true
+                    } label: {
+                        Label("이미지에서 단어 가져오기", systemImage: "photo.on.rectangle.angled")
+                    }
+                } footer: {
+                    Text("단어장 스크린샷을 고르면 AI가 영어 단어만 뽑아 목록에 넣습니다.")
+                }
+
                 if let folders = appState.vocabulary?.folders, !folders.isEmpty {
                     Section("폴더") {
                         Picker("폴더", selection: $selectedFolderID) {
@@ -66,7 +82,7 @@ struct AddWordView: View {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(DS.BrandText.danger)
-                            .font(DS.Font.caption)
+                            .font(.footnote)
                     }
                 }
             }
@@ -80,6 +96,9 @@ struct AddWordView: View {
                     Button("저장") { Task { await save() } }
                         .disabled(trimmedWord.isEmpty || phase != .idle)
                 }
+            }
+            .sheet(isPresented: $isAddingMany) {
+                BulkAddWordView()
             }
             .animation(.smooth(duration: 0.25), value: analysis?.word)
             .animation(.smooth(duration: 0.2), value: phase)
@@ -110,42 +129,12 @@ struct AddWordView: View {
         errorMessage = nil
         defer { phase = .idle }
 
-        let payload = WordCreatePayload(
-            word: analysis?.word.isEmpty == false ? analysis!.word : trimmedWord,
-            meaningKo: analysis?.meaningKo,
-            pronunciation: analysis?.pronunciation,
-            pos: analysis?.pos,
-            definitions: analysis?.definitions ?? [],
-            definitionsKo: analysis?.definitionsKo ?? [],
-            examples: analysis?.examples ?? [],
-            synonyms: analysis?.synonyms ?? [],
-            nuance: analysis?.nuance,
-            folderIds: selectedFolderID.map { [$0] } ?? []
-        )
-
-        do {
-            let endpoint = try Endpoint.json("/api/words", method: .post, body: payload)
-            let created = try await appState.api.send(endpoint, as: Word.self)
-            store.insert(created)
+        if await store.createWord(trimmedWord, analysis: analysis, folderID: selectedFolderID) {
             dismiss()
-        } catch {
-            errorMessage = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        } else {
+            errorMessage = store.errorMessage ?? "단어를 저장하지 못했습니다."
         }
     }
-}
-
-/// 생성 요청 본문. `Word`를 그대로 보내면 서버가 받지 않는 id/타임스탬프까지 섞여 나간다.
-private struct WordCreatePayload: Encodable {
-    var word: String
-    var meaningKo: String?
-    var pronunciation: String?
-    var pos: String?
-    var definitions: [String]
-    var definitionsKo: [String]
-    var examples: [WordExample]
-    var synonyms: [String]
-    var nuance: String?
-    var folderIds: [Int]
 }
 
 private struct AnalysisPreview: View {

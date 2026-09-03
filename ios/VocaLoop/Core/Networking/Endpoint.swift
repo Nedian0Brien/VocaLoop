@@ -15,6 +15,9 @@ struct Endpoint: Sendable {
     var queryItems: [URLQueryItem] = []
     var body: Data?
 
+    /// 본문의 형식. 이미지 업로드는 multipart라 JSON이 아니다.
+    var contentType = "application/json"
+
     /// 요청 타임아웃(초). 기본은 URLSession 기본값과 같은 60초다.
     ///
     /// AI 생성은 서버에서 Codex CLI를 돌리느라 오래 걸린다. 백엔드는
@@ -35,6 +38,39 @@ struct Endpoint: Sendable {
         }
         // path는 모두 코드 안의 리터럴이라 여기서 실패할 수 없다.
         return components?.url ?? baseURL.appending(path: path)
+    }
+
+    /// 파일 하나를 올리는 multipart 엔드포인트.
+    ///
+    /// 서버가 content-type과 파일 시그니처를 함께 보므로 둘이 어긋나면 안 된다.
+    static func multipart(
+        _ path: String,
+        fieldName: String = "file",
+        fileName: String,
+        mimeType: String,
+        fileData: Data,
+        timeout: TimeInterval = Endpoint.aiTimeout
+    ) -> Endpoint {
+        let boundary = "vocaloop.\(UUID().uuidString)"
+        var body = Data()
+
+        func append(_ text: String) {
+            body.append(Data(text.utf8))
+        }
+
+        append("--\(boundary)\r\n")
+        append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n")
+        append("Content-Type: \(mimeType)\r\n\r\n")
+        body.append(fileData)
+        append("\r\n--\(boundary)--\r\n")
+
+        return Endpoint(
+            path: path,
+            method: .post,
+            body: body,
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            timeout: timeout
+        )
     }
 
     /// JSON 본문을 갖는 엔드포인트.

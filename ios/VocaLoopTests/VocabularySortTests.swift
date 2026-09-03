@@ -76,3 +76,44 @@ struct VocabularySortTests {
         #expect(store.visibleWords.map(\.word) == ["alpha", "charlie", "delta"])
     }
 }
+
+/// 웹 `bulkWordAddService.js`와 같은 입력 규칙을 지켜야 한다.
+/// 여기가 어긋나면 같은 목록을 붙여 넣어도 앱과 웹이 다른 단어를 만든다.
+@Suite("여러 단어 추가 입력")
+struct BulkWordAddInputTests {
+    @Test("줄바꿈·쉼표·세미콜론으로 끊는다")
+    func splitsOnSeparators() {
+        let input = "abate, candid\nlucid; terse"
+        #expect(BulkWordAddService.split(input) == ["abate", "candid", "lucid", "terse"])
+    }
+
+    @Test("빈 조각과 앞뒤 공백은 버린다")
+    func dropsBlanks() {
+        #expect(BulkWordAddService.split("  abate ,, \n\n candid  ") == ["abate", "candid"])
+        #expect(BulkWordAddService.split("   ").isEmpty)
+    }
+
+    @Test("중복은 대소문자를 무시하고 첫 번째만 남긴다")
+    func uniquesIgnoringCase() {
+        #expect(BulkWordAddService.uniqued(["Abate", "abate", "ABATE", "candid"]) == ["Abate", "candid"])
+    }
+
+    @Test("비교 키는 소문자에 앞뒤 공백을 턴 값이다")
+    func normalizesKey() {
+        #expect(BulkWordAddService.key("  Abate ") == "abate")
+    }
+
+    @Test("결과 요약은 처리한 갈래만 적는다")
+    func summarizesOnlyWhatHappened() {
+        var summary = BulkWordAddService.Summary()
+        #expect(summary.message == "저장할 새 단어가 없습니다.")
+
+        summary.created = ["abate", "candid"]
+        summary.skipped = ["lucid"]
+        #expect(summary.message == "2개 저장 · 1개 중복 건너뜀")
+
+        summary.assigned = ["terse"]
+        summary.failed = ["opaque"]
+        #expect(summary.message == "2개 저장 · 1개 폴더 추가 · 1개 중복 건너뜀 · 1개 실패")
+    }
+}
