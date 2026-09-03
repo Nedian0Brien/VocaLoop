@@ -1,6 +1,6 @@
 import Charts
-import SwiftUI
-
+/// 학습 홈. 브랜드 색을 앞세운 대시보드 구조 — 그라디언트 히어로,
+/// 색 그림자를 두른 카드, 시스템 텍스트 스타일(Dynamic Type).
 /// 학습 홈. 네이티브 목록 구조로 다시 만들었다 — 큰 제목, 그룹 목록,
 /// 시스템 폰트(Dynamic Type), 설정 모달은 시트.
 struct StudyHomeView: View {
@@ -29,33 +29,45 @@ struct StudyHomeView: View {
     private var words: [Word] { appState.vocabulary?.words ?? [] }
     private var folders: [Folder] { appState.vocabulary?.folders ?? [] }
 
+
     var body: some View {
         NavigationStack {
-            List {
-                summarySection
-                weeklyGoalSection
-                readingMasterySection
-                modeSection(
-                    title: "단어 학습",
-                    footer: "암기 수준에 맞춘 기초 단계 학습",
-                    tint: .blue,
-                    modes: QuizModeRegistry.vocabulary
-                )
-                modeSection(
-                    title: "TOEFL Reading",
-                    footer: "2026 개정 Reading task와 실전 모의고사",
-                    tint: .indigo,
-                    modes: QuizModeRegistry.toeflReading
-                )
-                modeSection(
-                    title: "TOEFL Writing",
-                    footer: "2026 개정 Writing 3유형과 실전형 12문항 구성",
-                    tint: .purple,
-                    modes: QuizModeRegistry.toeflWriting
-                )
-                recentActivitySection
-                smartTipSection
+            ScrollView {
+                VStack(spacing: 24) {
+                    masteryHero
+                    goalCard
+                    readingMasteryCard
+
+                    modeSection(
+                        title: "단어 학습",
+                        subtitle: "암기 수준에 맞춘 기초 단계 학습",
+                        symbol: "book.fill",
+                        tint: DS.Solid.brand500,
+                        modes: QuizModeRegistry.vocabulary
+                    )
+                    modeSection(
+                        title: "TOEFL Reading",
+                        subtitle: "2026 개정 Reading task와 실전 모의고사",
+                        symbol: "sparkles",
+                        tint: DS.Solid.indigo,
+                        modes: QuizModeRegistry.toeflReading
+                    )
+                    modeSection(
+                        title: "TOEFL Writing",
+                        subtitle: "2026 개정 Writing 3유형과 실전형 12문항 구성",
+                        symbol: "square.and.pencil",
+                        tint: DS.Solid.accent500,
+                        modes: QuizModeRegistry.toeflWriting
+                    )
+
+                    recentActivity
+                    smartTipCard
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 32)
             }
+            .background(DS.Surface.level50)
             .navigationTitle("학습")
             .navigationBarTitleDisplayMode(.large)
             .task { refreshDashboard() }
@@ -65,12 +77,6 @@ struct StudyHomeView: View {
                 QuizConfigView(state: state, onStart: start)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(DS.Surface.level50, for: .navigationBar)
-            .task { refreshDashboard() }
-            .fullScreenCover(item: $config) { state in
-                QuizConfigView(state: state, onStart: start)
             }
             .fullScreenCover(item: $session, onDismiss: refreshDashboard) { session in
                 QuizContainerView(session: session, modeTitle: runningModeTitle)
@@ -149,67 +155,52 @@ struct StudyHomeView: View {
         masteryTrend = QuizPreferences.masteryTrend
     }
 
-    // MARK: - 현황
+    // MARK: - 히어로
 
-    private var summarySection: some View {
-        Section {
-            masteryCard
-            statRow(
-                "지난 판 정답률",
-                value: lastAccuracy.map { "\($0)%" } ?? "-",
-                trend: accuracyTrend
-            )
-            statRow("이번 주 학습", value: "\(studiedThisWeek)단어", trend: 0)
-        } header: {
-            Text("현황")
-        } footer: {
-            Text("단어 \(words.count)개 · 폴더 \(folders.count)개")
-        }
-    }
+    /// 화면에서 유일하게 색을 가득 쓰는 자리. 나머지 카드는 흰 바탕이라
+    /// 여기 하나만 브랜드 그라디언트를 써도 화면 인상이 정해진다.
+    private var masteryHero: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("평균 학습률")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
 
-    /// 화면에서 제일 큰 숫자. 목록 행 하나로는 위계가 안 서서 카드로 세운다.
-    /// 링과 추이 차트 모두 시스템 컴포넌트(Gauge, Swift Charts)다.
-    private var masteryCard: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 20) {
-                Gauge(value: Double(averageMastery), in: 0...100) {
-                    EmptyView()
-                } currentValueLabel: {
-                    Text("\(averageMastery)")
-                        .font(.system(.footnote, design: .rounded, weight: .bold))
+                Spacer(minLength: 8)
+
+                if rateTrend != 0 {
+                    Text("\(rateTrend > 0 ? "+" : "-")\(abs(rateTrend))%p")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
                         .monospacedDigit()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.white.opacity(0.2), in: .capsule)
                 }
-                .gaugeStyle(.accessoryCircularCapacity)
-                .tint(masteryTint)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("평균 학습률")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(averageMastery)%")
-                            .font(.system(.title, design: .rounded, weight: .bold))
-                            .monospacedDigit()
-
-                        if rateTrend != 0 {
-                            trendChip(rateTrend)
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
             }
+
+            Text("\(averageMastery)%")
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .foregroundStyle(.white)
+                .monospacedDigit()
 
             if masteryTrend.count >= 2 {
-                masteryChart
+                heroChart.frame(height: 60)
+            }
+
+            HStack(spacing: 24) {
+                heroStat("지난 판", lastAccuracy.map { "\($0)%" } ?? "-")
+                heroStat("이번 주", "\(studiedThisWeek)단어")
+                Spacer(minLength: 0)
             }
         }
-        .padding(.vertical, 6)
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Gradient.hero, in: .rect(cornerRadius: 26))
+        .shadow(color: DS.Solid.indigo.opacity(0.35), radius: 22, y: 12)
     }
 
-    /// 최근 30일 평균 학습률. 눈금은 지우고 흐름만 남긴다.
-    private var masteryChart: some View {
+    private var heroChart: some View {
         Chart(masteryTrend) { point in
             AreaMark(
                 x: .value("날짜", point.date),
@@ -217,7 +208,7 @@ struct StudyHomeView: View {
             )
             .foregroundStyle(
                 .linearGradient(
-                    colors: [masteryTint.opacity(0.35), masteryTint.opacity(0.02)],
+                    colors: [.white.opacity(0.35), .white.opacity(0.02)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -228,19 +219,17 @@ struct StudyHomeView: View {
                 x: .value("날짜", point.date),
                 y: .value("학습률", point.rate)
             )
-            .foregroundStyle(masteryTint)
-            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+            .foregroundStyle(.white)
+            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
             .interpolationMethod(.monotone)
         }
         .chartYScale(domain: chartRange)
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
-        .frame(height: 72)
         .accessibilityLabel("최근 평균 학습률 추이")
     }
 
     /// 0~100 전체를 그리면 값이 바닥에 깔려 흐름이 안 보인다.
-    /// 실제 값 폭에 여유를 조금 붙여 그 구간만 그린다.
     private var chartRange: ClosedRange<Double> {
         let rates = masteryTrend.map { Double($0.rate) }
         guard let low = rates.min(), let high = rates.max() else { return 0...100 }
@@ -248,161 +237,165 @@ struct StudyHomeView: View {
         return max(0, low - padding)...min(100, high + padding)
     }
 
-    /// 학습률 구간 색은 목록 그룹 헤더와 같은 기준을 쓴다.
-    private var masteryTint: Color {
-        switch LearningStatus(rate: averageMastery) {
-        case .difficult: return .red
-        case .learning: return .blue
-        case .memorized: return .green
-        }
-    }
-
-    private func trendChip(_ trend: Int) -> some View {
-        HStack(spacing: 2) {
-            Image(systemName: trend > 0 ? "arrow.up" : "arrow.down")
-            Text("\(abs(trend))%p").monospacedDigit()
-        }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(trend > 0 ? Color.green : Color.red)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(
-            (trend > 0 ? Color.green : Color.red).opacity(0.12),
-            in: .capsule
-        )
-    }
-
-    /// 값 뒤에 증감을 붙인다. 단위를 %p로 적어야 값과 헷갈리지 않는다.
-    /// 증감이 0이면(첫 기록이거나 변화가 없으면) 아무것도 붙이지 않는다.
-    private func statRow(_ title: String, value: String, trend: Int) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-
-            Spacer(minLength: 8)
-
+    private func heroStat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.7))
             Text(value)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
-
-            if trend != 0 {
-                trendChip(trend)
-            }
         }
     }
 
     // MARK: - 주간 목표
 
-    private var weeklyGoalSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+    private var goalCard: some View {
+        card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("주간 목표")
+                        .font(.subheadline.weight(.semibold))
+
+                    Spacer(minLength: 8)
+
                     Text("\(studiedThisWeek)")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .foregroundStyle(DS.BrandText.base)
                         .monospacedDigit()
                     Text("/ \(weeklyGoal)단어")
-                        .font(.subheadline)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
 
-                    Spacer(minLength: 0)
-
-                    if goalProgress >= 100 {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
+                    Stepper(
+                        "주간 목표",
+                        value: $weeklyGoal,
+                        in: QuizPreferences.weeklyGoalRange,
+                        step: 5
+                    )
+                    .labelsHidden()
+                    .onChange(of: weeklyGoal) { _, value in
+                        QuizPreferences.weeklyGoal = value
                     }
                 }
 
-                Gauge(
-                    value: Double(min(studiedThisWeek, weeklyGoal)),
-                    in: 0...Double(max(weeklyGoal, 1))
-                ) {
-                    EmptyView()
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(DS.Wash.brand)
+                        Capsule()
+                            .fill(goalProgress >= 100 ? AnyShapeStyle(Color.green.gradient) : AnyShapeStyle(DS.Gradient.cta))
+                            .frame(width: proxy.size.width * min(goalProgress, 100) / 100)
+                    }
                 }
-                .gaugeStyle(.accessoryLinearCapacity)
-                .tint(goalProgress >= 100 ? .green : .accentColor)
-            }
-            .padding(.vertical, 4)
+                .frame(height: 10)
+                .animation(.easeOut(duration: 0.6), value: goalProgress)
 
-            Stepper(
-                "목표 \(weeklyGoal)단어",
-                value: $weeklyGoal,
-                in: QuizPreferences.weeklyGoalRange,
-                step: 5
-            )
-            .onChange(of: weeklyGoal) { _, value in
-                QuizPreferences.weeklyGoal = value
+                Text(
+                    goalProgress >= 100
+                        ? "이번 주 목표를 달성했어요."
+                        : "이번 주 목표의 \(Int(goalProgress.rounded()))%를 채웠습니다."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
-        } header: {
-            Text("주간 목표")
-        } footer: {
-            Text(
-                goalProgress >= 100
-                    ? "이번 주 목표를 달성했어요."
-                    : "이번 주 목표의 \(Int(goalProgress.rounded()))%를 채웠습니다."
-            )
         }
     }
 
     // MARK: - TOEFL Reading 성적
 
     @ViewBuilder
-    private var readingMasterySection: some View {
+    private var readingMasteryCard: some View {
         if readingSummary.hasData {
-            Section("TOEFL Reading 성적") {
-                LabeledContent(
-                    "정답률",
-                    value: "\(readingSummary.accuracy)%  \(readingSummary.correct)/\(readingSummary.total)"
-                )
-                LabeledContent(
-                    "약한 task",
-                    value: ToeflReadingStats.label(forTask: readingSummary.weakestTask?.id ?? "")
-                )
-                LabeledContent("약한 주제", value: readingSummary.weakestTopic?.id ?? "-")
-                LabeledContent("약한 스킬", value: readingSummary.weakestSkill?.id ?? "-")
+            card {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("TOEFL Reading")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer(minLength: 8)
+                        Text("\(readingSummary.accuracy)%")
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .foregroundStyle(DS.BrandText.base)
+                            .monospacedDigit()
+                        Text("\(readingSummary.correct)/\(readingSummary.total)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    VStack(spacing: 8) {
+                        weakestRow("약한 task", ToeflReadingStats.label(forTask: readingSummary.weakestTask?.id ?? ""))
+                        weakestRow("약한 주제", readingSummary.weakestTopic?.id ?? "-")
+                        weakestRow("약한 스킬", readingSummary.weakestSkill?.id ?? "-")
+                    }
+                }
             }
         }
+    }
+
+    private func weakestRow(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Text(value.isEmpty ? "-" : value)
+                .font(.footnote.weight(.semibold))
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(DS.Surface.level50, in: .rect(cornerRadius: 10))
     }
 
     // MARK: - 모드
 
     private func modeSection(
         title: String,
-        footer: String,
+        subtitle: String,
+        symbol: String,
         tint: Color,
         modes: [QuizModeInfo]
     ) -> some View {
-        Section {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(tint.gradient, in: .rect(cornerRadius: 9, style: .continuous))
+                    .shadow(color: tint.opacity(0.3), radius: 8, y: 4)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.title3.bold())
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 8)
+
             ForEach(modes) { mode in
                 modeRow(mode, tint: tint)
             }
-        } header: {
-            Text(title)
-        } footer: {
-            Text(footer)
         }
-    }
-
-    /// 모드 한 줄. 웹의 큰 카드 대신 목록 행이라 "Configure Mode" 같은
-    /// 안내 문구가 필요 없다. 줄 전체가 버튼이고 꺾쇠가 그 자리를 대신한다.
-    /// 설정 앱의 아이콘 타일. 목록에 색을 되돌려 주는 가장 네이티브한 자리다.
-    private func symbolTile(_ symbol: String, tint: Color) -> some View {
-        Image(systemName: symbol)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 29, height: 29)
-            .background(tint.gradient, in: .rect(cornerRadius: 7, style: .continuous))
     }
 
     private func modeRow(_ mode: QuizModeInfo, tint: Color) -> some View {
         Button {
             open(mode)
         } label: {
-            HStack(alignment: .top, spacing: 12) {
-                symbolTile(mode.symbolName, tint: tint)
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: mode.symbolName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 42, height: 42)
+                    .background(tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(mode.title)
+                        Text(mode.title).font(.body.weight(.semibold))
                         if mode.recommended {
                             Text("추천")
                                 .font(.caption2.weight(.bold))
@@ -415,33 +408,52 @@ struct StudyHomeView: View {
                     Text(mode.comingSoon ? "준비 중입니다" : mode.detail)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
                         .lineLimit(2)
                 }
 
                 Spacer(minLength: 0)
 
                 Image(systemName: "chevron.forward")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    // 꺾쇠는 제목 줄에 맞춘다.
-                    .padding(.top, 3)
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(DS.Surface.level300)
+                    .padding(.top, 5)
             }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: 20))
+            .shadow(color: tint.opacity(0.1), radius: 12, y: 5)
         }
+        .buttonStyle(.plain)
         .foregroundStyle(.primary)
         .disabled(mode.comingSoon)
+        .opacity(mode.comingSoon ? 0.55 : 1)
     }
 
     // MARK: - 최근 활동
 
-    @ViewBuilder
-    private var recentActivitySection: some View {
-        Section("최근 활동") {
+    private var recentActivity: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(DS.Surface.level400.gradient, in: .rect(cornerRadius: 9, style: .continuous))
+
+                Text("최근 활동").font(.title3.bold())
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 8)
+
             if savedSets.isEmpty, history.isEmpty {
-                ContentUnavailableView(
-                    "활동 기록이 없습니다",
-                    systemImage: "clock",
-                    description: Text("첫 퀴즈를 시작해 보세요.")
-                )
+                Text("아직 활동 기록이 없습니다.\n첫 퀴즈를 시작해 보세요.")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(28)
+                    .frame(maxWidth: .infinity)
+                    .background(DS.Surface.level0, in: .rect(cornerRadius: 20))
             } else {
                 ForEach(savedSets.prefix(5)) { asset in
                     savedSetRow(asset)
@@ -455,86 +467,109 @@ struct StudyHomeView: View {
 
     /// 저장해 둔 TOEFL 세트. 누르면 AI를 다시 부르지 않고 그대로 연다.
     private func savedSetRow(_ asset: ToeflAsset) -> some View {
-        Button {
+        activityRow(
+            symbol: "doc.text.fill",
+            tint: DS.Solid.accent500,
+            title: asset.title,
+            detail: asset.modeInfo?.title ?? asset.mode,
+            trailing: asset.createdAt.formatted(date: .numeric, time: .omitted),
+            enabled: canReopen(asset)
+        ) {
             reopen(asset)
-        } label: {
-            HStack(spacing: 12) {
-                symbolTile("doc.text", tint: .indigo)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(asset.title).lineLimit(1)
-                    Text(asset.modeInfo?.title ?? asset.mode)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                Text(asset.createdAt.formatted(date: .numeric, time: .omitted))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if canReopen(asset) {
-                    Image(systemName: "chevron.forward")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-            }
         }
-        .foregroundStyle(.primary)
-        .disabled(!canReopen(asset))
     }
 
     private func historyRow(_ entry: QuizPreferences.HistoryEntry) -> some View {
         let matched = QuizModeRegistry.mode(titled: entry.mode)
         let canRelaunch = matched.map { !$0.comingSoon } ?? false
+        let success = entry.percentage >= 80
 
-        return Button {
+        return activityRow(
+            symbol: "chart.bar.fill",
+            tint: success ? DS.Solid.success : DS.Solid.brand500,
+            title: entry.mode,
+            detail: entry.date.formatted(date: .numeric, time: .omitted),
+            trailing: "\(entry.percentage)%",
+            enabled: canRelaunch
+        ) {
             if let matched, canRelaunch { open(matched) }
-        } label: {
-            HStack(spacing: 12) {
-                symbolTile("chart.bar.fill", tint: entry.percentage >= 80 ? .green : .blue)
+        }
+    }
+
+    private func activityRow(
+        symbol: String,
+        tint: Color,
+        title: String,
+        detail: String,
+        trailing: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 38, height: 38)
+                    .background(tint.opacity(0.12), in: .rect(cornerRadius: 11, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.mode).lineLimit(1)
-                    Text(entry.date.formatted(date: .numeric, time: .omitted))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text(title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
 
                 Spacer(minLength: 8)
 
-                Text("\(entry.percentage)%")
-                    .font(.subheadline)
-                    .monospacedDigit()
+                Text(trailing)
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
 
-                if canRelaunch {
+                if enabled {
                     Image(systemName: "chevron.forward")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(DS.Surface.level300)
                 }
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: 18))
+            .shadow(color: tint.opacity(0.08), radius: 10, y: 4)
         }
+        .buttonStyle(.plain)
         .foregroundStyle(.primary)
-        .disabled(!canRelaunch)
+        .disabled(!enabled)
     }
 
     // MARK: - 학습 제안
 
-    private var smartTipSection: some View {
-        Section("학습 제안") {
-            Label {
+    private var smartTipCard: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(DS.Gradient.cta, in: .rect(cornerRadius: 12, style: .continuous))
+                .shadow(color: DS.Solid.indigo.opacity(0.3), radius: 10, y: 5)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("학습 제안").font(.subheadline.weight(.bold))
                 smartTipText
-                    .font(.subheadline)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                symbolTile("brain.head.profile", tint: .teal)
             }
-            .labelStyle(.titleAndIcon)
+
+            Spacer(minLength: 0)
         }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Wash.brand.opacity(0.5), in: .rect(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(DS.Wash.brandStrong, lineWidth: 1)
+        )
+        .padding(.top, 8)
     }
 
     /// 굵기는 마크다운으로 준다. `Text + Text`는 iOS 26에서 권장되지 않는다.
@@ -551,6 +586,15 @@ struct StudyHomeView: View {
                     + "(\(weakest.count)개 단어). 이 폴더부터 집중 학습하면 전체 정답률이 가장 빨리 오릅니다."
             )
         )
+    }
+
+    /// 흰 카드 한 장. 그림자는 브랜드 색을 옅게 깔아 화면 전체 톤을 맞춘다.
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Surface.level0, in: .rect(cornerRadius: 20))
+            .shadow(color: DS.Solid.brand500.opacity(0.1), radius: 14, y: 6)
     }
 
     /// 지금 다시 열 수 있는 모드인지. Reading task 두 종만 저장본으로 되살린다.
