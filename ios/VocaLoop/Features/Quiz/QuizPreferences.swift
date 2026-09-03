@@ -154,6 +154,29 @@ enum QuizPreferences {
         return snapshots[snapshots.count - 1].avgRate - snapshots[snapshots.count - 2].avgRate
     }
 
+    /// 차트에 그릴 평균 학습률 추이. 오래된 것부터 온다.
+    static var masteryTrend: [MasteryPoint] {
+        readSnapshots().compactMap { snapshot in
+            guard let date = dayFormatter.date(from: snapshot.date) else { return nil }
+            return MasteryPoint(date: date, rate: snapshot.avgRate)
+        }
+    }
+
+    struct MasteryPoint: Identifiable, Hashable, Sendable {
+        let date: Date
+        let rate: Int
+
+        var id: Date { date }
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     private static func readSnapshots() -> [MasterySnapshot] {
         guard let data = defaults.data(forKey: Key.masteryHistory),
               let decoded = try? JSONDecoder().decode([MasterySnapshot].self, from: data) else {

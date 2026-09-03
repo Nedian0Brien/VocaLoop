@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 /// 학습 홈. 네이티브 목록 구조로 다시 만들었다 — 큰 제목, 그룹 목록,
@@ -22,6 +23,7 @@ struct StudyHomeView: View {
     @State private var savedSets: [ToeflAsset] = []
     @State private var readingSummary = ToeflReadingStats.summarize()
     @State private var rateTrend = 0
+    @State private var masteryTrend: [QuizPreferences.MasteryPoint] = []
     @State private var weeklyGoal = QuizPreferences.weeklyGoal
 
     private var words: [Word] { appState.vocabulary?.words ?? [] }
@@ -36,16 +38,19 @@ struct StudyHomeView: View {
                 modeSection(
                     title: "단어 학습",
                     footer: "암기 수준에 맞춘 기초 단계 학습",
+                    tint: .blue,
                     modes: QuizModeRegistry.vocabulary
                 )
                 modeSection(
                     title: "TOEFL Reading",
                     footer: "2026 개정 Reading task와 실전 모의고사",
+                    tint: .indigo,
                     modes: QuizModeRegistry.toeflReading
                 )
                 modeSection(
                     title: "TOEFL Writing",
                     footer: "2026 개정 Writing 3유형과 실전형 12문항 구성",
+                    tint: .purple,
                     modes: QuizModeRegistry.toeflWriting
                 )
                 recentActivitySection
@@ -141,13 +146,14 @@ struct StudyHomeView: View {
         if !words.isEmpty {
             rateTrend = QuizPreferences.recordMastery(averageMastery, on: Date())
         }
+        masteryTrend = QuizPreferences.masteryTrend
     }
 
     // MARK: - 현황
 
     private var summarySection: some View {
         Section {
-            statRow("평균 학습률", value: "\(averageMastery)%", trend: rateTrend)
+            masteryCard
             statRow(
                 "지난 판 정답률",
                 value: lastAccuracy.map { "\($0)%" } ?? "-",
@@ -159,6 +165,111 @@ struct StudyHomeView: View {
         } footer: {
             Text("단어 \(words.count)개 · 폴더 \(folders.count)개")
         }
+    }
+
+    /// 화면에서 제일 큰 숫자. 목록 행 하나로는 위계가 안 서서 카드로 세운다.
+    /// 링과 추이 차트 모두 시스템 컴포넌트(Gauge, Swift Charts)다.
+    private var masteryCard: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 20) {
+                Gauge(value: Double(averageMastery), in: 0...100) {
+                    EmptyView()
+                } currentValueLabel: {
+                    Text("\(averageMastery)")
+                        .font(.system(.footnote, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
+                .tint(masteryTint)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("평균 학습률")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("\(averageMastery)%")
+                            .font(.system(.title, design: .rounded, weight: .bold))
+                            .monospacedDigit()
+
+                        if rateTrend != 0 {
+                            trendChip(rateTrend)
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            if masteryTrend.count >= 2 {
+                masteryChart
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    /// 최근 30일 평균 학습률. 눈금은 지우고 흐름만 남긴다.
+    private var masteryChart: some View {
+        Chart(masteryTrend) { point in
+            AreaMark(
+                x: .value("날짜", point.date),
+                y: .value("학습률", point.rate)
+            )
+            .foregroundStyle(
+                .linearGradient(
+                    colors: [masteryTint.opacity(0.35), masteryTint.opacity(0.02)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .interpolationMethod(.monotone)
+
+            LineMark(
+                x: .value("날짜", point.date),
+                y: .value("학습률", point.rate)
+            )
+            .foregroundStyle(masteryTint)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+            .interpolationMethod(.monotone)
+        }
+        .chartYScale(domain: chartRange)
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .frame(height: 72)
+        .accessibilityLabel("최근 평균 학습률 추이")
+    }
+
+    /// 0~100 전체를 그리면 값이 바닥에 깔려 흐름이 안 보인다.
+    /// 실제 값 폭에 여유를 조금 붙여 그 구간만 그린다.
+    private var chartRange: ClosedRange<Double> {
+        let rates = masteryTrend.map { Double($0.rate) }
+        guard let low = rates.min(), let high = rates.max() else { return 0...100 }
+        let padding = max((high - low) * 0.3, 6)
+        return max(0, low - padding)...min(100, high + padding)
+    }
+
+    /// 학습률 구간 색은 목록 그룹 헤더와 같은 기준을 쓴다.
+    private var masteryTint: Color {
+        switch LearningStatus(rate: averageMastery) {
+        case .difficult: return .red
+        case .learning: return .blue
+        case .memorized: return .green
+        }
+    }
+
+    private func trendChip(_ trend: Int) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: trend > 0 ? "arrow.up" : "arrow.down")
+            Text("\(abs(trend))%p").monospacedDigit()
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(trend > 0 ? Color.green : Color.red)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(
+            (trend > 0 ? Color.green : Color.red).opacity(0.12),
+            in: .capsule
+        )
     }
 
     /// 값 뒤에 증감을 붙인다. 단위를 %p로 적어야 값과 헷갈리지 않는다.
@@ -174,12 +285,7 @@ struct StudyHomeView: View {
                 .foregroundStyle(.secondary)
 
             if trend != 0 {
-                HStack(spacing: 2) {
-                    Image(systemName: trend > 0 ? "arrow.up" : "arrow.down")
-                    Text("\(abs(trend))%p").monospacedDigit()
-                }
-                .font(.caption)
-                .foregroundStyle(trend > 0 ? Color.green : Color.red)
+                trendChip(trend)
             }
         }
     }
@@ -188,15 +294,34 @@ struct StudyHomeView: View {
 
     private var weeklyGoalSection: some View {
         Section {
-            ProgressView(
-                value: Double(min(studiedThisWeek, weeklyGoal)),
-                total: Double(max(weeklyGoal, 1))
-            ) {
-                Text("이번 주 \(studiedThisWeek)단어")
-            } currentValueLabel: {
-                Text("목표 \(weeklyGoal)단어")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(studiedThisWeek)")
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                    Text("/ \(weeklyGoal)단어")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+
+                    Spacer(minLength: 0)
+
+                    if goalProgress >= 100 {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
+
+                Gauge(
+                    value: Double(min(studiedThisWeek, weeklyGoal)),
+                    in: 0...Double(max(weeklyGoal, 1))
+                ) {
+                    EmptyView()
+                }
+                .gaugeStyle(.accessoryLinearCapacity)
+                .tint(goalProgress >= 100 ? .green : .accentColor)
             }
+            .padding(.vertical, 4)
 
             Stepper(
                 "목표 \(weeklyGoal)단어",
@@ -243,11 +368,12 @@ struct StudyHomeView: View {
     private func modeSection(
         title: String,
         footer: String,
+        tint: Color,
         modes: [QuizModeInfo]
     ) -> some View {
         Section {
             ForEach(modes) { mode in
-                modeRow(mode)
+                modeRow(mode, tint: tint)
             }
         } header: {
             Text(title)
@@ -258,26 +384,32 @@ struct StudyHomeView: View {
 
     /// 모드 한 줄. 웹의 큰 카드 대신 목록 행이라 "Configure Mode" 같은
     /// 안내 문구가 필요 없다. 줄 전체가 버튼이고 꺾쇠가 그 자리를 대신한다.
-    private func modeRow(_ mode: QuizModeInfo) -> some View {
+    /// 설정 앱의 아이콘 타일. 목록에 색을 되돌려 주는 가장 네이티브한 자리다.
+    private func symbolTile(_ symbol: String, tint: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 29, height: 29)
+            .background(tint.gradient, in: .rect(cornerRadius: 7, style: .continuous))
+    }
+
+    private func modeRow(_ mode: QuizModeInfo, tint: Color) -> some View {
         Button {
             open(mode)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: mode.symbolName)
-                    .font(.title3)
-                    .foregroundStyle(mode.accent == .accent ? Color.purple : Color.accentColor)
-                    .frame(width: 28)
+                symbolTile(mode.symbolName, tint: tint)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(mode.title)
                         if mode.recommended {
                             Text("추천")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(tint)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(.quaternary, in: .capsule)
+                                .background(tint.opacity(0.14), in: .capsule)
                         }
                     }
                     Text(mode.comingSoon ? "준비 중입니다" : mode.detail)
@@ -327,10 +459,7 @@ struct StudyHomeView: View {
             reopen(asset)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "doc.text")
-                    .font(.body)
-                    .foregroundStyle(Color.purple)
-                    .frame(width: 28)
+                symbolTile("doc.text", tint: .indigo)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(asset.title).lineLimit(1)
@@ -365,10 +494,7 @@ struct StudyHomeView: View {
             if let matched, canRelaunch { open(matched) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "chart.bar")
-                    .font(.body)
-                    .foregroundStyle(entry.percentage >= 80 ? Color.green : Color.accentColor)
-                    .frame(width: 28)
+                symbolTile("chart.bar.fill", tint: entry.percentage >= 80 ? .green : .blue)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.mode).lineLimit(1)
@@ -405,8 +531,7 @@ struct StudyHomeView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
-                Image(systemName: "brain.head.profile")
-                    .foregroundStyle(Color.accentColor)
+                symbolTile("brain.head.profile", tint: .teal)
             }
             .labelStyle(.titleAndIcon)
         }
