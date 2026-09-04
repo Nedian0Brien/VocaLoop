@@ -1,0 +1,20 @@
+VocaLoop English-Korean autocomplete dictionary
+
+This compact autocomplete index was generated from:
+https://github.com/marcinchs/krdict-reader
+
+The upstream krdict-reader project describes its data as an English-Korean
+dictionary mainly based on the National Institute of Korean Language's
+Korean-English Learners' Dictionary, with additional entries from Extended Open
+Multilingual Wordnet.
+
+Upstream license notes:
+- National Institute of Korean Language Korean-English Learners' Dictionary:
+  Creative Commons Attribution-Share Alike.
+- Extended Open Multilingual Wordnet includes data from Wiktionary under
+  CC BY-SA 3.0 and CLDR under the Unicode, Inc. Licence Agreement.
+- 12dicts word lists by Alan Beale are public domain.
+- Princeton WordNet data is governed by the WordNet license.
+
+This file is provided for attribution and source tracing. See the upstream
+README for the complete license notes.

@@ -117,3 +117,57 @@ struct BulkWordAddInputTests {
         #expect(summary.message == "2개 저장 · 1개 폴더 추가 · 1개 중복 건너뜀 · 1개 실패")
     }
 }
+
+/// 웹 `dictionaryAutocompleteService.js`와 같은 순서로 제안해야 한다.
+@Suite("사전 자동완성")
+struct DictionaryAutocompleteTests {
+    private func entries() -> [DictionaryAutocomplete.Entry] {
+        [
+            .init(word: "candid", meaningKo: "솔직한", pos: "adjective"),
+            .init(word: "candidate", meaningKo: "후보자", pos: "noun"),
+            .init(word: "incandescent", meaningKo: "백열의", pos: "adjective"),
+            .init(word: "Candid", meaningKo: "중복 항목", pos: nil),
+            .init(word: "abate", meaningKo: "줄다", pos: "verb"),
+        ]
+    }
+
+    @Test("앞에서부터 맞는 것을 먼저, 같은 자리면 사전순")
+    func ordersPrefixMatchesFirst() {
+        let found = DictionaryAutocomplete.match(entries(), query: "cand")
+        #expect(found.map(\.word) == ["candid", "candidate", "incandescent"])
+    }
+
+    @Test("가운데만 맞아도 찾는다")
+    func matchesSubstring() {
+        let found = DictionaryAutocomplete.match(entries(), query: "candes")
+        #expect(found.map(\.word) == ["incandescent"])
+    }
+
+    @Test("같은 단어는 대소문자를 무시하고 한 번만 나온다")
+    func dropsDuplicates() {
+        let found = DictionaryAutocomplete.match(entries(), query: "candid")
+        #expect(found.map(\.word) == ["candid", "candidate"])
+    }
+
+    @Test("두 글자보다 짧으면 찾지 않는다")
+    func requiresTwoCharacters() {
+        #expect(DictionaryAutocomplete.match(entries(), query: "c").isEmpty)
+        #expect(DictionaryAutocomplete.match(entries(), query: " ").isEmpty)
+        #expect(!DictionaryAutocomplete.match(entries(), query: "ca").isEmpty)
+    }
+
+    @Test("개수 상한을 지킨다")
+    func respectsLimit() {
+        #expect(DictionaryAutocomplete.match(entries(), query: "a", limit: 2).isEmpty)
+        #expect(DictionaryAutocomplete.match(entries(), query: "an", limit: 2).count <= 2)
+    }
+
+    @Test("품사가 비면 nil로 둔다")
+    func normalizesEmptyPos() {
+        let entry = DictionaryAutocomplete.Entry(word: "  candid ", meaningKo: " 솔직한 ", pos: "  ")
+        #expect(entry.word == "candid")
+        #expect(entry.meaningKo == "솔직한")
+        #expect(entry.pos == nil)
+        #expect(entry.normalized == "candid")
+    }
+}
