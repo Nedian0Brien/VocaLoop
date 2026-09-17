@@ -106,6 +106,7 @@ chown -R ubuntu:ubuntu /home/ubuntu/project/VocaLoop/dist/
 `/api/health`는 GET으로 확인한다. `curl -I`처럼 HEAD 요청을 쓰면 404가 나올 수 있다.
 현재 live nginx 설정은 `/etc/nginx/sites-enabled/lawdigest-kr-services`의 `vocaloop.lawdigest.kr` 서버 블록에서 `http://127.0.0.1:3050`으로 프록시한다.
 루트의 `nginx.conf`는 템플릿/레거시일 수 있으므로 공개 라우팅을 판단할 때는 `sudo nginx -T`와 실제 응답을 우선한다.
+vocaloop 블록에는 `client_max_body_size 100m`(파일 가져오기·프로필 이미지)과 `proxy_read_timeout 300`(Codex CLI 대기)이 필요하다. 없으면 1MB 초과 업로드가 nginx 413 으로 끝난다.
 
 ```bash
 curl -fsS http://127.0.0.1:3050/api/health
