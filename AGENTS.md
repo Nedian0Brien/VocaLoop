@@ -137,6 +137,7 @@ gh CLI가 없을 경우 node 스크립트로 확인:
 | DB | SQLite (`vocaloop.db`) |
 | 인증 | 자체 이메일/비밀번호 + 쿠키 세션 (네이티브는 Bearer 토큰) |
 | 업로드 | FastAPI static mount + 로컬 `uploads/` |
+| AI 탭 | 대화·메시지는 SQLite(`ai_conversations`, `ai_messages`), 파일 추출은 BackgroundTasks + Codex CLI |
 | AI | Codex CLI 기본값 (`gpt-5.3-codex-spark`), Gemini/OpenAI/Claude 대체 provider |
 | 서버 | Uvicorn (`backend.app.main:app`) behind PM2 |
 | iOS 앱 | Capacitor 8 + Swift Package Manager (CocoaPods 미사용) |
@@ -152,6 +153,7 @@ gh CLI가 없을 경우 node 스크립트로 확인:
 - `src/services/aiModelService.js` - Codex CLI 백엔드 호출, Gemini/OpenAI/Claude 직접 호출 및 모델 목록
 - `src/services/geminiService.js` - 단어 분석 프롬프트와 JSON 파싱
 - `src/components/AccountSettings.jsx` - 프로필, 통계, 폴더, 데이터, 계정 설정
+- `src/components/ai/*.jsx`, `src/hooks/useAiAssistant.js`, `src/services/aiAssistantApi.js` - AI 탭(`/ai`). 채팅 화면 구조는 `agent-chat-framework`의 thread/thread-list를 따른다
 - `src/components/ToeflReadingTaskQuiz.jsx` - TOEFL Reading task practice
 - `src/components/ToeflReadingMockTest.jsx` - TOEFL Reading mock test
 - `src/services/toeflService.js` - TOEFL 문제 생성, Reading mock 라우팅/채점 보조
@@ -160,6 +162,9 @@ gh CLI가 없을 경우 node 스크립트로 확인:
 - `backend/app/models.py` - SQLAlchemy 모델
 - `backend/app/db.py` - DB engine/session/bootstrap, SQLite legacy column 보정
 - `backend/app/routes/*.py` - auth/settings/ai/account/folders/uploads/words API
+- `backend/app/routes/ai_conversations.py` - VocaLoop AI 대화·메시지 API, 파일 가져오기 백그라운드 추출 (`/api/ai/conversations`)
+- `backend/app/file_vocabulary.py` - PDF/CSV/XLSX 텍스트 추출과 Codex 단어 추출 (pypdf, openpyxl)
+- `backend/app/codex_cli.py` - `codex exec` 호출 헬퍼. AI 생성·스크린샷 추출·파일 추출이 함께 쓴다
 - `backend/tests/*.py` - 백엔드 pytest
 - `ecosystem.config.cjs` - PM2 설정 (운영 포트 3050)
 - `.github/workflows/deploy.yml` - CI/CD 파이프라인
