@@ -348,8 +348,11 @@ function App() {
         );
     }
 
+    // AI 탭은 헤더 아래를 통째로 쓰는 채팅 화면이라 페이지 여백을 붙이지 않는다.
+    const isChatView = view === 'ai';
+
     return (
-        <div className="min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-20">
+        <div className={isChatView ? 'min-h-screen' : 'min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-20'}>
             <Header
                 view={view}
                 setView={navigate}
@@ -368,6 +371,20 @@ function App() {
                 onConfirm={confirmDeleteFolder}
             />
 
+            {isChatView && (
+                <Suspense fallback={<RouteFallback label="Loading VocaLoop AI..." />}>
+                    <AiAssistantView
+                        folders={folders}
+                        bulkAddProgress={bulkAddProgress}
+                        isBulkAdding={isBulkAdding}
+                        onBulkAddWords={handleBulkAddWordsWithFolder}
+                        onCreateFolder={handleCreateFolder}
+                        showNotification={showNotification}
+                    />
+                </Suspense>
+            )}
+
+            {!isChatView && (
             <main className="max-w-6xl mx-auto px-4 pt-8">
                 {view === 'dashboard' && (
                     <VocabularyDashboard
@@ -430,18 +447,6 @@ function App() {
                         <ToeflReviewView onStartAssetReview={handleStartToeflAssetReview} />
                     </Suspense>
                 )}
-                {view === 'ai' && (
-                    <Suspense fallback={<RouteFallback label="Loading VocaLoop AI..." />}>
-                        <AiAssistantView
-                            folders={folders}
-                            bulkAddProgress={bulkAddProgress}
-                            isBulkAdding={isBulkAdding}
-                            onBulkAddWords={handleBulkAddWordsWithFolder}
-                            onCreateFolder={handleCreateFolder}
-                            showNotification={showNotification}
-                        />
-                    </Suspense>
-                )}
                 {view === 'settings' && (
                     <Suspense fallback={<RouteFallback label="Loading settings..." />}>
                         <AccountSettings
@@ -464,6 +469,7 @@ function App() {
                     </Suspense>
                 )}
             </main>
+            )}
         </div>
     );
 }

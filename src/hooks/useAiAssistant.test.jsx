@@ -128,8 +128,10 @@ describe('useAiAssistant', () => {
     await waitFor(() => expect(result.current.messages[0].status).toBe('ready'));
     expect(result.current.isPolling).toBe(false);
 
+    // ready 직전에 시작된 마지막 틱이 끝나도록 한 주기 기다린 뒤, 더는 부르지 않는지 본다.
+    await new Promise((resolve) => setTimeout(resolve, 80));
     const callsAfterReady = api.listMessages.mock.calls.length;
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 200));
     expect(api.listMessages.mock.calls.length).toBe(callsAfterReady);
   });
 

@@ -62,12 +62,14 @@ date: 2026-09-17
 - `App.jsx`: `PATH_TO_VIEW`/`VIEW_TO_PATH`에 `/ai`, lazy `AiAssistantView`에 `folders, words, onCreateFolder, onBulkAddWords, bulkAddProgress, isBulkAdding, showNotification` 전달.
 - `src/services/aiAssistantApi.js`(신규): 엔드포인트 래퍼. `apiRequest` 사용.
 - `src/hooks/useAiAssistant.js`(신규): 대화 목록·선택·메시지·폴링·전송·배치 저장 오케스트레이션. 배치 저장은 `onCreateFolder` → `onBulkAddWords` → PATCH 순서.
-- `src/components/ai/AiAssistantView.jsx`, `AiConversationList.jsx`, `AiMessageThread.jsx`, `AiComposer.jsx`, `AiFileImportCard.jsx`(신규). 디자인 토큰과 `Button/Card/Input` 프리미티브를 쓴다. 측정값은 `design-ops` 프로필에서 가져온다.
+- `src/components/ai/AiAssistantView.jsx`, `AiConversationList.jsx`, `AiMessageThread.jsx`, `AiComposer.jsx`, `AiFileImportCard.jsx`(신규). 색·간격·반경은 VocaLoop 토큰을 쓴다.
+- **화면 구조는 `/Users/minjaepark/code/framework/agent-chat-framework`의 `thread.aui` + `threadlist-sidebar.aui`/`thread-list.aui` 구성을 그대로 따른다** (구조·레이아웃만 가져오고 assistant-ui/shadcn 의존성은 넣지 않는다 — 2026-09-17 사용자 결정). 헤더 아래 전체 높이, 카드 틀 없음. 왼쪽 16rem 사이드바(접힘 가능, `lg` 미만은 드로어): 새 대화 · 검색 · 오늘/어제/이전 묶음 · 32px 행 · 호버 시 더보기 메뉴(이름 바꾸기·삭제). 오른쪽 스레드: 스크롤 뷰포트 안 44rem 가운데 열, 사용자 메시지는 오른쪽 `bg-muted` 말풍선(왼쪽 72px 여백, 첨부는 말풍선 위), 어시스턴트는 말풍선 없는 평문 + 복사 액션, 파일 카드는 tool UI 자리에 인라인 블록. 하단 sticky 푸터에 맨 아래로 버튼 · 둥근 셸 컴포저(첨부 줄 / 입력 / `+`·`↑` 액션 줄) · 빈 화면일 때 환영 문구와 제안 칩.
 - `bulkWordAddService.js`: 큐 항목을 문자열 또는 `{word, meaning_ko}`로 받는다. `normalizeBulkWordQueue`가 뜻을 보존하고 `buildBulkWordPayload`가 파일 뜻으로 덮어쓴다. `generateBulkWordData/generateWordData`에 `glosses` 힌트 옵션.
 - `useVocabularyCommands.handleBulkAddWords`가 `{createdWords, assignedWords, skippedWords, failedWords, processedWords}`를 돌려준다 (지금 호출자는 반환값을 쓰지 않는다).
 
 ## 버린 대안
 
+- agent-chat-framework 컴포넌트를 실제로 설치(@assistant-ui/react 런타임 + shadcn ui + TS): 앱 안에 디자인 체계가 둘이 되고 한 탭을 위해 의존성이 크게 는다. 구조만 옮기기로 했다.
 - 동기 추출(스크린샷 라우트처럼 요청 안에서 Codex 완료까지 대기): 100MB PDF는 Codex 호출이 여러 번이라 nginx/브라우저 타임아웃에 걸린다. 새로고침하면 결과도 사라진다.
 - 텍스트 메시지를 Codex에 그대로 넘겨 자유 대화: 도구가 없는 상태에서 할 수 없는 일을 약속한다. 다음 단계에서 기능이 붙을 때 에이전트 루프로 바꾼다.
 - 저장까지 서버에서 처리: 사용자별 AI provider(Gemini/OpenAI/Claude 직접 호출) 설정을 서버가 모른다. 기존 클라이언트 파이프라인을 유지한다.

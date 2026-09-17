@@ -134,11 +134,11 @@ export default function AiFileImportCard({
 
     if (message.status === 'pending') {
         return (
-            <div className="flex items-center gap-3 rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-black text-brand-700">
+            <div className="flex items-center gap-3 rounded-md border border-surface-200 bg-surface-50 px-4 py-3 text-sm font-bold text-surface-700">
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
                 <span className="min-w-0">
                     단어 읽는 중
-                    {payload.file_name && <span className="ml-2 truncate font-semibold text-brand-600">{payload.file_name}</span>}
+                    {payload.file_name && <span className="ml-2 truncate font-semibold text-surface-500">{payload.file_name}</span>}
                 </span>
             </div>
         );
@@ -146,7 +146,7 @@ export default function AiFileImportCard({
 
     if (message.status === 'failed') {
         return (
-            <div className="flex items-start gap-3 rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700" role="alert">
+            <div className="flex items-start gap-3 rounded-md border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700" role="alert">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
                     <p className="font-black">{payload.error || '파일에서 단어를 읽지 못했습니다.'}</p>
@@ -165,7 +165,7 @@ export default function AiFileImportCard({
                     <div
                         key={batch.index}
                         className={[
-                            'flex items-start gap-3 rounded-lg border px-4 py-3 text-sm',
+                            'flex items-start gap-3 rounded-md border px-4 py-3 text-sm',
                             isSaved ? 'border-success-200 bg-success-50 text-success-700' : 'border-surface-200 bg-surface-50 text-surface-600',
                         ].join(' ')}
                     >
@@ -195,9 +195,9 @@ export default function AiFileImportCard({
             })}
 
             {current && (
-                <div className="rounded-lg border border-surface-200 bg-surface-0 shadow-[var(--shadow-card)]">
+                <div className="overflow-hidden rounded-md border border-surface-200 bg-surface-0">
                     <div className="flex items-start gap-3 border-b border-surface-100 px-4 py-3">
-                        <FileText className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" aria-hidden="true" />
+                        <FileText className="mt-0.5 h-5 w-5 shrink-0 text-surface-500" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                             <h3 className="text-sm font-black text-surface-900">
                                 {current.index === 0
@@ -210,7 +210,7 @@ export default function AiFileImportCard({
                                     : '잘못 읽힌 단어는 고치거나 빼고, 폴더를 정한 뒤 저장하세요.'}
                             </p>
                         </div>
-                        <span className="shrink-0 rounded-pill bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">
+                        <span className="shrink-0 rounded-pill bg-surface-100 px-2.5 py-1 text-xs font-bold text-surface-700">
                             {approvedEntries.length}개
                         </span>
                     </div>
