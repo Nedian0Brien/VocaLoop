@@ -10,12 +10,15 @@ const conversation = (id, title, updatedAt) => ({ id, title, created_at: updated
 
 describe('groupConversations', () => {
     test('buckets by today, yesterday and earlier in list order', () => {
-        const now = new Date('2026-09-17T12:00:00');
+        // 서버 시각은 UTC 로 읽힌다. 머신 타임존과 무관하게 now 기준으로 시각을 만든다.
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const iso = (ms) => new Date(ms).toISOString().replace('Z', '');
         const groups = groupConversations(
             [
-                conversation(3, 'c', '2026-09-17T09:00:00'),
-                conversation(2, 'b', '2026-09-16T23:00:00'),
-                conversation(1, 'a', '2026-09-01T10:00:00'),
+                conversation(3, 'c', iso(now.getTime() - 60_000)),
+                conversation(2, 'b', iso(startOfToday - 60_000)),
+                conversation(1, 'a', iso(now.getTime() - 10 * 86_400_000)),
             ],
             now,
         );
@@ -62,7 +65,8 @@ describe('AiConversationList', () => {
         expect(screen.getByLabelText('대화 검색')).toBeTruthy();
         expect(screen.getByText('오늘')).toBeTruthy();
         expect(screen.getByText('이전')).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'TOEFL 단어장' }).getAttribute('aria-current')).toBe('true');
+        expect(screen.getByRole('button', { name: /^TOEFL 단어장(?! 메뉴)/ }).textContent).toContain('대화 ·');
+        expect(screen.getByRole('button', { name: /^TOEFL 단어장(?! 메뉴)/ }).getAttribute('aria-current')).toBe('true');
         expect(screen.getByRole('button', { name: '새 대화 시작' }).getAttribute('data-active')).toBeNull();
     });
 
@@ -73,7 +77,7 @@ describe('AiConversationList', () => {
         expect(screen.getByRole('button', { name: '새 대화 시작' })).toBeTruthy();
         expect(screen.queryByText('이전')).toBeNull();
 
-        fireEvent.click(screen.getByRole('button', { name: 'TOEFL 단어장' }));
+        fireEvent.click(screen.getByRole('button', { name: /^TOEFL 단어장(?! 메뉴)/ }));
         expect(onSelect).toHaveBeenCalledWith(2);
     });
 

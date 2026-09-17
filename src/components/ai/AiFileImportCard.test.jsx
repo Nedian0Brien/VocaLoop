@@ -72,15 +72,18 @@ describe('AiFileImportCard', () => {
         expect(screen.getByLabelText('단어 1 뜻').value).toBe('줄이다');
         expect(screen.getByLabelText('단어 2 뜻').value).toBe('');
         expect(screen.queryByLabelText('단어 3')).toBeNull();
-        expect(screen.getByLabelText('저장 폴더').value).toBe('__new__');
+        expect(screen.getByRole('button', { name: '새 폴더' }).getAttribute('aria-pressed')).toBe('true');
         expect(screen.getByLabelText('새 폴더 이름').value).toBe('TOEFL Day 1');
+        expect(screen.getByText(/새 폴더 .*에 2개를 저장합니다/).textContent).toContain('TOEFL Day 1');
     });
 
     test('preselects the folder the user named in the message', () => {
         renderCard(importMessage({}, { target_folder_id: 2 }));
 
-        expect(screen.getByLabelText('저장 폴더').value).toBe('2');
+        expect(screen.getByRole('button', { name: 'GRE' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: '새 폴더' }).getAttribute('aria-pressed')).toBe('false');
         expect(screen.queryByLabelText('새 폴더 이름')).toBeNull();
+        expect(screen.getByText((_, element) => element?.tagName === 'P' && /GRE.*폴더에 2개를 저장합니다/.test(element.textContent))).toBeTruthy();
     });
 
     test('save passes only approved rows with edits applied and the new folder name', () => {
@@ -126,7 +129,7 @@ describe('AiFileImportCard', () => {
     test('saving into an existing folder passes its id', () => {
         const { onSave } = renderCard(importMessage());
 
-        fireEvent.change(screen.getByLabelText('저장 폴더'), { target: { value: '1' } });
+        fireEvent.click(screen.getByRole('button', { name: 'TOEFL' }));
         fireEvent.click(screen.getByRole('button', { name: '2개 저장' }));
 
         expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ folderId: 1, newFolderName: '' }));
@@ -151,7 +154,8 @@ describe('AiFileImportCard', () => {
         expect(screen.getByText('1개 저장 · 1개 중복 건너뜀')).toBeTruthy();
         expect(screen.getByText('나머지 1개 중 다음 1개')).toBeTruthy();
         expect(screen.getByLabelText('단어 1').value).toBe('ephemeral');
-        expect(screen.getByLabelText('저장 폴더').value).toBe('1');
+        expect(screen.getByRole('button', { name: 'TOEFL' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByText('2 / 2 묶음')).toBeTruthy();
         expect(screen.getByRole('button', { name: '여기서 그만' })).toBeTruthy();
     });
 

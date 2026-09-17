@@ -33,6 +33,9 @@ date: 2026-09-17
 | `src/hooks/useAiAssistant.js`, `.test.js` (신규) | 대화·메시지·폴링·배치 저장 상태 |
 | `src/components/ai/AiAssistantView.jsx`, `AiConversationList.jsx`, `AiMessageThread.jsx`, `AiComposer.jsx`, `AiFileImportCard.jsx` (신규) + `AiFileImportCard.test.jsx`, `AiConversationList.test.jsx` | 화면 — agent-chat-framework thread/threadlist 구조 |
 | `src/components/Icons.jsx` | Paperclip·Send·MessageSquare·ArrowUp·ArrowDown·PanelLeft·MoreHorizontal·Copy |
+| `src/utils/folderColors.js`, `src/utils/serverDate.js` (신규) | 폴더 색 점, UTC naive 시각 파싱 — AI 탭이 쓰고 다른 화면은 나중에 옮긴다 |
+| `src/index.css` | `.focus-ring-none` — 셸이 포커스를 대신 보여 주는 입력용 (전역 `:focus-visible` 은 레이어 밖이라 유틸리티로 못 이김) |
+| `backend/app/schemas/ai.py`, `routes/ai_conversations.py` | 대화 응답에 `last_kind` (사이드바 종류 아이콘) |
 | `README.md`, `AGENTS.md` | AI 탭과 새 API·의존성 한 줄씩 |
 
 구현 중 이 표에서 벗어나면 같은 커밋에서 이 파일을 고친다.
@@ -46,6 +49,7 @@ date: 2026-09-17
 5. **네비게이션** — `Header`와 `Header.test.jsx`만. `App` 라우트는 화면이 생기는 6단계 커밋에 넣는다 — 이 커밋 시점에 `ai` 뷰가 빈 화면으로 남지 않게. 확인: `Header.test.jsx` 통과. 커밋 `feat:`.
 6. **AI 화면** — `App` 라우트(`/ai`)와 `App.test.jsx` 포함. `design-ops` 프로필로 측정값을 잡고 API 래퍼 → 훅 → 컴포넌트 순서. 훅 테스트(폴링 시작·중지, 배치 인덱스 계산, 취소가 남은 배치 전부 기록)와 카드 테스트(행 편집·삭제, 폴더 기본값, 저장 호출 인자). 확인: `npx vitest run src/components/ai src/hooks/useAiAssistant.test.js`, `npm run build`. 커밋 `feat:`.
 6-1. **채팅 화면 재구성** — 첫 구현은 카드 안에 카드가 들어간 모양이었다. 사용자 요청으로 agent-chat-framework 의 thread.aui / thread-list.aui 구조(전체 높이, 접히는 사이드바, 44rem 가운데 스레드, 평문 어시스턴트, 둥근 컴포저)로 다시 짰다. `App.jsx` 는 AI 뷰를 `main` 여백 밖에 붙인다. 확인: 같은 테스트 + 브라우저(1280·390). 커밋 `feat:`.
+6-2. **카드·사이드바 다듬기** — 사용자 요청. 카드는 눈썹 줄(파일명)·표 형태 행(번호, 세리프 단어, 뜻, 호버 시 빼기)·폴더 칩(색 점)·저장 문장 미리보기·묶음 진행(1/2). 사이드바는 워드마크+접기 버튼, 도드라진 새 대화 버튼, 채움형 검색, 행마다 종류 아이콘(`last_kind`)과 시각. 컴포저 텍스트 영역의 파란 포커스 링 제거. 서버 naive 시각을 UTC 로 읽도록 고침(9시간 어긋나던 것). 커밋 `feat:`.
 7. **로컬 통합 확인** — `npm run build` → `npm run start` → 브라우저에서 CSV/XLSX/PDF 각 1회, 250개 CSV로 두 번째 카드, 새로고침 유지, 스캔 PDF 실패 문구. 로컬 Codex CLI(`codex-cli 0.154`)를 실제로 쓴다.
 8. **문서·푸시** — README/AGENTS 갱신, PR 생성.
 

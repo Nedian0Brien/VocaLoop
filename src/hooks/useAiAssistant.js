@@ -9,6 +9,7 @@ import {
   sendMessage,
 } from '../services/aiAssistantApi';
 import { summarizeBulkAddResult } from '../services/aiImportBatches';
+import { parseServerDate } from '../utils/serverDate';
 
 export const AI_POLL_INTERVAL_MS = 2000;
 
@@ -16,7 +17,7 @@ const hasPendingMessage = (messages) => messages.some((message) => message.statu
 
 const sortConversations = (items) =>
   [...items].sort((a, b) => {
-    const byUpdated = new Date(b.updated_at) - new Date(a.updated_at);
+    const byUpdated = parseServerDate(b.updated_at) - parseServerDate(a.updated_at);
     return byUpdated !== 0 ? byUpdated : b.id - a.id;
   });
 

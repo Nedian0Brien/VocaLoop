@@ -154,7 +154,7 @@ const AiComposer = forwardRef(function AiComposer({ autoFocus = false, disabled 
                     enterKeyHint="send"
                     placeholder={file ? '요청을 적어도 됩니다. 예: TOEFL 폴더에 넣어줘' : '메시지를 보내거나 단어장 파일을 첨부하세요'}
                     aria-label="메시지 입력"
-                    className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 text-surface-900 caret-brand-600 outline-none focus-visible:outline-none placeholder:text-surface-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 text-surface-900 caret-brand-600 outline-none focus-ring-none placeholder:text-surface-400 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
                 <div className="relative flex items-center justify-between">

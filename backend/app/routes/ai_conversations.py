@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, get_db
@@ -93,6 +93,34 @@ def _get_owned_message(db: Session, conversation: AiConversation, message_id: in
     if message is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
     return message
+
+
+def _last_kinds(db: Session, conversation_ids: list[int]) -> dict[int, str]:
+    """대화별 마지막 메시지의 kind. 메시지는 사용자·어시스턴트 쌍으로 붙으므로 마지막은 어시스턴트 것이다."""
+    if not conversation_ids:
+        return {}
+    last_ids = (
+        select(AiMessage.conversation_id, func.max(AiMessage.id).label("message_id"))
+        .where(AiMessage.conversation_id.in_(conversation_ids))
+        .group_by(AiMessage.conversation_id)
+        .subquery()
+    )
+    rows = db.execute(
+        select(AiMessage.conversation_id, AiMessage.kind).join(last_ids, AiMessage.id == last_ids.c.message_id)
+    ).all()
+    return {conversation_id: kind for conversation_id, kind in rows}
+
+
+def _conversation_read(db: Session, conversation: AiConversation, last_kind: str | None = None) -> AiConversationRead:
+    if last_kind is None:
+        last_kind = _last_kinds(db, [conversation.id]).get(conversation.id)
+    return AiConversationRead(
+        id=conversation.id,
+        title=conversation.title,
+        last_kind=last_kind,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+    )
 
 
 def _list_messages(db: Session, conversation: AiConversation) -> list[AiMessage]:
@@ -214,7 +242,11 @@ def list_conversations(
         .where(AiConversation.user_id == current_user.id)
         .order_by(AiConversation.updated_at.desc(), AiConversation.id.desc())
     ).all()
-    return [AiConversationRead.model_validate(conversation) for conversation in conversations]
+    last_kinds = _last_kinds(db, [conversation.id for conversation in conversations])
+    return [
+        _conversation_read(db, conversation, last_kind=last_kinds.get(conversation.id))
+        for conversation in conversations
+    ]
 
 
 @router.post("", response_model=AiConversationRead, status_code=status.HTTP_201_CREATED)
@@ -227,7 +259,7 @@ def create_conversation(
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
-    return AiConversationRead.model_validate(conversation)
+    return _conversation_read(db, conversation)
 
 
 @router.patch("/{conversation_id}", response_model=AiConversationRead)
@@ -242,7 +274,7 @@ def rename_conversation(
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
-    return AiConversationRead.model_validate(conversation)
+    return _conversation_read(db, conversation)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -373,7 +405,7 @@ async def send_message(
         )
 
     return AiMessageSendResponse(
-        conversation=AiConversationRead.model_validate(conversation),
+        conversation=_conversation_read(db, conversation, last_kind=assistant_message.kind),
         messages=[AiMessageRead.model_validate(user_message), AiMessageRead.model_validate(assistant_message)],
     )
 

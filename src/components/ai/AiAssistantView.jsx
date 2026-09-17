@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PanelLeft, X } from '../Icons';
+import { PanelLeft, Sparkles, X } from '../Icons';
 import { useAiAssistant } from '../../hooks/useAiAssistant';
 import AiConversationList, { UNTITLED_CONVERSATION } from './AiConversationList';
 import AiMessageThread from './AiMessageThread';
@@ -96,8 +96,20 @@ export default function AiAssistantView({
                     isSidebarOpen ? 'w-64' : 'w-0 border-r-0',
                 ].join(' ')}
             >
-                <div className="flex h-12 shrink-0 items-center px-4">
-                    <span className="text-sm font-black tracking-tight text-surface-900">대화</span>
+                <div className="flex h-12 shrink-0 items-center gap-2 pl-4 pr-2">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-xs bg-gradient-to-br from-brand-500 to-indigo-pair-600 text-white shadow-[var(--shadow-glow-brand)]" aria-hidden="true">
+                        <Sparkles className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-black tracking-tight text-surface-900">VocaLoop AI</span>
+                    <button
+                        type="button"
+                        onClick={() => setIsSidebarOpen(false)}
+                        aria-label="대화 목록 접기"
+                        title="대화 목록 접기"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xs text-surface-500 transition-colors duration-150 hover:bg-surface-200 hover:text-surface-900"
+                    >
+                        <PanelLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
                 </div>
                 <div className="min-h-0 flex-1">
                     <AiConversationList {...listProps} />
@@ -111,7 +123,11 @@ export default function AiAssistantView({
                         onClick={toggleSidebar}
                         aria-label="대화 목록"
                         title="대화 목록"
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xs text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900"
+                        className={[
+                            'grid h-8 w-8 shrink-0 place-items-center rounded-xs text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900',
+                            // 데스크톱에서 사이드바가 열려 있으면 그 안의 접기 버튼이 있으므로 여기서는 숨긴다.
+                            isSidebarOpen ? 'lg:hidden' : '',
+                        ].join(' ')}
                     >
                         <PanelLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -168,8 +184,13 @@ export default function AiAssistantView({
                         aria-label="대화 목록"
                         className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-surface-50 shadow-[var(--shadow-floating)]"
                     >
-                        <div className="flex h-12 shrink-0 items-center justify-between px-4">
-                            <span className="text-sm font-black tracking-tight text-surface-900">대화</span>
+                        <div className="flex h-12 shrink-0 items-center justify-between pl-4 pr-2">
+                            <span className="flex items-center gap-2 text-sm font-black tracking-tight text-surface-900">
+                                <span className="grid h-6 w-6 place-items-center rounded-xs bg-gradient-to-br from-brand-500 to-indigo-pair-600 text-white" aria-hidden="true">
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                </span>
+                                VocaLoop AI
+                            </span>
                             <button
                                 type="button"
                                 onClick={() => setIsDrawerOpen(false)}

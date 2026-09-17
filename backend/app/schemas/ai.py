@@ -68,6 +68,8 @@ class AiConversationRead(BaseModel):
 
     id: int
     title: str
+    # 마지막 메시지의 kind(text | file_import). 목록에서 대화 종류 아이콘을 고르는 데 쓴다. 메시지가 없으면 None.
+    last_kind: str | None = None
     created_at: datetime
     updated_at: datetime
 

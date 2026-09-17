@@ -82,6 +82,7 @@ def test_conversation_crud(client):
     second = _create_conversation(client, "second")
     listed = client.get("/api/ai/conversations").json()
     assert [item["id"] for item in listed] == [second["id"], created["id"]]
+    assert [item["last_kind"] for item in listed] == [None, None]
 
     assert client.delete(f"/api/ai/conversations/{created['id']}").status_code == 204
     assert [item["id"] for item in client.get("/api/ai/conversations").json()] == [second["id"]]
@@ -127,6 +128,7 @@ def test_text_only_message_gets_capability_reply_without_codex(client, monkeypat
     assert response.status_code == 201
     body = response.json()
     assert body["conversation"]["title"] == "TOEFL 단어장 만들어 줘"
+    assert body["conversation"]["last_kind"] == "text"
     user_message, assistant_message = body["messages"]
     assert user_message["role"] == "user"
     assert user_message["content"] == "TOEFL 단어장 만들어 줘"
@@ -172,6 +174,8 @@ def test_file_message_runs_extraction_in_background_and_becomes_ready(client, mo
     assert response.status_code == 201
     body = response.json()
     assert body["conversation"]["title"] == "toefl_day1.csv"
+    assert body["conversation"]["last_kind"] == "file_import"
+    assert client.get("/api/ai/conversations").json()[0]["last_kind"] == "file_import"
     user_message, assistant_message = body["messages"]
     assert user_message["payload"]["attachment"]["file_name"] == "toefl_day1.csv"
     assert user_message["payload"]["attachment"]["kind"] == "csv"
