@@ -86,7 +86,7 @@ def test_csv_text_falls_back_to_cp949(tmp_path):
     assert fv.extract_document_text(path, "csv") == "abate\t줄이다"
 
 
-def test_xlsx_text_joins_every_sheet(tmp_path):
+def test_xlsx_text_joins_every_sheet_from_an_extensionless_upload(tmp_path):
     from openpyxl import Workbook
 
     workbook = Workbook()
@@ -96,10 +96,20 @@ def test_xlsx_text_joins_every_sheet(tmp_path):
     first.append([None, None, None])
     second = workbook.create_sheet("Day 2")
     second.append(["candid", "솔직한"])
-    path = tmp_path / "words.xlsx"
+    # 업로드는 확장자 없는 임시 파일(`source`)로 저장된다. openpyxl 이 경로 확장자를 보지 않아야 한다.
+    path = tmp_path / "source"
     workbook.save(path)
 
     assert fv.extract_document_text(path, "xlsx") == "abate\t줄이다\ncandid\t솔직한"
+
+
+def test_broken_xlsx_is_reported(tmp_path):
+    path = tmp_path / "source"
+    path.write_bytes(b"PK\x03\x04 not really a workbook")
+
+    with pytest.raises(fv.DocumentError) as excinfo:
+        fv.extract_document_text(path, "xlsx")
+    assert excinfo.value.detail == fv.BROKEN_FILE_DETAIL
 
 
 def test_pdf_text_is_extracted(tmp_path):

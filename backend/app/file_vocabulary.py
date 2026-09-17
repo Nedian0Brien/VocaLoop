@@ -187,19 +187,20 @@ def _extract_csv_text(path: Path) -> str:
 def _extract_xlsx_text(path: Path) -> str:
     # openpyxl 문서: load_workbook(read_only=True) 는 close() 를 직접 해야 한다.
     # https://openpyxl.readthedocs.io/en/stable/optimized.html
+    # 경로를 주면 확장자(.xlsx)를 검사하는데 임시 파일에는 확장자가 없다. 파일 객체로 연다.
     from openpyxl import load_workbook
 
     try:
-        workbook = load_workbook(filename=str(path), read_only=True, data_only=True)
+        with path.open("rb") as handle:
+            workbook = load_workbook(handle, read_only=True, data_only=True)
+            try:
+                sheets = [_rows_to_text(sheet.iter_rows(values_only=True)) for sheet in workbook]
+            finally:
+                workbook.close()
+    except OSError:
+        raise
     except Exception as exc:
         raise DocumentError(BROKEN_FILE_DETAIL) from exc
-
-    try:
-        sheets = [_rows_to_text(sheet.iter_rows(values_only=True)) for sheet in workbook]
-    except Exception as exc:
-        raise DocumentError(BROKEN_FILE_DETAIL) from exc
-    finally:
-        workbook.close()
 
     return "\n".join(sheet for sheet in sheets if sheet)
 
