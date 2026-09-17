@@ -8,8 +8,10 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import load_settings
 from .db import bootstrap_db
+from .routes.ai_conversations import fail_stale_pending_imports
 from .routes import (
     account_router,
+    ai_conversations_router,
     ai_router,
     auth_router,
     folders_router,
@@ -33,6 +35,8 @@ FRONTEND_HTML_CACHE_CONTROL = "no-cache"
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     bootstrap_db()
+    # 재시작 전에 돌던 파일 추출은 사라졌다. pending 으로 남기지 않는다.
+    fail_stale_pending_imports()
     yield
 
 
@@ -49,6 +53,7 @@ app.add_middleware(
 )
 app.mount("/uploads", StaticFiles(directory=settings.uploads_root), name="uploads")
 app.include_router(account_router)
+app.include_router(ai_conversations_router)
 app.include_router(ai_router)
 app.include_router(auth_router)
 app.include_router(folders_router)

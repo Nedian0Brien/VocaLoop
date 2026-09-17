@@ -1,6 +1,7 @@
 from .auth import router as auth_router
 from .account import router as account_router
 from .ai import router as ai_router
+from .ai_conversations import router as ai_conversations_router
 from .folders import router as folders_router
 from .settings import router as settings_router
 from .toefl import router as toefl_router
@@ -10,6 +11,7 @@ from .words import router as words_router
 
 __all__ = [
     "account_router",
+    "ai_conversations_router",
     "ai_router",
     "auth_router",
     "folders_router",

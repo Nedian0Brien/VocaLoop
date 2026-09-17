@@ -134,13 +134,7 @@ export function useVocabularyCommands({
       const targetFolderId = createTargetFolder
         ? await createTargetFolder()
         : folderId;
-      const {
-        assignedWords,
-        createdWords,
-        failedWords,
-        skippedWords,
-        processedWords,
-      } = await runBulkWordAdd({
+      const result = await runBulkWordAdd({
         activeAiConfig,
         createWord,
         existingWords: words,
@@ -152,6 +146,7 @@ export function useVocabularyCommands({
         updateWord,
         words: queuedWords,
       });
+      const { assignedWords, createdWords, failedWords, skippedWords } = result;
 
       if (failedWords.length > 0) {
         const message = `${createdWords.length + assignedWords.length}개 처리, ${failedWords.length}개 실패`;
@@ -159,7 +154,7 @@ export function useVocabularyCommands({
         if (createdWords.length + assignedWords.length === 0) {
           throw new Error(message);
         }
-        return processedWords;
+        return result;
       }
       const messageParts = [];
       if (createdWords.length > 0) messageParts.push(`${createdWords.length}개 저장`);
@@ -170,7 +165,8 @@ export function useVocabularyCommands({
           ? `${createdWords.length}개 단어를 저장했습니다.`
           : messageParts.join(', ') || '저장할 새 단어가 없습니다.'
       );
-      return processedWords;
+      // 호출자가 요약을 쓸 수 있게 결과 전체를 돌려준다 (AI 탭 카드가 쓴다).
+      return result;
     } catch (error) {
       console.error('Bulk Add Word Error:', error);
       showNotification('대량 추가 실패: ' + error.message, 'error');

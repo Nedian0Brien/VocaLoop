@@ -32,7 +32,7 @@ describe('Header mobile navigation', () => {
         expect(desktopNav.className).toContain('hidden');
         expect(desktopNav.className).toContain('md:flex');
 
-        const mobileLinks = ['Dashboard', 'Study', 'Review', 'Settings'].map((label) =>
+        const mobileLinks = ['Dashboard', 'Study', 'Review', 'AI'].map((label) =>
             within(mobileNav).getByRole('link', { name: label })
         );
         expect(mobileLinks).toHaveLength(4);
@@ -41,7 +41,7 @@ describe('Header mobile navigation', () => {
 
         fireEvent.click(mobileLinks[3]);
 
-        expect(setView).toHaveBeenCalledWith('settings');
+        expect(setView).toHaveBeenCalledWith('ai');
     });
 
     test('cycles light, dark, and system preference from a single header button', () => {
@@ -114,7 +114,7 @@ describe('Header mobile navigation', () => {
             dashboard: { left: 14, width: 90 },
             study: { left: 116, width: 120 },
             review: { left: 246, width: 150 },
-            settings: { left: 320, width: 76 },
+            ai: { left: 320, width: 76 },
         };
         vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
             callback();
@@ -137,7 +137,7 @@ describe('Header mobile navigation', () => {
             };
         });
 
-        render(<Header view="settings" setView={vi.fn()} user={user} onOpenSettings={vi.fn()} />);
+        render(<Header view="ai" setView={vi.fn()} user={user} onOpenSettings={vi.fn()} />);
 
         const indicator = screen.getByTestId('mobile-nav-indicator');
 

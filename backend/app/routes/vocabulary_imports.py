@@ -1,27 +1,24 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
-from ..ai_contract import get_default_model
 from ..auth import get_current_user
+from ..codex_cli import CodexError, run_codex_exec
 from ..config import load_settings
 from ..image_uploads import save_validated_image_upload
 from ..models import User
 from ..schemas import ScreenshotVocabularyImportResponse
-from .ai import DEFAULT_CODEX_TIMEOUT_SECONDS, _format_cli_error, _get_codex_timeout_seconds
 
 
 router = APIRouter(prefix="/api/vocabulary-imports", tags=["vocabulary-imports"])
 
-CODEX_PROVIDER = "codex"
 MAX_EXTRACTED_WORDS = 100
 ASCII_LETTER_PATTERN = re.compile(r"[A-Za-z]")
 
@@ -106,9 +103,6 @@ async def extract_screenshot_vocabulary(
 ) -> ScreenshotVocabularyImportResponse:
     del current_user
 
-    codex_bin = os.getenv("CODEX_BIN", "codex")
-    timeout_seconds = _get_codex_timeout_seconds()
-
     with tempfile.TemporaryDirectory(prefix="vocaloop-screenshot-import-") as codex_cwd:
         codex_cwd_path = Path(codex_cwd)
         image_path = codex_cwd_path / "source-image"
@@ -123,59 +117,15 @@ async def extract_screenshot_vocabulary(
         final_image_path = image_path.with_suffix(extension)
         image_path.rename(final_image_path)
 
-        output_path = codex_cwd_path / "last-message.txt"
-        command = [
-            codex_bin,
-            "exec",
-            "--json",
-            "--ephemeral",
-            "--skip-git-repo-check",
-            "--sandbox",
-            "read-only",
-            "--cd",
-            codex_cwd,
-            "--image",
-            str(final_image_path),
-            "-m",
-            get_default_model(CODEX_PROVIDER),
-            "--output-last-message",
-            str(output_path),
-            "-",
-        ]
-
         try:
-            result = subprocess.run(
-                command,
-                input=_build_screenshot_extraction_prompt(),
-                text=True,
-                capture_output=True,
-                timeout=timeout_seconds or DEFAULT_CODEX_TIMEOUT_SECONDS,
-                check=False,
-                cwd=codex_cwd,
-                env=os.environ.copy(),
+            # subprocess.run은 블로킹이라 스레드풀에서 돌린다. 이벤트 루프를 3분 막지 않는다.
+            text = await run_in_threadpool(
+                run_codex_exec,
+                _build_screenshot_extraction_prompt(),
+                image_path=final_image_path,
+                cwd=codex_cwd_path,
             )
-        except FileNotFoundError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Codex CLI is not installed or not available on PATH.",
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail=f"Codex CLI timed out after {timeout_seconds} seconds.",
-            ) from exc
-
-        if result.returncode != 0:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=_format_cli_error(result),
-            )
-
-        text = output_path.read_text(encoding="utf-8").strip() if output_path.exists() else ""
-        if not text:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Codex CLI completed without a final message.",
-            )
+        except CodexError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
         return _parse_extraction_output(text)

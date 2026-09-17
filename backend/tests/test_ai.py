@@ -27,7 +27,7 @@ def test_codex_generation_invokes_cli_with_spark_model(client, monkeypatch):
     )
     assert signup_response.status_code == 201
 
-    from app.routes import ai as ai_route
+    from app import codex_cli
 
     captured = {}
 
@@ -40,7 +40,7 @@ def test_codex_generation_invokes_cli_with_spark_model(client, monkeypatch):
         output_path.write_text('{"word":"cat"}', encoding="utf-8")
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(ai_route.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
     monkeypatch.setenv("CODEX_BIN", "/opt/codex/bin/codex")
 
     response = client.post(

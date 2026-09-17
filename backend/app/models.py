@@ -41,6 +41,7 @@ class User(Base):
     toefl_assets: Mapped[list[ToeflQuizAsset]] = relationship(back_populates="user", cascade="all, delete-orphan")
     toefl_attempts: Mapped[list[ToeflQuizAttempt]] = relationship(back_populates="user", cascade="all, delete-orphan")
     toefl_review_items: Mapped[list[ToeflReviewItem]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    ai_conversations: Mapped[list[AiConversation]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSettings(Base):
@@ -213,3 +214,56 @@ class ToeflReviewItem(Base):
     user: Mapped[User] = relationship(back_populates="toefl_review_items")
     asset: Mapped[ToeflQuizAsset] = relationship(back_populates="review_items")
     attempt: Mapped[ToeflQuizAttempt] = relationship(back_populates="review_items")
+
+
+class AiConversation(Base):
+    """VocaLoop AI 탭의 대화 하나. 메시지는 AiMessage."""
+
+    __tablename__ = "ai_conversations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="ai_conversations")
+    messages: Mapped[list[AiMessage]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="AiMessage.id",
+    )
+
+
+class AiMessage(Base):
+    """대화 안의 메시지. `kind`가 `file_import`면 `payload`에 추출 결과와 배치 저장 기록이 들어간다.
+
+    status: text 메시지는 항상 ready. file_import 는 pending → ready → done, 또는 failed.
+    """
+
+    __tablename__ = "ai_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("ai_conversations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False, default="text")
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    payload: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ready", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    conversation: Mapped[AiConversation] = relationship(back_populates="messages")

@@ -363,6 +363,12 @@ html[data-theme="dark"] select option {
     border-radius: var(--radius-xs);
 }
 
+/* 컨테이너가 포커스를 대신 보여 주는 입력(AI 탭 컴포저처럼 셸이 테두리로 표시)에 쓴다.
+ * 위 규칙은 레이어 밖에 있어 Tailwind 유틸리티(outline-none)로는 못 이긴다. */
+.focus-ring-none:focus-visible {
+    outline: none;
+}
+
 /* ==========================================================================
  * Card flip (WordCard 전용)
  * ========================================================================== */

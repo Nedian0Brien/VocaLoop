@@ -118,6 +118,10 @@ vi.mock('./components/AccountSettings', () => ({
     default: ({ variant }) => <div>account-settings:{variant}</div>,
 }));
 
+vi.mock('./components/ai/AiAssistantView', () => ({
+    default: ({ folders }) => <div>ai-assistant:{folders?.length ?? 0}</div>,
+}));
+
 vi.mock('./components/LearningRateDonut', () => ({
     default: () => <div>learning-rate-donut</div>,
 }));
@@ -208,6 +212,31 @@ describe('App backend session bootstrap', () => {
         expect(await screen.findByTestId('header')).toBeTruthy();
         expect(await screen.findByText('account-settings:page')).toBeTruthy();
         expect(screen.queryByText('Add New Word')).toBeNull();
+    });
+
+    test('renders the AI assistant at /ai with the loaded folders', async () => {
+        window.history.pushState({}, '', '/ai');
+        authApi.getCurrentUser.mockResolvedValue({
+            user: { id: 1, email: 'user@example.com', display_name: 'User' },
+        });
+        settingsApi.getSettings.mockResolvedValue({
+            displayName: 'User',
+            provider: 'codex',
+            model: 'gpt-5.3-codex-spark',
+            toeflTarget: null,
+            geminiApiKey: null,
+            openaiApiKey: null,
+            claudeApiKey: null,
+        });
+        wordApi.listWords.mockResolvedValue([]);
+        folderApi.listFolders.mockResolvedValue([{ id: 1, name: 'TOEFL', color: 'blue', icon: null, order: 0 }]);
+
+        render(<App />);
+
+        expect(await screen.findByTestId('header')).toBeTruthy();
+        expect(await screen.findByText('ai-assistant:1')).toBeTruthy();
+        expect(screen.queryByText('Add New Word')).toBeNull();
+        expect(screen.queryByText('account-settings:page')).toBeNull();
     });
 
     test('unauthenticated startup renders the login screen without legacy config', async () => {
@@ -900,6 +929,7 @@ describe('App backend session bootstrap', () => {
             expect(geminiService.generateBulkWordData).toHaveBeenCalledWith(
                 ['abate', 'candid'],
                 expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+                { glosses: {} },
             );
             expect(wordApi.createWord).toHaveBeenCalledTimes(2);
         });
@@ -988,6 +1018,7 @@ describe('App backend session bootstrap', () => {
             expect(geminiService.generateBulkWordData).toHaveBeenCalledWith(
                 ['candid'],
                 expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+                { glosses: {} },
             );
             expect(wordApi.createWord).toHaveBeenCalledTimes(1);
         });
@@ -1149,6 +1180,7 @@ describe('App backend session bootstrap', () => {
             expect(geminiService.generateWordData).toHaveBeenCalledWith(
                 'candid',
                 expect.objectContaining({ provider: 'gemini', apiKey: 'test-key' }),
+                { gloss: null },
             );
             expect(wordApi.createWord).toHaveBeenCalledTimes(3);
         });
