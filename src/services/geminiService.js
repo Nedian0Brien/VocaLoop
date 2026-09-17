@@ -44,13 +44,32 @@ const getBulkWordsFromResponse = (parsed, requestedWords) => {
     });
 };
 
-export const generateWordData = async (word, aiConfig) => {
+const buildGlossHint = (gloss) => {
+    const normalized = String(gloss || '').trim();
+    if (!normalized) return '';
+    return `
+    The learner's own Korean gloss for this word is "${normalized}".
+    Use it to choose the intended sense: definitions, examples, and synonyms must match that sense, and "meaning_ko" must agree with it.
+    `;
+};
+
+const buildGlossesHint = (glosses) => {
+    const entries = Object.entries(glosses || {}).filter(([, gloss]) => String(gloss || '').trim());
+    if (entries.length === 0) return '';
+    return `
+    The learner's own Korean glosses for some words are: ${JSON.stringify(Object.fromEntries(entries))}.
+    For those words, choose the sense that matches the gloss: definitions, examples, and synonyms must fit it, and "meaning_ko" must agree with it.
+    `;
+};
+
+export const generateWordData = async (word, aiConfig, { gloss = null } = {}) => {
     const prompt = `
     Analyze the English word '${word}'.
     Return a JSON object with the following structure (do not include markdown formatting, just raw JSON):
     ${buildWordSchema(word)}
 
     ${WORD_ANALYSIS_RULES}
+    ${buildGlossHint(gloss)}
     `;
 
     try {
@@ -67,7 +86,7 @@ export const generateWordData = async (word, aiConfig) => {
     }
 };
 
-export const generateBulkWordData = async (words, aiConfig) => {
+export const generateBulkWordData = async (words, aiConfig, { glosses = {} } = {}) => {
     const requestedWords = [...new Set(words.map((word) => String(word || '').trim()).filter(Boolean))];
     if (requestedWords.length === 0) return [];
 
@@ -78,6 +97,7 @@ export const generateBulkWordData = async (words, aiConfig) => {
     ${buildWordSchema('word from the input list')}
 
     ${WORD_ANALYSIS_RULES}
+    ${buildGlossesHint(glosses)}
     Do not skip words. Do not include markdown formatting.
     `;
 

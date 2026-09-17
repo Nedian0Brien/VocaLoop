@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { normalizeBulkWordQueue, runBulkWordAdd } from './bulkWordAddService';
+import { normalizeBulkWordEntries, normalizeBulkWordQueue, runBulkWordAdd } from './bulkWordAddService';
 
 const analysisFor = (word) => ({
   word,
@@ -82,7 +82,7 @@ describe('runBulkWordAdd', () => {
       words: ['apple'],
     });
 
-    expect(generateWordData).toHaveBeenCalledWith('apple', {});
+    expect(generateWordData).toHaveBeenCalledWith('apple', {}, { gloss: null });
     expect(createWord).toHaveBeenCalledTimes(2);
     expect(result.createdWords).toHaveLength(1);
     expect(createWord.mock.calls[1][0].folder_ids).toEqual([4]);
@@ -108,5 +108,67 @@ describe('runBulkWordAdd', () => {
     expect(result.createdWords.map((word) => word.word)).toEqual(['apple']);
     expect(result.failedWords).toHaveLength(1);
     expect(result.failedWords[0].word).toBe('banana');
+  });
+});
+
+describe('normalizeBulkWordEntries', () => {
+  test('keeps file glosses and fills a missing gloss from a later duplicate', () => {
+    expect(
+      normalizeBulkWordEntries([
+        { word: ' abate ', meaning_ko: ' 줄이다 ' },
+        'candid',
+        { word: 'Candid', meaning_ko: '솔직한' },
+        { word: 'ABATE', meaning_ko: '다른 뜻' },
+        { word: '', meaning_ko: '빈' },
+      ])
+    ).toEqual([
+      { word: 'abate', meaning_ko: '줄이다' },
+      { word: 'candid', meaning_ko: '솔직한' },
+    ]);
+  });
+});
+
+describe('runBulkWordAdd with file glosses', () => {
+  test('overrides meaning_ko with the file gloss and passes gloss hints to the analyzer', async () => {
+    const createWord = vi.fn(async (payload) => ({ id: payload.word, ...payload }));
+    const generateBulkWordData = vi.fn(async (words) => words.map(analysisFor));
+
+    const result = await runBulkWordAdd({
+      activeAiConfig: {},
+      createWord,
+      existingWords: [],
+      folderId: 2,
+      generateBulkWordData,
+      generateWordData: vi.fn(),
+      updateWord: vi.fn(),
+      words: [{ word: 'apple', meaning_ko: '사과' }, { word: 'banana', meaning_ko: null }],
+    });
+
+    expect(generateBulkWordData).toHaveBeenCalledWith(['apple', 'banana'], {}, { glosses: { apple: '사과' } });
+    expect(createWord.mock.calls[0][0].meaning_ko).toBe('사과');
+    expect(createWord.mock.calls[1][0].meaning_ko).toBe('banana 뜻');
+    expect(result.createdWords.map((word) => word.meaning_ko)).toEqual(['사과', 'banana 뜻']);
+  });
+
+  test('keeps the file gloss when a save is retried after a validation error', async () => {
+    const createWord = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error('validation failed'), { status: 422 }))
+      .mockImplementation(async (payload) => ({ id: 1, ...payload }));
+    const generateWordData = vi.fn(async (word) => analysisFor(word));
+
+    await runBulkWordAdd({
+      activeAiConfig: {},
+      createWord,
+      existingWords: [],
+      folderId: null,
+      generateBulkWordData: vi.fn(async (words) => words.map(analysisFor)),
+      generateWordData,
+      updateWord: vi.fn(),
+      words: [{ word: 'apple', meaning_ko: '사과' }],
+    });
+
+    expect(generateWordData).toHaveBeenCalledWith('apple', {}, { gloss: '사과' });
+    expect(createWord.mock.calls[1][0].meaning_ko).toBe('사과');
   });
 });
