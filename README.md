@@ -129,7 +129,7 @@ VOCALOOP_API_URL=http://localhost:3050 npm run ios:sync
 - 프로덕션 PM2 프로세스 이름은 `voca-loop`입니다.
 - 운영 포트는 `3050`이며, `ecosystem.config.cjs`에서 `CODEX_BIN`, `PIPER_*` 경로와 timeout 환경 변수를 설정합니다.
 - 이미지 단어 추출은 DB 저장 전에 사용자 검토 단계를 거치도록 설계되어 있습니다.
-- AI 탭의 파일 가져오기는 100MB 업로드를 받습니다. 운영 nginx의 `client_max_body_size`가 이보다 작으면 nginx가 먼저 거절하므로 배포 후 실제 업로드로 확인합니다.
+- AI 탭의 파일 가져오기는 100MB 업로드를 받습니다. 운영 nginx의 `vocaloop.lawdigest.kr` 블록에 `client_max_body_size 100m`, `proxy_read_timeout 300`이 들어 있습니다(2026-09-17 적용). 새 서버를 세우면 루트 `nginx.conf` 템플릿의 같은 두 줄을 넣습니다.
 
 ## 문서 작성 근거
 
