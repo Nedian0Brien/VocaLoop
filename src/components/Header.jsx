@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, Brain, InfinityIcon, Monitor, Moon, RotateCw, Settings, Sun } from './Icons';
+import { BookOpen, Brain, InfinityIcon, Monitor, Moon, RotateCw, Sparkles, Sun } from './Icons';
 import { getNextThemeMode } from '../hooks/useThemePreference';
 import {
     MOBILE_NAV_AUTO_HIDE_RESUME_GUARD_MS,
@@ -15,11 +15,12 @@ import {
  * NavLink 는 <a href> 로 구현 — 새 탭 열기 / 오른쪽 클릭 메뉴 지원.
  * setView(navigate) 를 onClick 에서 호출해 SPA 내비게이션도 함께 처리.
  */
+// Settings 는 네비에 없다. 헤더 오른쪽 계정 아이콘으로 들어간다.
 const NAV_LINKS = [
     { view: 'dashboard', href: '/',       label: 'Dashboard', Icon: BookOpen },
     { view: 'study',     href: '/study',  label: 'Study',     Icon: Brain    },
     { view: 'review',    href: '/review', label: 'Review',    Icon: RotateCw },
-    { view: 'settings',  href: '/settings', label: 'Settings', Icon: Settings },
+    { view: 'ai',        href: '/ai',     label: 'AI',        Icon: Sparkles },
 ];
 
 const THEME_MODE_META = {

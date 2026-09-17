@@ -42,8 +42,8 @@ date: 2026-09-17
 2. **파일 추출 모듈** — `file_vocabulary.py`와 단위 테스트(CSV utf-8/cp949, XLSX 시트 2개, 텍스트 PDF, 빈 PDF, 분할 경계, Codex JSON 정규화·중복·2,000개 상한). 확인: `pytest backend/tests/test_file_vocabulary.py`. 커밋 `feat:`.
 3. **대화 모델·API** — 모델, 스키마, 라우트, stale 정리, API 테스트(권한 분리, CRUD, 파일 없는 메시지 고정 답, 파일 메시지 pending→ready with fake Codex, failed 경로, 배치 PATCH→done, 확장자·크기 거절). 확인: `pytest backend/tests -q`. 커밋 `feat:`.
 4. **bulk add 확장** — `bulkWordAddService`·`geminiService`·`useVocabularyCommands`. 확인: `bulkWordAddService.test.js`에 뜻 보존·덮어쓰기 케이스 추가 후 통과. 커밋 `feat:`.
-5. **네비게이션** — `Header`, `App` 라우트, 테스트 갱신. 확인: `Header.test.jsx`, `App.test.jsx` 기준선 대비 회귀 없음. 커밋 `feat:`.
-6. **AI 화면** — `design-ops` 프로필로 측정값을 잡고 API 래퍼 → 훅 → 컴포넌트 순서. 훅 테스트(폴링 시작·중지, 배치 인덱스 계산, 취소가 남은 배치 전부 기록)와 카드 테스트(행 편집·삭제, 폴더 기본값, 저장 호출 인자). 확인: `npx vitest run src/components/ai src/hooks/useAiAssistant.test.js`, `npm run build`. 커밋 `feat:`.
+5. **네비게이션** — `Header`와 `Header.test.jsx`만. `App` 라우트는 화면이 생기는 6단계 커밋에 넣는다 — 이 커밋 시점에 `ai` 뷰가 빈 화면으로 남지 않게. 확인: `Header.test.jsx` 통과. 커밋 `feat:`.
+6. **AI 화면** — `App` 라우트(`/ai`)와 `App.test.jsx` 포함. `design-ops` 프로필로 측정값을 잡고 API 래퍼 → 훅 → 컴포넌트 순서. 훅 테스트(폴링 시작·중지, 배치 인덱스 계산, 취소가 남은 배치 전부 기록)와 카드 테스트(행 편집·삭제, 폴더 기본값, 저장 호출 인자). 확인: `npx vitest run src/components/ai src/hooks/useAiAssistant.test.js`, `npm run build`. 커밋 `feat:`.
 7. **로컬 통합 확인** — `npm run build` → `npm run start` → 브라우저에서 CSV/XLSX/PDF 각 1회, 250개 CSV로 두 번째 카드, 새로고침 유지, 스캔 PDF 실패 문구. 로컬 Codex CLI(`codex-cli 0.154`)를 실제로 쓴다.
 8. **문서·푸시** — README/AGENTS 갱신, PR 생성.
 
