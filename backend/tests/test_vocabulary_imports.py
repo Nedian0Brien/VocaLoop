@@ -45,7 +45,7 @@ def test_screenshot_extraction_rejects_non_image(client):
 def test_screenshot_extraction_invokes_codex_with_image_and_normalizes_words(client, monkeypatch):
     _signup(client, "screenshot-happy@example.com")
 
-    from app.routes import vocabulary_imports
+    from app import codex_cli
 
     captured = {}
 
@@ -63,7 +63,7 @@ def test_screenshot_extraction_invokes_codex_with_image_and_normalizes_words(cli
         )
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(vocabulary_imports.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
     monkeypatch.setenv("CODEX_BIN", "/opt/codex/bin/codex")
 
     response = client.post(
@@ -88,7 +88,7 @@ def test_screenshot_extraction_does_not_create_words_or_folders(client, monkeypa
 
     from app.db import SessionLocal
     from app.models import Folder, Word
-    from app.routes import vocabulary_imports
+    from app import codex_cli
 
     with SessionLocal() as session:
         before_word_count = session.query(Word).count()
@@ -99,7 +99,7 @@ def test_screenshot_extraction_does_not_create_words_or_folders(client, monkeypa
         output_path.write_text('{"words":["abate"],"suggested_folder_name":"TOEFL"}', encoding="utf-8")
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(vocabulary_imports.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
 
     response = client.post(
         "/api/vocabulary-imports/screenshot/extract",
@@ -115,14 +115,14 @@ def test_screenshot_extraction_does_not_create_words_or_folders(client, monkeypa
 def test_screenshot_extraction_rejects_empty_results(client, monkeypatch):
     _signup(client, "screenshot-empty@example.com")
 
-    from app.routes import vocabulary_imports
+    from app import codex_cli
 
     def fake_run(args, input, text, capture_output, timeout, check, cwd, env):  # noqa: A002
         output_path = Path(args[args.index("--output-last-message") + 1])
         output_path.write_text('{"words":["","123"],"suggested_folder_name":"   "}', encoding="utf-8")
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(vocabulary_imports.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
 
     response = client.post(
         "/api/vocabulary-imports/screenshot/extract",
@@ -136,14 +136,14 @@ def test_screenshot_extraction_rejects_empty_results(client, monkeypatch):
 def test_screenshot_extraction_rejects_invalid_codex_json(client, monkeypatch):
     _signup(client, "screenshot-invalid-json@example.com")
 
-    from app.routes import vocabulary_imports
+    from app import codex_cli
 
     def fake_run(args, input, text, capture_output, timeout, check, cwd, env):  # noqa: A002
         output_path = Path(args[args.index("--output-last-message") + 1])
         output_path.write_text("not json", encoding="utf-8")
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(vocabulary_imports.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
 
     response = client.post(
         "/api/vocabulary-imports/screenshot/extract",
@@ -157,12 +157,12 @@ def test_screenshot_extraction_rejects_invalid_codex_json(client, monkeypatch):
 def test_screenshot_extraction_reports_codex_timeout(client, monkeypatch):
     _signup(client, "screenshot-timeout@example.com")
 
-    from app.routes import vocabulary_imports
+    from app import codex_cli
 
     def fake_run(args, input, text, capture_output, timeout, check, cwd, env):  # noqa: A002
         raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
 
-    monkeypatch.setattr(vocabulary_imports.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_cli.subprocess, "run", fake_run)
 
     response = client.post(
         "/api/vocabulary-imports/screenshot/extract",
