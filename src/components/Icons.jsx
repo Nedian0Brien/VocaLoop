@@ -274,7 +274,17 @@ const Icons = {
     ),
     Monitor: (props) => (
         <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+    ),
+    // lucide "paperclip" / "send-horizontal" — AI 탭 컴포저
+    Paperclip: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    ),
+    Send: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>
+    ),
+    MessageSquare: (props) => (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     )
 };
 
-export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile, Zap, Play, Award, Layers, Hash, Clock, Sun, Moon, Monitor } = Icons;
+export const { Camera, BookOpen, Brain, Check, Plus, Loader2, Search, Volume2, RotateCw, Trash2, Infinity: InfinityIcon, FileText, Quote, ArrowRightLeft, Sparkles, LogOut, Mail, Lock, Eye, EyeOff, CheckCircle, XCircle, Edit3, X, AlertCircle, HelpCircle, Trophy, ArrowLeft, TrendingUp, Settings, Save, Folder, FolderPlus, ChevronRight, ChevronLeft, ChevronDown, MoreVertical, FolderOpen, User, Target, Download, AlertTriangle, BarChart3, Shield, Star, Heart, Smile, Zap, Play, Award, Layers, Hash, Clock, Sun, Moon, Monitor, Paperclip, Send, MessageSquare } = Icons;

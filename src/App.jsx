@@ -20,6 +20,7 @@ import { getDictionaryAutocompleteSuggestions } from './services/dictionaryAutoc
 import { wordBelongsToFolder } from './utils/appDataTransforms';
 
 const AccountSettings = React.lazy(() => import('./components/AccountSettings'));
+const AiAssistantView = React.lazy(() => import('./components/ai/AiAssistantView'));
 const QuizView = React.lazy(() => import('./components/QuizView'));
 const ToeflReviewView = React.lazy(() => import('./components/ToeflReviewView'));
 
@@ -44,8 +45,8 @@ const MAX_WORD_SUGGESTIONS = 5;
 const MIN_WORD_SUGGESTION_LENGTH = 2;
 
 // --- URL ↔ View 매핑 ---
-const PATH_TO_VIEW = { '/study': 'study', '/review': 'review', '/settings': 'settings', '/dashboard': 'dashboard' };
-const VIEW_TO_PATH = { study: '/study', review: '/review', settings: '/settings', dashboard: '/' };
+const PATH_TO_VIEW = { '/study': 'study', '/review': 'review', '/ai': 'ai', '/settings': 'settings', '/dashboard': 'dashboard' };
+const VIEW_TO_PATH = { study: '/study', review: '/review', ai: '/ai', settings: '/settings', dashboard: '/' };
 
 const getViewFromPath = () =>
     PATH_TO_VIEW[window.location.pathname] ?? 'dashboard';
@@ -427,6 +428,18 @@ function App() {
                 {view === 'review' && (
                     <Suspense fallback={<RouteFallback label="Loading review..." />}>
                         <ToeflReviewView onStartAssetReview={handleStartToeflAssetReview} />
+                    </Suspense>
+                )}
+                {view === 'ai' && (
+                    <Suspense fallback={<RouteFallback label="Loading VocaLoop AI..." />}>
+                        <AiAssistantView
+                            folders={folders}
+                            bulkAddProgress={bulkAddProgress}
+                            isBulkAdding={isBulkAdding}
+                            onBulkAddWords={handleBulkAddWordsWithFolder}
+                            onCreateFolder={handleCreateFolder}
+                            showNotification={showNotification}
+                        />
                     </Suspense>
                 )}
                 {view === 'settings' && (
