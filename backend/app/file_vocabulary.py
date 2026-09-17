@@ -97,9 +97,10 @@ async def save_validated_document_upload(
     file: UploadFile,
     destination: Path,
     *,
-    max_size: int = MAX_DOCUMENT_SIZE,
+    max_size: int | None = None,
 ) -> str:
     """업로드를 검증하며 디스크에 쓴다. 종류('pdf'|'csv'|'xlsx')를 돌려준다."""
+    max_size = max_size or MAX_DOCUMENT_SIZE
     first_chunk = await file.read(CHUNK_SIZE)
     try:
         kind = detect_document_kind(file.filename, first_chunk[:16])

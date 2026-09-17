@@ -1,4 +1,15 @@
-from .ai import AiGenerateResponse, CodexGenerateRequest, ScreenshotVocabularyImportResponse
+from .ai import (
+    AiConversationCreate,
+    AiConversationRead,
+    AiConversationUpdate,
+    AiGenerateResponse,
+    AiImportBatchResult,
+    AiImportSummary,
+    AiMessageRead,
+    AiMessageSendResponse,
+    CodexGenerateRequest,
+    ScreenshotVocabularyImportResponse,
+)
 from .auth import AccountDeleteRequest, AuthResponse, LoginRequest, SignupRequest, UserRead
 from .folders import FolderCreate, FolderRead, FolderReorderRequest, FolderUpdate
 from .settings import SettingsRead, SettingsUpdate
@@ -15,7 +26,14 @@ from .words import AcceptedAnswer, WordCreate, WordExample, WordRead, WordStats,
 __all__ = [
     "AcceptedAnswer",
     "AccountDeleteRequest",
+    "AiConversationCreate",
+    "AiConversationRead",
+    "AiConversationUpdate",
     "AiGenerateResponse",
+    "AiImportBatchResult",
+    "AiImportSummary",
+    "AiMessageRead",
+    "AiMessageSendResponse",
     "AuthResponse",
     "CodexGenerateRequest",
     "FolderCreate",
